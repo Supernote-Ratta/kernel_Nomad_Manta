@@ -271,6 +271,8 @@ static const unsigned int tcpm_cable[] = {
 
 #define GET_SINK_CAP_RETRY_MS	100
 #define SEND_NEW_MODE_NOTIFY_MS 20
+#define SEND_VDM_RETRY_MS	30
+#define SEND_VDM_RETRY_MAX	5
 
 struct pd_mode_data {
 	int svid_index;		/* current SVID index		*/
@@ -335,6 +337,7 @@ struct tcpm_port {
 	int try_role;
 	int try_snk_count;
 	int try_src_count;
+	int retry_vdm_count;
 
 	enum pd_msg_request queued_message;
 
@@ -1803,8 +1806,23 @@ static void vdm_run_state_machine(struct tcpm_port *port)
 			}
 
 			if (res < 0) {
+				if (res == -EAGAIN && port->retry_vdm_count < SEND_VDM_RETRY_MAX) {
+					port->retry_vdm_count++;
+					mod_vdm_delayed_work(port, SEND_VDM_RETRY_MS);
+					break;
+				} else {
+					dev_err(port->dev, "fail to retry send vdm\n");
+				}
+
 				port->vdm_sm_running = false;
 				return;
+			}
+
+			if (port->retry_vdm_count > 0) {
+				dev_warn(port->dev,
+					 "%s need to retry %d times",
+					 tcpm_ams_str[port->ams], port->retry_vdm_count);
+				port->retry_vdm_count = 0;
 			}
 		}
 
@@ -3700,6 +3718,7 @@ static void run_state_machine(struct tcpm_port *port)
 		port->hard_reset_count = 0;
 #endif
 		port->try_src_count = 0;
+		port->retry_vdm_count = 0;
 
 		tcpm_swap_complete(port, 0);
 		tcpm_typec_connect(port);
@@ -3933,6 +3952,7 @@ static void run_state_machine(struct tcpm_port *port)
 	case SNK_READY:
 		port->try_snk_count = 0;
 		port->update_sink_caps = false;
+		port->retry_vdm_count = 0;
 		if (port->explicit_contract) {
 			typec_set_pwr_opmode(port->typec_port,
 					     TYPEC_PWR_MODE_PD);
