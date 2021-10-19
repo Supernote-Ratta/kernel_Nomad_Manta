@@ -15,4 +15,14 @@ config I2C_HID
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-hid.
 
+config I2C_HID_WACOM_9013
+	tristate "HID over I2C transport layer OF WACOM 9013"
+	default n
+	depends on I2C && INPUT
+	select HID
+	---help---
+	  Say Y here if you use WACOM 9013 PENCIL HID devices which is connected to your computer via I2C.
+
+	  If unsure, say N.
+
 endmenu
