@@ -437,11 +437,8 @@ static int cyttsp5_hid_exec_cmd_(struct cyttsp5_core_data *cd, struct cyttsp5_hi
     u8 cmd_length;
     u8 cmd_offset = 0;
 
-    cmd_length = 2 /* command register */
-                 + 2    /* command */
-                 + (hid_cmd->report_id >= 0XF ? 1 : 0)   /* Report ID */
-                 + (hid_cmd->has_data_register ? 2 : 0)  /* Data register */
-                 + hid_cmd->write_length;                /* Data length */
+    /* command register + command + Report ID + Data register + Data length*/
+    cmd_length = 2 + 2 + (hid_cmd->report_id >= 0XF ? 1 : 0) + (hid_cmd->has_data_register ? 2 : 0) + hid_cmd->write_length;
 
     cmd = kzalloc(cmd_length, GFP_KERNEL);
     if (!cmd) {
@@ -1675,9 +1672,7 @@ static int cyttsp5_hid_output_read_conf_ver_(struct cyttsp5_core_data *cd, u16 *
     return 0;
 }
 
-static int cyttsp5_hid_output_write_conf_block_(struct cyttsp5_core_data *cd,
-        u16 row_number, u16 write_length, u8 ebid, u8 *write_buf,
-        u8 *security_key, u16 *actual_write_len)
+static int cyttsp5_hid_output_write_conf_block_(struct cyttsp5_core_data *cd, u16 row_number, u16 write_length, u8 ebid, u8 *write_buf, u8 *security_key, u16 *actual_write_len)
 {
     /* row_number + write_len + ebid + security_key + crc */
     int full_write_length = 2 + 2 + 1 + write_length + 8 + 2;
@@ -1738,21 +1733,17 @@ exit:
     return rc;
 }
 
-static int cyttsp5_hid_output_write_conf_block(struct cyttsp5_core_data *cd,
-        u16 row_number, u16 write_length, u8 ebid, u8 *write_buf,
-        u8 *security_key, u16 *actual_write_len)
+static int cyttsp5_hid_output_write_conf_block(struct cyttsp5_core_data *cd, u16 row_number, u16 write_length, u8 ebid, u8 *write_buf, u8 *security_key, u16 *actual_write_len)
 {
     int rc;
 
     rc = request_exclusive(cd, cd->dev, CY_REQUEST_EXCLUSIVE_TIMEOUT);
     if (rc < 0) {
-        dev_err(cd->dev, "%s: fail get exclusive ex=%p own=%p\n",
-                __func__, cd->exclusive_dev, cd->dev);
+        dev_err(cd->dev, "%s: fail get exclusive ex=%p own=%p\n", __func__, cd->exclusive_dev, cd->dev);
         return rc;
     }
 
-    rc = cyttsp5_hid_output_write_conf_block_(cd, row_number, write_length,
-            ebid, write_buf, security_key, actual_write_len);
+    rc = cyttsp5_hid_output_write_conf_block_(cd, row_number, write_length, ebid, write_buf, security_key, actual_write_len);
 
     if (release_exclusive(cd, cd->dev) < 0) {
         dev_err(cd->dev, "%s: fail to release exclusive\n", __func__);
@@ -1761,26 +1752,17 @@ static int cyttsp5_hid_output_write_conf_block(struct cyttsp5_core_data *cd,
     return rc;
 }
 
-static int _cyttsp5_request_hid_output_write_conf_block(struct device *dev,
-        int protect, u16 row_number, u16 write_length, u8 ebid,
-        u8 *write_buf, u8 *security_key, u16 *actual_write_len)
+static int _cyttsp5_request_hid_output_write_conf_block(struct device *dev, int protect, u16 row_number, u16 write_length, u8 ebid, u8 *write_buf, u8 *security_key, u16 *actual_write_len)
 {
     struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 
     if (protect)
-        return cyttsp5_hid_output_write_conf_block(cd, row_number,
-                write_length, ebid, write_buf, security_key,
-                actual_write_len);
+        return cyttsp5_hid_output_write_conf_block(cd, row_number, write_length, ebid, write_buf, security_key, actual_write_len);
 
-    return cyttsp5_hid_output_write_conf_block_(cd, row_number,
-            write_length, ebid, write_buf, security_key,
-            actual_write_len);
+    return cyttsp5_hid_output_write_conf_block_(cd, row_number, write_length, ebid, write_buf, security_key, actual_write_len);
 }
 
-static int cyttsp5_hid_output_get_data_structure_(
-    struct cyttsp5_core_data *cd, u16 read_offset, u16 read_length,
-    u8 data_id, u8 *status, u8 *data_format, u16 *actual_read_len,
-    u8 *data)
+static int cyttsp5_hid_output_get_data_structure_(struct cyttsp5_core_data *cd, u16 read_offset, u16 read_length, u8 data_id, u8 *status, u8 *data_format, u16 *actual_read_len, u8 *data)
 {
     int rc;
     u16 total_read_len = 0;
@@ -1843,23 +1825,17 @@ set_status:
     return rc;
 }
 
-static int cyttsp5_hid_output_get_data_structure(
-    struct cyttsp5_core_data *cd, u16 read_offset, u16 read_length,
-    u8 data_id, u8 *status, u8 *data_format, u16 *actual_read_len,
-    u8 *data)
+static int cyttsp5_hid_output_get_data_structure(struct cyttsp5_core_data *cd, u16 read_offset, u16 read_length, u8 data_id, u8 *status, u8 *data_format, u16 *actual_read_len, u8 *data)
 {
     int rc;
 
     rc = request_exclusive(cd, cd->dev, CY_REQUEST_EXCLUSIVE_TIMEOUT);
     if (rc < 0) {
-        dev_err(cd->dev, "%s: fail get exclusive ex=%p own=%p\n",
-                __func__, cd->exclusive_dev, cd->dev);
+        dev_err(cd->dev, "%s: fail get exclusive ex=%p own=%p\n", __func__, cd->exclusive_dev, cd->dev);
         return rc;
     }
 
-    rc = cyttsp5_hid_output_get_data_structure_(cd, read_offset,
-            read_length, data_id, status, data_format,
-            actual_read_len, data);
+    rc = cyttsp5_hid_output_get_data_structure_(cd, read_offset, read_length, data_id, status, data_format, actual_read_len, data);
 
     if (release_exclusive(cd, cd->dev) < 0) {
         dev_err(cd->dev, "%s: fail to release exclusive\n", __func__);
@@ -1868,20 +1844,14 @@ static int cyttsp5_hid_output_get_data_structure(
     return rc;
 }
 
-static int _cyttsp5_request_hid_output_get_data_structure(struct device *dev,
-        int protect, u16 read_offset, u16 read_length, u8 data_id,
-        u8 *status, u8 *data_format, u16 *actual_read_len, u8 *data)
+static int _cyttsp5_request_hid_output_get_data_structure(struct device *dev, int protect, u16 read_offset, u16 read_length, u8 data_id, u8 *status, u8 *data_format, u16 *actual_read_len, u8 *data)
 {
     struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 
     if (protect)
-        return cyttsp5_hid_output_get_data_structure(cd,
-                read_offset, read_length, data_id, status,
-                data_format, actual_read_len, data);
+        return cyttsp5_hid_output_get_data_structure(cd, read_offset, read_length, data_id, status,  data_format, actual_read_len, data);
 
-    return cyttsp5_hid_output_get_data_structure_(cd,
-            read_offset, read_length, data_id, status,
-            data_format, actual_read_len, data);
+    return cyttsp5_hid_output_get_data_structure_(cd, read_offset, read_length, data_id, status, data_format, actual_read_len, data);
 }
 
 static int cyttsp5_hid_output_run_selftest_(
@@ -3232,8 +3202,7 @@ static struct cyttsp5_hid_field *find_report_desc_field(
     return NULL;
 }
 
-static int fill_tch_abs(struct cyttsp5_tch_abs_params *tch_abs,
-                        struct cyttsp5_hid_field *field)
+static int fill_tch_abs(struct cyttsp5_tch_abs_params *tch_abs, struct cyttsp5_hid_field *field)
 {
     tch_abs->ofs = field->offset / 8;
     tch_abs->size = field->report_size / 8;
@@ -3247,8 +3216,7 @@ static int fill_tch_abs(struct cyttsp5_tch_abs_params *tch_abs,
     return 0;
 }
 
-static struct cyttsp5_hid_report *find_report_desc(struct cyttsp5_core_data *cd,
-        u32 usage_page)
+static struct cyttsp5_hid_report *find_report_desc(struct cyttsp5_core_data *cd, u32 usage_page)
 {
     struct cyttsp5_hid_report *report = NULL;
     int i;
@@ -6119,11 +6087,11 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev, u16 irq
     /* Probe registered modules */
     cyttsp5_probe_modules(cd);
 
-    //#ifdef CONFIG_HAS_EARLYSUSPEND
+//#ifdef CONFIG_HAS_EARLYSUSPEND
     //  cyttsp5_setup_early_suspend(cd);
-    //#elif defined(CONFIG_FB)
+//#elif defined(CONFIG_FB)
     //  cyttsp5_setup_fb_notifier(cd);
-    //#endif
+//#endif
 
 #if NEED_SUSPEND_NOTIFIER
     cd->pm_notifier.notifier_call = cyttsp5_pm_notifier;

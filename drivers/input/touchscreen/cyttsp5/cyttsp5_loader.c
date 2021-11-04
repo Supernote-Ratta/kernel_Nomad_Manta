@@ -41,7 +41,6 @@
 #define CYTTSP5_AUTO_LOAD_FOR_CORRUPTED_FW 1
 #define CYTTSP5_LOADER_FW_UPGRADE_RETRY_COUNT 3
 
-
 #if defined(CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_PLATFORM_FW_UPGRADE) || defined(CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_BINARY_FW_UPGRADE)
 #define CYTTSP5_FW_UPGRADE 1
 #else
@@ -601,6 +600,7 @@ static int upgrade_firmware_from_platform(struct device *dev, bool forced)
         upgrade = cyttsp5_check_firmware_version_platform(dev, fw);
     }
 
+    dev_info(dev, "%s: upgrade %d\n", __func__, upgrade);
     if (upgrade) {
         return cyttsp5_upgrade_firmware(dev, fw->img, fw->size);
     }
@@ -657,7 +657,6 @@ static int cyttsp5_check_firmware_version_builtin(struct device *dev, const stru
     fw_revctrl_new = get_unaligned_be32(fw->data + 9);
 
     upgrade = cyttsp5_check_firmware_version(dev, fw_ver_new, fw_revctrl_new);
-
     if (upgrade > 0) {
         return 1;
     }
@@ -681,7 +680,7 @@ static void _cyttsp5_firmware_cont_builtin(const struct firmware *fw, void *cont
         goto _cyttsp5_firmware_cont_builtin_exit;
     }
 
-    parade_debug(dev, DEBUG_LEVEL_1, "%s: Found firmware\n", __func__);
+    dev_info(dev, "%s: Found firmware\n", __func__);
 
     upgrade = cyttsp5_check_firmware_version_builtin(dev, fw);
     if (upgrade) {
@@ -746,7 +745,7 @@ static int upgrade_firmware_from_builtin(struct device *dev)
     char *filename;
     int retval;
 
-    parade_debug(dev, DEBUG_LEVEL_2, "%s: Enabling firmware class loader built-in\n", __func__);
+    dev_err(dev, "%s: Enabling firmware class loader built-in\n", __func__);
 
     filename = generate_firmware_filename(dev);
     if (!filename) {
@@ -1248,11 +1247,11 @@ static void cyttsp5_fw_and_config_upgrade(struct work_struct *fw_and_config_upgr
 #endif
 
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_PLATFORM_FW_UPGRADE
-    if (!upgrade_firmware_from_platform(dev, false)) {
+    if (!upgrade_firmware_from_platform(dev, true)) {
         return;
     }
 #endif
-
+    dev_err(dev, "%s: upgrade firmware from builtin\n", __func__); 
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_BINARY_FW_UPGRADE
     if (!upgrade_firmware_from_builtin(dev)) {
         return;
@@ -1390,6 +1389,7 @@ static int cyttsp5_loader_probe(struct device *dev, void **data)
 
 #ifdef UPGRADE_FW_AND_CONFIG_IN_PROBE
     /* Call FW and config upgrade directly in probe */
+    dev_info(dev, "%s: --------------------------------------\n", __func__);
     cyttsp5_fw_and_config_upgrade(&ld->fw_and_config_upgrade);
 #else
     INIT_WORK(&ld->fw_and_config_upgrade, cyttsp5_fw_and_config_upgrade);

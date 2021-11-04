@@ -242,9 +242,9 @@ static int cyttsp5_setup_input_device(struct device *dev)
     }
 
     rc = input_register_device(bd->input);
-    if (rc < 0)
+    if (rc < 0) {
         dev_err(dev, "%s: Error, failed register input device r=%d\n", __func__, rc);
-    else {
+    } else {
         bd->input_device_registered = true;
     }
 

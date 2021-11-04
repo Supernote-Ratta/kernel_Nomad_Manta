@@ -72,8 +72,8 @@
 //#define CYTTSP_WATCHDOG_DELAY_ENBALE
 
 /* #define EASYWAKE_TSG6 */
-//2018-12-19 ttconfig upgrade
-#define CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_PLATFORM_TTCONFIG_UPGRADE
+// platform upgrade
+#define CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_BINARY_FW_UPGRADE
 
 #define CY_FW_FILE_PREFIX   "cyttsp5_fw"
 #define CY_FW_FILE_SUFFIX   ".bin"
@@ -102,7 +102,7 @@ enum PARADE_DEBUG_LEVEL {
     DEBUG_LEVEL_NUM
 };
 
-#define CY_INITIAL_DEBUG_LEVEL 0
+#define CY_INITIAL_DEBUG_LEVEL 1
 #define CY_INITIAL_SHOW_TIME_STAMP 0
 
 /*
@@ -118,66 +118,66 @@ enum PARADE_DEBUG_LEVEL {
     } while (0)
 
 /* HID */
-#define HID_CYVENDOR        0xff010000
-#define CY_HID_VENDOR_ID    0x04B4
-#define CY_HID_BL_PRODUCT_ID    0xC100
-#define CY_HID_APP_PRODUCT_ID   0xC101
-#define CY_HID_VERSION      0x0100
-#define CY_HID_APP_REPORT_ID    0xF7
-#define CY_HID_BL_REPORT_ID 0xFF
+#define HID_CYVENDOR                        0xff010000
+#define CY_HID_VENDOR_ID                    0x04B4
+#define CY_HID_BL_PRODUCT_ID                0xC100
+#define CY_HID_APP_PRODUCT_ID               0xC101
+#define CY_HID_VERSION                      0x0100
+#define CY_HID_APP_REPORT_ID                0xF7
+#define CY_HID_BL_REPORT_ID                 0xFF
 
-#define HID_INVALID_REPORT_ID       0x0
-#define HID_TOUCH_REPORT_ID     0x1
-#define HID_BTN_REPORT_ID       0x3
-#define HID_WAKEUP_REPORT_ID        0x4
-#define HID_NOISE_METRIC_REPORT_ID  0x5
-#define HID_TRACKING_HEATMAP_REPOR_ID   0xE
-#define HID_SENSOR_DATA_REPORT_ID   0xF
-#define HID_APP_RESPONSE_REPORT_ID  0x1F
-#define HID_APP_OUTPUT_REPORT_ID    0x2F
-#define HID_BL_RESPONSE_REPORT_ID   0x30
-#define HID_BL_OUTPUT_REPORT_ID     0x40
-#define HID_RESPONSE_REPORT_ID      0xF0
+#define HID_INVALID_REPORT_ID               0x0
+#define HID_TOUCH_REPORT_ID                 0x1
+#define HID_BTN_REPORT_ID                   0x3
+#define HID_WAKEUP_REPORT_ID                0x4
+#define HID_NOISE_METRIC_REPORT_ID          0x5
+#define HID_TRACKING_HEATMAP_REPOR_ID       0xE
+#define HID_SENSOR_DATA_REPORT_ID           0xF
+#define HID_APP_RESPONSE_REPORT_ID          0x1F
+#define HID_APP_OUTPUT_REPORT_ID            0x2F
+#define HID_BL_RESPONSE_REPORT_ID           0x30
+#define HID_BL_OUTPUT_REPORT_ID             0x40
+#define HID_RESPONSE_REPORT_ID              0xF0
 
 #define HID_OUTPUT_RESPONSE_REPORT_OFFSET   2
 #define HID_OUTPUT_RESPONSE_CMD_OFFSET      4
 #define HID_OUTPUT_RESPONSE_CMD_MASK        0x7F
-#define HID_OUTPUT_CMD_OFFSET           6
-#define HID_OUTPUT_CMD_MASK         0x7F
+#define HID_OUTPUT_CMD_OFFSET               6
+#define HID_OUTPUT_CMD_MASK                 0x7F
 
-#define HID_SYSINFO_CYDATA_OFFSET   5
-#define HID_SYSINFO_SENSING_OFFSET  33
-#define HID_SYSINFO_BTN_OFFSET      48
-#define HID_SYSINFO_BTN_MASK        0xFF
-#define HID_SYSINFO_MAX_BTN     8
+#define HID_SYSINFO_CYDATA_OFFSET           5
+#define HID_SYSINFO_SENSING_OFFSET          33
+#define HID_SYSINFO_BTN_OFFSET              48
+#define HID_SYSINFO_BTN_MASK                0xFF
+#define HID_SYSINFO_MAX_BTN                 8
 
-#define HID_POWER_ON            0x0
-#define HID_POWER_SLEEP         0x1
-#define HID_LENGTH_BYTES        2
-#define HID_LENGTH_AND_REPORT_ID_BYTES  3
+#define HID_POWER_ON                        0x0
+#define HID_POWER_SLEEP                     0x1
+#define HID_LENGTH_BYTES                    2
+#define HID_LENGTH_AND_REPORT_ID_BYTES      3
 
 /*  Timeout in ms */
 #define CY_REQUEST_EXCLUSIVE_TIMEOUT        8000
-#define CY_WATCHDOG_TIMEOUT         1000
-#define CY_HID_RESET_TIMEOUT            5000
-#define CY_HID_AUTO_CALI_CPLT_TIMEOUT          2500
+#define CY_WATCHDOG_TIMEOUT                 1000
+#define CY_HID_RESET_TIMEOUT                5000
+#define CY_HID_AUTO_CALI_CPLT_TIMEOUT       2500
 /* HID_DESCRIPTOR_TIMEOUT value based on FW spec (CAL_OS) */
 #define CY_HID_GET_HID_DESCRIPTOR_TIMEOUT   4000
-#define CY_HID_GET_REPORT_DESCRIPTOR_TIMEOUT    500
-#define CY_HID_SET_POWER_TIMEOUT        500
+#define CY_HID_GET_REPORT_DESCRIPTOR_TIMEOUT 500
+#define CY_HID_SET_POWER_TIMEOUT            500
 #ifdef VERBOSE_DEBUG
-#define CY_HID_OUTPUT_TIMEOUT           2000
+#define CY_HID_OUTPUT_TIMEOUT               2000
 #else
-#define CY_HID_OUTPUT_TIMEOUT           200
+#define CY_HID_OUTPUT_TIMEOUT               200
 #endif
-#define CY_HID_OUTPUT_START_BOOTLOADER_TIMEOUT  2000
-#define CY_HID_OUTPUT_USER_TIMEOUT      8000
-#define CY_HID_OUTPUT_GET_SYSINFO_TIMEOUT   3000
-#define CY_HID_OUTPUT_CALIBRATE_IDAC_TIMEOUT    5000
-#define CY_HID_OUTPUT_WRITE_CONF_BLOCK_TIMEOUT  400
-#define CY_HID_OUTPUT_RUN_SELF_TEST_TIMEOUT 10000
-#define CY_HID_OUTPUT_BL_INITIATE_BL_TIMEOUT    20000
-#define CY_HID_OUTPUT_BL_PROGRAM_AND_VERIFY_TIMEOUT 400
+#define CY_HID_OUTPUT_START_BOOTLOADER_TIMEOUT        2000
+#define CY_HID_OUTPUT_USER_TIMEOUT                    8000
+#define CY_HID_OUTPUT_GET_SYSINFO_TIMEOUT             3000
+#define CY_HID_OUTPUT_CALIBRATE_IDAC_TIMEOUT          5000
+#define CY_HID_OUTPUT_WRITE_CONF_BLOCK_TIMEOUT        400
+#define CY_HID_OUTPUT_RUN_SELF_TEST_TIMEOUT           10000
+#define CY_HID_OUTPUT_BL_INITIATE_BL_TIMEOUT          20000
+#define CY_HID_OUTPUT_BL_PROGRAM_AND_VERIFY_TIMEOUT   400
 
 #define CY_WATCHDOG_RETRY_COUNT         60
 
@@ -197,15 +197,11 @@ enum PARADE_DEBUG_LEVEL {
 #define IS_TMO(t)                   ((t) == 0)
 #define HI_BYTE(x)                  (u8)(((x) >> 8) & 0xFF)
 #define LOW_BYTE(x)                 (u8)((x) & 0xFF)
-#define SET_CMD_LOW(byte, bits) \
-    ((byte) = (((byte) & 0xF0) | ((bits) & 0x0F)))
-#define SET_CMD_HIGH(byte, bits)\
-    ((byte) = (((byte) & 0x0F) | ((bits) & 0xF0)))
+#define SET_CMD_LOW(byte, bits)     ((byte) = (((byte) & 0xF0) | ((bits) & 0x0F)))
+#define SET_CMD_HIGH(byte, bits)    ((byte) = (((byte) & 0x0F) | ((bits) & 0xF0)))
 
-#define GET_MASK(length) \
-    ((1 << length) - 1)
-#define GET_FIELD(name, length, shift) \
-    ((name >> shift) & GET_MASK(length))
+#define GET_MASK(length)            ((1 << length) - 1)
+#define GET_FIELD(name, length, shift)    ((name >> shift) & GET_MASK(length))
 
 #define HID_ITEM_SIZE_MASK  0x03
 #define HID_ITEM_TYPE_MASK  0x0C
@@ -215,22 +211,13 @@ enum PARADE_DEBUG_LEVEL {
 #define HID_ITEM_TYPE_SHIFT 2
 #define HID_ITEM_TAG_SHIFT  4
 
-#define HID_GET_ITEM_SIZE(x)  \
-    ((x & HID_ITEM_SIZE_MASK) >> HID_ITEM_SIZE_SHIFT)
-#define HID_GET_ITEM_TYPE(x) \
-    ((x & HID_ITEM_TYPE_MASK) >> HID_ITEM_TYPE_SHIFT)
-#define HID_GET_ITEM_TAG(x) \
-    ((x & HID_ITEM_TAG_MASK) >> HID_ITEM_TAG_SHIFT)
+#define HID_GET_ITEM_SIZE(x)      ((x & HID_ITEM_SIZE_MASK) >> HID_ITEM_SIZE_SHIFT)
+#define HID_GET_ITEM_TYPE(x)      ((x & HID_ITEM_TYPE_MASK) >> HID_ITEM_TYPE_SHIFT)
+#define HID_GET_ITEM_TAG(x)       ((x & HID_ITEM_TAG_MASK) >> HID_ITEM_TAG_SHIFT)
 
-#define IS_DEEP_SLEEP_CONFIGURED(x) \
-        ((x) == 0 || (x) == 0xFF)
+#define IS_DEEP_SLEEP_CONFIGURED(x)         ((x) == 0 || (x) == 0xFF)
 
-#define IS_PIP_VER_GE(p, maj, min) \
-        ((p)->cydata.pip_ver_major < (maj) ? \
-            0 : \
-            ((p)->cydata.pip_ver_minor < (min) ? \
-                0 : \
-                1))
+#define IS_PIP_VER_GE(p, maj, min) ((p)->cydata.pip_ver_major < (maj) ? 0 : ((p)->cydata.pip_ver_minor < (min) ? 0 : 1))
 
 /* drv_debug commands */
 #define CY_DBG_SUSPEND                  4
@@ -270,32 +257,32 @@ enum PARADE_DEBUG_LEVEL {
 #undef HID_DI_CONTACTCOUNT
 #undef HID_DI_SCANTIME
 #define HID_DI_PRESSURE     0x000d0030
-#define HID_DI_TIP      0x000d0042
+#define HID_DI_TIP          0x000d0042
 #define HID_DI_CONTACTID    0x000d0051
 #define HID_DI_CONTACTCOUNT 0x000d0054
 #define HID_DI_SCANTIME     0x000d0056
 
 /* Parade vendor specific usages */
-#define HID_CY_UNDEFINED    0xff010000
-#define HID_CY_BOOTLOADER   0xff010001
-#define HID_CY_TOUCHAPPLICATION 0xff010002
-#define HID_CY_BUTTONS      0xff010020
-#define HID_CY_GENERICITEM  0xff010030
-#define HID_CY_LARGEOBJECT  0xff010040
-#define HID_CY_NOISEEFFECTS 0xff010041
-#define HID_CY_REPORTCOUNTER    0xff010042
-#define HID_CY_TOUCHTYPE    0xff010060
-#define HID_CY_EVENTID      0xff010061
-#define HID_CY_MAJORAXISLENGTH  0xff010062
-#define HID_CY_MINORAXISLENGTH  0xff010063
-#define HID_CY_ORIENTATION  0xff010064
-#define HID_CY_BUTTONSIGNAL 0xff010065
+#define HID_CY_UNDEFINED             0xff010000
+#define HID_CY_BOOTLOADER            0xff010001
+#define HID_CY_TOUCHAPPLICATION      0xff010002
+#define HID_CY_BUTTONS               0xff010020
+#define HID_CY_GENERICITEM           0xff010030
+#define HID_CY_LARGEOBJECT           0xff010040
+#define HID_CY_NOISEEFFECTS          0xff010041
+#define HID_CY_REPORTCOUNTER         0xff010042
+#define HID_CY_TOUCHTYPE             0xff010060
+#define HID_CY_EVENTID               0xff010061
+#define HID_CY_MAJORAXISLENGTH       0xff010062
+#define HID_CY_MINORAXISLENGTH       0xff010063
+#define HID_CY_ORIENTATION           0xff010064
+#define HID_CY_BUTTONSIGNAL          0xff010065
 #define HID_CY_MAJOR_CONTACT_AXIS_LENGTH    0xff010066
 #define HID_CY_MINOR_CONTACT_AXIS_LENGTH    0xff010067
-#define HID_CY_TCH_COL_USAGE_PG 0x000D0022
-#define HID_CY_BTN_COL_USAGE_PG 0xFF010020
+#define HID_CY_TCH_COL_USAGE_PG      0x000D0022
+#define HID_CY_BTN_COL_USAGE_PG      0xFF010020
 
-#define PANEL_ID_NOT_ENABLED    0xFF
+#define PANEL_ID_NOT_ENABLED         0xFF
 
 #ifdef EASYWAKE_TSG6
 #define GESTURE_DOUBLE_TAP         (1)
@@ -309,10 +296,10 @@ enum PARADE_DEBUG_LEVEL {
 #endif
 
 /* FW RAM parameters */
-#define CY_RAM_ID_TOUCHMODE_ENABLED 0x02
-#define CY_RAM_ID_PROXIMITY_ENABLE  0x20
+#define CY_RAM_ID_TOUCHMODE_ENABLED         0x02
+#define CY_RAM_ID_PROXIMITY_ENABLE          0x20
 #define CY_RAM_ID_TOUCHMODE_ENABLED_SIZE    1
-#define CY_RAM_ID_PROXIMITY_ENABLE_SIZE 1
+#define CY_RAM_ID_PROXIMITY_ENABLE_SIZE     1
 
 /* abs signal capabilities offsets in the frameworks array */
 enum cyttsp5_sig_caps {
@@ -325,15 +312,13 @@ enum cyttsp5_sig_caps {
 };
 
 /* helpers */
-#define NUM_SIGNALS(frmwrk)     ((frmwrk)->size / CY_NUM_ABS_SET)
-#define PARAM(frmwrk, sig_ost, cap_ost) \
-        ((frmwrk)->abs[((sig_ost) * CY_NUM_ABS_SET) + (cap_ost)])
-
-#define PARAM_SIGNAL(frmwrk, sig_ost)   PARAM(frmwrk, sig_ost, CY_SIGNAL_OST)
-#define PARAM_MIN(frmwrk, sig_ost)  PARAM(frmwrk, sig_ost, CY_MIN_OST)
-#define PARAM_MAX(frmwrk, sig_ost)  PARAM(frmwrk, sig_ost, CY_MAX_OST)
-#define PARAM_FUZZ(frmwrk, sig_ost) PARAM(frmwrk, sig_ost, CY_FUZZ_OST)
-#define PARAM_FLAT(frmwrk, sig_ost) PARAM(frmwrk, sig_ost, CY_FLAT_OST)
+#define NUM_SIGNALS(frmwrk)                ((frmwrk)->size / CY_NUM_ABS_SET)
+#define PARAM(frmwrk, sig_ost, cap_ost)    ((frmwrk)->abs[((sig_ost) * CY_NUM_ABS_SET) + (cap_ost)])
+#define PARAM_SIGNAL(frmwrk, sig_ost)      PARAM(frmwrk, sig_ost, CY_SIGNAL_OST)
+#define PARAM_MIN(frmwrk, sig_ost)         PARAM(frmwrk, sig_ost, CY_MIN_OST)
+#define PARAM_MAX(frmwrk, sig_ost)         PARAM(frmwrk, sig_ost, CY_MAX_OST)
+#define PARAM_FUZZ(frmwrk, sig_ost)        PARAM(frmwrk, sig_ost, CY_FUZZ_OST)
+#define PARAM_FLAT(frmwrk, sig_ost)        PARAM(frmwrk, sig_ost, CY_FLAT_OST)
 
 /* abs axis signal offsets in the framworks array  */
 enum cyttsp5_sig_ost {
@@ -588,47 +573,47 @@ enum cyttsp5_tch_hdr {
 };
 
 static const char *const cyttsp5_tch_abs_string[] = {
-    [CY_TCH_X]  = "X",
-    [CY_TCH_Y]  = "Y",
-    [CY_TCH_P]  = "P",
-    [CY_TCH_T]  = "T",
-    [CY_TCH_E]  = "E",
-    [CY_TCH_O]  = "O",
-    [CY_TCH_TIP]    = "TIP",
-    [CY_TCH_MAJ]    = "MAJ",
-    [CY_TCH_MIN]    = "MIN",
+    [CY_TCH_X] = "X",
+    [CY_TCH_Y] = "Y",
+    [CY_TCH_P] = "P",
+    [CY_TCH_T] = "T",
+    [CY_TCH_E] = "E",
+    [CY_TCH_O] = "O",
+    [CY_TCH_TIP] = "TIP",
+    [CY_TCH_MAJ] = "MAJ",
+    [CY_TCH_MIN] = "MIN",
     [CY_TCH_OR] = "OR",
     [CY_TCH_NUM_ABS] = "INVALID",
 };
 
 static const char *const cyttsp5_tch_hdr_string[] = {
-    [CY_TCH_TIME]   = "SCAN TIME",
-    [CY_TCH_NUM]    = "NUMBER OF RECORDS",
+    [CY_TCH_TIME] = "SCAN TIME",
+    [CY_TCH_NUM] = "NUMBER OF RECORDS",
     [CY_TCH_LO] = "LARGE OBJECT",
-    [CY_TCH_NOISE]  = "NOISE EFFECT",
+    [CY_TCH_NOISE] = "NOISE EFFECT",
     [CY_TCH_COUNTER] = "REPORT_COUNTER",
     [CY_TCH_NUM_HDR] = "INVALID",
 };
 
 static const int cyttsp5_tch_abs_field_map[] = {
-    [CY_TCH_X]  = 0x00010030 /* HID_GD_X */,
-    [CY_TCH_Y]  = 0x00010031 /* HID_GD_Y */,
-    [CY_TCH_P]  = HID_DI_PRESSURE,
-    [CY_TCH_T]  = HID_DI_CONTACTID,
-    [CY_TCH_E]  = HID_CY_EVENTID,
-    [CY_TCH_O]  = HID_CY_TOUCHTYPE,
-    [CY_TCH_TIP]    = HID_DI_TIP,
-    [CY_TCH_MAJ]    = HID_CY_MAJORAXISLENGTH,
-    [CY_TCH_MIN]    = HID_CY_MINORAXISLENGTH,
+    [CY_TCH_X] = 0x00010030 /* HID_GD_X */,
+    [CY_TCH_Y] = 0x00010031 /* HID_GD_Y */,
+    [CY_TCH_P] = HID_DI_PRESSURE,
+    [CY_TCH_T] = HID_DI_CONTACTID,
+    [CY_TCH_E] = HID_CY_EVENTID,
+    [CY_TCH_O] = HID_CY_TOUCHTYPE,
+    [CY_TCH_TIP] = HID_DI_TIP,
+    [CY_TCH_MAJ] = HID_CY_MAJORAXISLENGTH,
+    [CY_TCH_MIN] = HID_CY_MINORAXISLENGTH,
     [CY_TCH_OR] = HID_CY_ORIENTATION,
     [CY_TCH_NUM_ABS] = 0,
 };
 
 static const int cyttsp5_tch_hdr_field_map[] = {
-    [CY_TCH_TIME]   = HID_DI_SCANTIME,
-    [CY_TCH_NUM]    = HID_DI_CONTACTCOUNT,
+    [CY_TCH_TIME] = HID_DI_SCANTIME,
+    [CY_TCH_NUM] = HID_DI_CONTACTCOUNT,
     [CY_TCH_LO] = HID_CY_LARGEOBJECT,
-    [CY_TCH_NOISE]  = HID_CY_NOISEEFFECTS,
+    [CY_TCH_NOISE] = HID_CY_NOISEEFFECTS,
     [CY_TCH_COUNTER] = HID_CY_REPORTCOUNTER,
     [CY_TCH_NUM_HDR] = 0,
 };
@@ -760,13 +745,12 @@ struct cyttsp5_hid_core {
     u16 hid_max_output_len;
 };
 
-#define CY_HID_MAX_REPORTS      8
-#define CY_HID_MAX_FIELDS       128
-#define CY_HID_MAX_COLLECTIONS      3
+#define CY_HID_MAX_REPORTS              8
+#define CY_HID_MAX_FIELDS               128
+#define CY_HID_MAX_COLLECTIONS          3
 #define CY_HID_MAX_NESTED_COLLECTIONS   CY_HID_MAX_COLLECTIONS
-
-#define CY_MAX_INPUT        512
-#define CY_PIP_1P7_EMPTY_BUF    0xFF00
+#define CY_MAX_INPUT                    512
+#define CY_PIP_1P7_EMPTY_BUF            0xFF00
 
 enum cyttsp5_module_id {
     CY_MODULE_MT,

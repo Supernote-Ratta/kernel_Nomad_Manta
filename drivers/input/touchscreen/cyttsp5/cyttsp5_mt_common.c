@@ -36,14 +36,6 @@
 #define MT_PARAM_FUZZ(md, sig_ost) PARAM_FUZZ(md->pdata->frmwrk, sig_ost)
 #define MT_PARAM_FLAT(md, sig_ost) PARAM_FLAT(md->pdata->frmwrk, sig_ost)
 
-//static int screen_max_x       = 1600;//1872;
-//static int screen_max_y       = 1200;//1404;
-//static int screen_max_x       = 1872;
-//static int screen_max_y       = 1404;
-//static int revert_x_flag      = 0;
-//static int revert_y_flag      = 0;
-//static int exchange_x_y_flag  = 0;
-
 static void cyttsp5_mt_lift_all(struct cyttsp5_mt_data *md)
 {
     int max = md->si->tch_abs[CY_TCH_T].max;
@@ -57,31 +49,23 @@ static void cyttsp5_mt_lift_all(struct cyttsp5_mt_data *md)
     }
 }
 
-static void cyttsp5_get_touch_axis(struct cyttsp5_mt_data *md,
-                                   int *axis, int size, int max, u8 *xy_data, int bofs)
+static void cyttsp5_get_touch_axis(struct cyttsp5_mt_data *md, int *axis, int size, int max, u8 *xy_data, int bofs)
 {
     int nbyte;
     int next;
 
     for (nbyte = 0, *axis = 0, next = 0; nbyte < size; nbyte++) {
-        parade_debug(md->dev, DEBUG_LEVEL_2,
-                     "%s: *axis=%02X(%d) size=%d max=%08X xy_data=%p xy_data[%d]=%02X(%d) bofs=%d\n",
-                     __func__, *axis, *axis, size, max, xy_data, next,
-                     xy_data[next], xy_data[next], bofs);
+        parade_debug(md->dev, DEBUG_LEVEL_2, "%s: *axis=%02X(%d) size=%d max=%08X xy_data=%p xy_data[%d]=%02X(%d) bofs=%d\n", __func__, *axis, *axis, size, max, xy_data, next, xy_data[next], xy_data[next], bofs);
         *axis = *axis + ((xy_data[next] >> bofs) << (nbyte * 8));
         next++;
     }
 
     *axis &= max - 1;
 
-    parade_debug(md->dev, DEBUG_LEVEL_2,
-                 "%s: *axis=%02X(%d) size=%d max=%08X xy_data=%p xy_data[%d]=%02X(%d)\n",
-                 __func__, *axis, *axis, size, max, xy_data, next,
-                 xy_data[next], xy_data[next]);
+    parade_debug(md->dev, DEBUG_LEVEL_2, "%s: *axis=%02X(%d) size=%d max=%08X xy_data=%p xy_data[%d]=%02X(%d)\n", __func__, *axis, *axis, size, max, xy_data, next, xy_data[next], xy_data[next]);
 }
 
-static void cyttsp5_get_touch_hdr(struct cyttsp5_mt_data *md,
-                                  struct cyttsp5_touch *touch, u8 *xy_mode)
+static void cyttsp5_get_touch_hdr(struct cyttsp5_mt_data *md, struct cyttsp5_touch *touch, u8 *xy_mode)
 {
     struct device *dev = md->dev;
     struct cyttsp5_sysinfo *si = md->si;
@@ -91,28 +75,14 @@ static void cyttsp5_get_touch_hdr(struct cyttsp5_mt_data *md,
         if (!si->tch_hdr[hdr].report) {
             continue;
         }
-        cyttsp5_get_touch_axis(md, &touch->hdr[hdr],
-                               si->tch_hdr[hdr].size,
-                               si->tch_hdr[hdr].max,
-                               xy_mode + si->tch_hdr[hdr].ofs,
-                               si->tch_hdr[hdr].bofs);
-        parade_debug(dev, DEBUG_LEVEL_2, "%s: get %s=%04X(%d)\n",
-                     __func__, cyttsp5_tch_hdr_string[hdr],
-                     touch->hdr[hdr], touch->hdr[hdr]);
+        cyttsp5_get_touch_axis(md, &touch->hdr[hdr], si->tch_hdr[hdr].size, si->tch_hdr[hdr].max, xy_mode + si->tch_hdr[hdr].ofs, si->tch_hdr[hdr].bofs);
+        parade_debug(dev, DEBUG_LEVEL_2, "%s: get %s=%04X(%d)\n", __func__, cyttsp5_tch_hdr_string[hdr], touch->hdr[hdr], touch->hdr[hdr]);
     }
 
-    parade_debug(dev, DEBUG_LEVEL_1,
-                 "%s: time=%X tch_num=%d lo=%d noise=%d counter=%d\n",
-                 __func__,
-                 touch->hdr[CY_TCH_TIME],
-                 touch->hdr[CY_TCH_NUM],
-                 touch->hdr[CY_TCH_LO],
-                 touch->hdr[CY_TCH_NOISE],
-                 touch->hdr[CY_TCH_COUNTER]);
+    parade_debug(dev, DEBUG_LEVEL_1, "%s: time=%X tch_num=%d lo=%d noise=%d counter=%d\n", __func__, touch->hdr[CY_TCH_TIME], touch->hdr[CY_TCH_NUM], touch->hdr[CY_TCH_LO], touch->hdr[CY_TCH_NOISE], touch->hdr[CY_TCH_COUNTER]);
 }
 
-static void cyttsp5_get_touch_record(struct cyttsp5_mt_data *md,
-                                     struct cyttsp5_touch *touch, u8 *xy_data)
+static void cyttsp5_get_touch_record(struct cyttsp5_mt_data *md, struct cyttsp5_touch *touch, u8 *xy_data)
 {
     struct device *dev = md->dev;
     struct cyttsp5_sysinfo *si = md->si;
@@ -122,14 +92,8 @@ static void cyttsp5_get_touch_record(struct cyttsp5_mt_data *md,
         if (!si->tch_abs[abs].report) {
             continue;
         }
-        cyttsp5_get_touch_axis(md, &touch->abs[abs],
-                               si->tch_abs[abs].size,
-                               si->tch_abs[abs].max,
-                               xy_data + si->tch_abs[abs].ofs,
-                               si->tch_abs[abs].bofs);
-        parade_debug(dev, DEBUG_LEVEL_2, "%s: get %s=%04X(%d)\n",
-                     __func__, cyttsp5_tch_abs_string[abs],
-                     touch->abs[abs], touch->abs[abs]);
+        cyttsp5_get_touch_axis(md, &touch->abs[abs], si->tch_abs[abs].size, si->tch_abs[abs].max, xy_data + si->tch_abs[abs].ofs, si->tch_abs[abs].bofs);
+        parade_debug(dev, DEBUG_LEVEL_2, "%s: get %s=%04X(%d)\n", __func__, cyttsp5_tch_abs_string[abs], touch->abs[abs], touch->abs[abs]);
     }
 }
 
@@ -180,53 +144,15 @@ static void cyttsp5_mt_process_touch(struct cyttsp5_mt_data *md, struct cyttsp5_
     tmp = touch->abs[CY_TCH_MIN] * 100 * si->sensing_conf_data.res_x;
     touch->abs[CY_TCH_MIN] = tmp / si->sensing_conf_data.len_x;
 
-    parade_debug(dev, DEBUG_LEVEL_2, "%s: flip=%s inv-x=%s inv-y=%s x=%04X(%d) y=%04X(%d)\n",
-                 __func__, flipped ? "true" : "false",
-                 md->pdata->flags & CY_MT_FLAG_INV_X ? "true" : "false",
-                 md->pdata->flags & CY_MT_FLAG_INV_Y ? "true" : "false",
-                 touch->abs[CY_TCH_X], touch->abs[CY_TCH_X],
-                 touch->abs[CY_TCH_Y], touch->abs[CY_TCH_Y]);
+    parade_debug(dev, DEBUG_LEVEL_2, "%s: flip=%s inv-x=%s inv-y=%s x=%04X(%d) y=%04X(%d)\n", __func__, flipped ? "true" : "false", md->pdata->flags & CY_MT_FLAG_INV_X ? "true" : "false", md->pdata->flags & CY_MT_FLAG_INV_Y ? "true" : "false", touch->abs[CY_TCH_X], touch->abs[CY_TCH_X], touch->abs[CY_TCH_Y], touch->abs[CY_TCH_Y]);
 }
 
 static void cyttsp5_report_event(struct cyttsp5_mt_data *md, int event, int value)
 {
     int sig = MT_PARAM_SIGNAL(md, event);
 
-    if (sig == ABS_MT_POSITION_X || sig == ABS_MT_POSITION_Y) {
-        //printk("******cyttsp5_report_event sig=0x%x,%x,%x, value=%d\n", sig, ABS_MT_POSITION_X, ABS_MT_POSITION_Y, value);
-        //printk("******cyttsp5_report_event x=%d, y=%d,z=%d\n", revert_x_flag,
-        //revert_y_flag, exchange_x_y_flag);
-#if 0
-        if (exchange_x_y_flag ) {
-            if (sig == ABS_MT_POSITION_X) {
-                sig = ABS_MT_POSITION_Y;
-                if (value > screen_max_y) {
-                    value = screen_max_y;
-                }
-            } else {
-                sig = ABS_MT_POSITION_X;
-                if (value > screen_max_x) {
-                    value = screen_max_x;
-                }
-            }
-        }
-
-        if (revert_x_flag && sig == ABS_MT_POSITION_X) {
-            value = screen_max_x - value;
-        }
-
-        if (revert_y_flag && sig == ABS_MT_POSITION_Y) {
-            value = screen_max_y - value;
-        }
-        //printk("******cyttsp5_report_event 111 [%s], value=%d\n",
-        //      sig == ABS_MT_POSITION_X ? "x" : "y", value);
-#endif
-    }
-
-    if (sig != CY_IGNORE_VALUE) {
-        input_report_abs(md->input, sig, value);
-    }
-
+	if (sig != CY_IGNORE_VALUE)
+		input_report_abs(md->input, sig, value);
 }
 
 static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md, struct cyttsp5_touch *tch, int num_cur_tch)
@@ -293,7 +219,6 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md, struct cyttsp5_to
             cyttsp5_report_event(md, CY_ABS_D_OST, 0);
         }
 
-
         /* all devices: position and pressure fields */
         for (j = 0; j <= CY_ABS_W_OST; j++) {
             if (!si->tch_abs[j].report) {
@@ -317,18 +242,7 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md, struct cyttsp5_to
         //mt_sync_count);
 
 cyttsp5_get_mt_touches_pr_tch:
-        parade_debug(dev, DEBUG_LEVEL_1,
-                     "%s: t=%d x=%d y=%d z=%d M=%d m=%d o=%d e=%d obj=%d tip=%d\n",
-                     __func__, t,
-                     tch->abs[CY_TCH_X],
-                     tch->abs[CY_TCH_Y],
-                     tch->abs[CY_TCH_P],
-                     tch->abs[CY_TCH_MAJ],
-                     tch->abs[CY_TCH_MIN],
-                     tch->abs[CY_TCH_OR],
-                     tch->abs[CY_TCH_E],
-                     tch->abs[CY_TCH_O],
-                     tch->abs[CY_TCH_TIP]);
+        parade_debug(dev, DEBUG_LEVEL_1, "%s: t=%d x=%d y=%d z=%d M=%d m=%d o=%d e=%d obj=%d tip=%d\n", __func__, t, tch->abs[CY_TCH_X], tch->abs[CY_TCH_Y], tch->abs[CY_TCH_P], tch->abs[CY_TCH_MAJ], tch->abs[CY_TCH_MIN], tch->abs[CY_TCH_OR], tch->abs[CY_TCH_E], tch->abs[CY_TCH_O], tch->abs[CY_TCH_TIP]);
     }
 
     if (md->mt_function.final_sync) {
@@ -625,11 +539,6 @@ static int cyttsp5_setup_input_device(struct device *dev)
             } else if (i == CY_ABS_P_OST) {
                 max = max_p;
             }
-            /*change x-y max value*/
-            //if(signal == ABS_MT_POSITION_X)
-            //  max = screen_max_x;
-            //if(signal == ABS_MT_POSITION_Y)
-            //  max = screen_max_y;
 
             input_set_abs_params(md->input, signal, min, max, MT_PARAM_FUZZ(md, i), MT_PARAM_FLAT(md, i));
             parade_debug(dev, DEBUG_LEVEL_1, "%s: register signal=%02X min=%d max=%d\n", __func__, signal, min, max);
@@ -642,8 +551,7 @@ static int cyttsp5_setup_input_device(struct device *dev)
     md->t_min = MT_PARAM_MIN(md, CY_ABS_ID_OST);
     md->t_max = MT_PARAM_MAX(md, CY_ABS_ID_OST);
 
-    rc = md->mt_function.input_register_device(md->input,
-            md->si->tch_abs[CY_TCH_T].max);
+    rc = md->mt_function.input_register_device(md->input, md->si->tch_abs[CY_TCH_T].max);
     if (rc < 0) {
         dev_err(dev, "%s: Error, failed register input device r=%d\n", __func__, rc);
     } else {
@@ -690,25 +598,14 @@ int cyttsp5_mt_probe(struct device *dev)
     struct cyttsp5_mt_platform_data *mt_pdata;
     int rc = 0;
 
-    //printk("*****cyttsp5_mt_probe\n");
-    if (!pdata || !pdata->mt_pdata) {
-        dev_err(dev, "%s: Missing platform data\n", __func__);
-        rc = -ENODEV;
-        goto error_no_pdata;
-    }
-    mt_pdata = pdata->mt_pdata;
-    //  revert_x_flag = mt_pdata->swap_x;
-    //  revert_y_flag = mt_pdata->swap_y;
-    //  exchange_x_y_flag = mt_pdata->xy_exchange;
-    //  if (exchange_x_y_flag) {
-    //      int tmp = screen_max_x;
-    //      screen_max_x = screen_max_y;
-    //      screen_max_y = tmp;
-    //  }
+	if (!pdata || !pdata->mt_pdata) {
+		dev_err(dev, "%s: Missing platform data\n", __func__);
+		rc = -ENODEV;
+		goto error_no_pdata;
+	}
+	mt_pdata = pdata->mt_pdata;
 
-    //printk("*****cyttsp5_mt_probe 1111\n");
-    cyttsp5_init_function_ptrs(md);
-    //printk("*****cyttsp5_mt_probe 2222\n");
+	cyttsp5_init_function_ptrs(md);
 
     mutex_init(&md->mt_lock);
     md->dev = dev;

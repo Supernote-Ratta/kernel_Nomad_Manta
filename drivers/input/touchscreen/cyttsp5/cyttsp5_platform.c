@@ -31,6 +31,7 @@
 
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_PLATFORM_FW_UPGRADE
 /* FW for Panel ID = 0x00 */
+/*
 #include "cyttsp5_fw_pid00.h"
 static struct cyttsp5_touch_firmware cyttsp5_firmware_pid00 = {
     .img = cyttsp4_img_pid00,
@@ -39,8 +40,10 @@ static struct cyttsp5_touch_firmware cyttsp5_firmware_pid00 = {
     .vsize = ARRAY_SIZE(cyttsp4_ver_pid00),
     .panel_id = 0x00,
 };
+*/
 
 /* FW for Panel ID = 0x01 */
+/*
 #include "cyttsp5_fw_pid01.h"
 static struct cyttsp5_touch_firmware cyttsp5_firmware_pid01 = {
     .img = cyttsp4_img_pid01,
@@ -49,6 +52,7 @@ static struct cyttsp5_touch_firmware cyttsp5_firmware_pid01 = {
     .vsize = ARRAY_SIZE(cyttsp4_ver_pid01),
     .panel_id = 0x01,
 };
+*/
 
 /* FW for Panel ID not enabled (legacy) */
 #include "cyttsp5_fw.h"
@@ -145,8 +149,8 @@ static struct cyttsp5_touch_config cyttsp5_ttconfig = {
 
 static struct cyttsp5_touch_firmware *cyttsp5_firmwares[] = {
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_PLATFORM_FW_UPGRADE
-    &cyttsp5_firmware_pid00,
-    &cyttsp5_firmware_pid01,
+    //&cyttsp5_firmware_pid00,
+    //&cyttsp5_firmware_pid01,
 #endif
     NULL, /* Last item should always be NULL */
 };
