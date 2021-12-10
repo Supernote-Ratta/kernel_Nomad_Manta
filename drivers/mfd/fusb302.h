@@ -15,6 +15,8 @@
 #include <linux/i2c.h>
 #include <linux/hrtimer.h>
 #include <linux/input.h>
+#include <linux/fb.h>
+#include <linux/notifier.h>
 
 const char *FUSB_DT_INTERRUPT_INTN = "fsc_interrupt_int_n";
 
@@ -558,6 +560,8 @@ struct fusb30x_chip {
     enum role_mode try_role;
     struct input_dev *input;
     bool suspended;
+    struct notifier_block fb_notify;
+    struct mutex fb_lock;
 };
 
 #endif /* FUSB302_H */

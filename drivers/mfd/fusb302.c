@@ -17,6 +17,7 @@
 #include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <linux/power_supply.h>
+#include "../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
 
 #include "fusb302.h"
 
@@ -3181,6 +3182,28 @@ static void fusb302_work_func(struct work_struct *work)
     }
 }
 
+/* changed: tower for deep sleep type c poweroff and when screen on reinit cc.*/
+static int fb_notifier_callback(struct notifier_block *self, unsigned long action, void *data)
+{
+    struct fusb30x_chip *chip = NULL;
+    chip = container_of(self, struct fusb30x_chip, fb_notify);
+
+    if (!chip) {
+	    return NOTIFY_OK;
+    }
+    mutex_lock(&chip->fb_lock);
+    if (action == EBC_FB_UNBLANK) {
+        tcpm_init(chip);
+        tcpm_set_rx_enable(chip, 0);
+        chip->conn_state = unattached;
+        tcpm_set_cc(chip, chip->role);
+    }
+    mutex_unlock(&chip->fb_lock);
+
+    return NOTIFY_OK;
+}
+/* changed end. */
+
 static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
     struct fusb30x_chip *chip;
@@ -3358,6 +3381,14 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
         dev_err(chip->dev, "Can't register input device: %d\n", ret);
         goto IRQ_ERR;
     }
+
+    /* changed: tower for deep sleep the type c power will down, so when screen on we will init cc again. */
+    memset(&chip->fb_notify, 0, sizeof( struct notifier_block));
+    chip->fb_notify.notifier_call = fb_notifier_callback;
+    mutex_init(&chip->fb_lock);
+    ebc_register_notifier(&chip->fb_notify);
+    /* changed end. */
+
     return 0;
 IRQ_ERR:
     destroy_workqueue(chip->fusb30x_wq);
