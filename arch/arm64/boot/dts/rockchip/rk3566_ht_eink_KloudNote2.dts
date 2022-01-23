@@ -558,6 +558,7 @@
             chrg_finish_cur = <300>;
             virtual_power = <0>;
             dc_det_adc = <0>;
+            extcon = <&usb2phy0>;
             gate_function_disable = <1>;
         };
 
