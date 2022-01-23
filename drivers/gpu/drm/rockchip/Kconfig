@@ -102,6 +102,7 @@ config DRM_ROCKCHIP_VVOP
 	   gem driver to allocate memory).
 
 source "drivers/gpu/drm/rockchip/ebc-dev/Kconfig"
+source "drivers/gpu/drm/rockchip/ht_eink/Kconfig"
 source "drivers/gpu/drm/rockchip/rk618/Kconfig"
 source "drivers/gpu/drm/rockchip/rk628/Kconfig"
 

@@ -25,3 +25,5 @@ obj-$(CONFIG_DRM_ROCKCHIP) += rockchipdrm.o
 obj-$(CONFIG_ROCKCHIP_EBC_DEV) += ebc-dev/
 obj-$(CONFIG_DRM_ROCKCHIP_RK618) += rk618/
 obj-$(CONFIG_DRM_ROCKCHIP_RK628) += rk628/
+obj-$(CONFIG_HTFY_EBC) += ht_eink/
+obj-$(CONFIG_HTFY_EBC) += ht_eink/htfy_tps65185.o
