@@ -747,6 +747,9 @@ static ssize_t wake_lock_show(struct kobject *kobj,
 			      struct kobj_attribute *attr,
 			      char *buf)
 {
+    // 20180315,hsl,add print active source.
+    pm_print_active_wakeup_sources();
+
 	return pm_show_wakelocks(buf, true);
 }
 
