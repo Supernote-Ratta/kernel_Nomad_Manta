@@ -28,7 +28,7 @@ extern int ht_ebc_dbg_bits;
 #define 	EDBG_BUF 			(1<<2)
 #define 	EDBG_IQRFRAME		(1<<3)
 #define 	EDBG_AUTO 			(1<<4)
-#define 	EDBG_WARN 			(1<<5)		// warning msg.
+#define 	EDBG_XALIGN			(1<<5)		// align msg.
 #define 	EDBG_POWER 			(1<<6)
 #define 	EDBG_DRAW 			(1<<7)
 #define 	EDBG_WF 			(1<<8)		//for waveform.
@@ -38,6 +38,7 @@ extern int ht_ebc_dbg_bits;
 #define 	EDBG_LCDC 			(1<<11)
 #define 	EDBG_VIDEO 			(1<<12)
 #define 	EDBG_SWITCH			(1<<13)
+#define 	EDBG_WARN 			(1<<14)		// warning msg.
 
 #define 	IDBG_WACOM 			(1<<16)
 
