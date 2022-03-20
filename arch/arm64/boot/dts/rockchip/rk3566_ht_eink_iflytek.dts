@@ -274,8 +274,8 @@
     panel,mirror = <0>;
     panel,panel_16bit = <1>;
     panel,panel_color = <0>;
-    panel,width-mm = <157>;
-    panel,height-mm = <210>;
+    panel,width-mm = <203>;
+    //panel,height-mm = <203>;
 #endif
 };
 
