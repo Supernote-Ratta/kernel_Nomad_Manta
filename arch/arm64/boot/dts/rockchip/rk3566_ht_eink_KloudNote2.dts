@@ -53,29 +53,29 @@
 
         vol-up-key {
             label = "volume up";
-            linux,code = <KEY_VOLUMEUP>;
+            linux,code = <KEY_F11>;
             press-threshold-microvolt = <9000>;
         };
 
         vol-down-key {
             label = "volume down";
-            linux,code = <KEY_VOLUMEDOWN>;
+            linux,code = <KEY_F12>;
             press-threshold-microvolt = <235000>;
         };
     };
 
     gpio_keys: gpio-keys {
-        status = "disabled";
+        status = "okay";
         compatible = "gpio-keys";
         autorepeat;
 
-        BACK {
+        HOME {
             label = "GPIO Key Home";
+            gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
             debounce-interval = <10>;
-            interrupt-parent = <&gpio0>;
-            interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
             linux,input-type = <EV_KEY>;
-            linux,code = <KEY_BACK>;
+            linux,code = <KEY_HOMEPAGE>;
+            wakeup-source;
         };
     };
 
@@ -205,6 +205,7 @@
     panel,panel_color = <0>;
     panel,width-mm = <157>;
     panel,height-mm = <210>;
+    panel,vcom-mv = <1670>;
 };
 
 &cpu0 {
@@ -865,12 +866,12 @@
 
         soc_slppin_gpio: soc_slppin_gpio {
             rockchip,pins =
-                <0 RK_PA2 RK_FUNC_GPIO &pcfg_output_low>;
+                <0 RK_PA2 RK_FUNC_GPIO &pcfg_output_low_pull_down>;
         };
 
         soc_slppin_slp: soc_slppin_slp {
             rockchip,pins =
-                <0 RK_PA2 RK_FUNC_1 &pcfg_pull_none>;
+                <0 RK_PA2 RK_FUNC_1 &pcfg_pull_up>;
         };
 
         soc_slppin_rst: soc_slppin_rst {
@@ -1032,7 +1033,7 @@
     pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd>;
     cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
     cd-inverted;
-    status = "okay";
+    status = "disabled";
 };
 
 &sdmmc1 {

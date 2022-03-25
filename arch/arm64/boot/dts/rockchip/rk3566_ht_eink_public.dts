@@ -16,7 +16,7 @@
 #include "rk3566-eink.dtsi"
 
 / {
-    model = "Rockchip RK3566 EINK HT10 Board";
+    model = "Rockchip RK3566 EINK Public 10.3 Board";
     compatible = "rockchip,rk3566-rk817-eink", "rockchip,rk3566";
 
     ramoops_mem: ramoops_mem {
@@ -35,7 +35,7 @@
 
     charge-animation {
         compatible = "rockchip,uboot-charge";
-        rockchip,uboot-charge-on = <1>;
+        rockchip,uboot-charge-on = <0>;
         rockchip,android-charge-on = <0>;
         rockchip,uboot-low-power-voltage = <3350>;
         rockchip,screen-on-voltage = <3400>;
@@ -62,46 +62,6 @@
             linux,code = <KEY_VOLUMEDOWN>;
             press-threshold-microvolt = <235000>;
         };
-    };
-
-    backlight: backlight {
-        compatible = "pwm-backlight";
-        pwms = <&pwm0 0 25000 0>;
-        brightness-levels = <
-              0  20  20  21  21  22  22  23
-             23  24  24  25  25  26  26  27
-             27  28  28  29  29  30  30  31
-             31  32  32  33  33  34  34  35
-             35  36  36  37  37  38  38  39
-             40  41  42  43  44  45  46  47
-             48  49  50  51  52  53  54  55
-             56  57  58  59  60  61  62  63
-             64  65  66  67  68  69  70  71
-             72  73  74  75  76  77  78  79
-             80  81  82  83  84  85  86  87
-             88  89  90  91  92  93  94  95
-             96  97  98  99 100 101 102 103
-            104 105 106 107 108 109 110 111
-            112 113 114 115 116 117 118 119
-            120 121 122 123 124 125 126 127
-            128 129 130 131 132 133 134 135
-            136 137 138 139 140 141 142 143
-            144 145 146 147 148 149 150 151
-            152 153 154 155 156 157 158 159
-            160 161 162 163 164 165 166 167
-            168 169 170 171 172 173 174 175
-            176 177 178 179 180 181 182 183
-            184 185 186 187 188 189 190 191
-            192 193 194 195 196 197 198 199
-            200 201 202 203 204 205 206 207
-            208 209 210 211 212 213 214 215
-            216 217 218 219 220 221 222 223
-            224 225 226 227 228 229 230 231
-            232 233 234 235 236 237 238 239
-            240 241 242 243 244 245 246 247
-            248 249 250 251 252 253 254 255
-        >;
-        default-brightness-level = <200>;
     };
 
     gpio_keys: gpio-keys {
@@ -224,30 +184,6 @@
     pmic = <&tps65185>;
     //backlight = <&backlight>;
     status = "okay";
-#if 0
-    /* ED097TC2U1 */
-    panel,width = <1200>;
-    panel,height = <825>;
-    panel,vir_width = <1200>;
-    panel,vir_height = <825>;
-    panel,sdck = <25000000>;
-    panel,lsl = <4>;
-    panel,lbl = <4>;
-    panel,ldl = <300>;
-    panel,lel = <36>;
-    panel,gdck-sta = <18>;
-    panel,lgonl = <265>;
-    panel,fsl = <2>;
-    panel,fbl = <4>;
-    panel,fdl = <825>;
-    panel,fel = <24>;
-    panel,mirror = <0>;
-    panel,panel_16bit = <0>;
-    panel,panel_color = <0>;
-    panel,width-mm = <203>;
-    panel,height-mm = <140>;
-#endif
-#if 0
     /* ES103TC1 */
     panel,width = <1872>;
     panel,height = <1404>;
@@ -269,54 +205,6 @@
     panel,panel_color = <0>;
     panel,width-mm = <157>;
     panel,height-mm = <210>;
-#endif
-#if 0
-    /* ES133TC1 */
-    panel,width = <2200>;
-    panel,height = <1650>;
-    panel,vir_width = <2208>;
-    panel,vir_height = <1650>;
-    panel,sdck = <37500000>;
-    panel,lsl = <4>;
-    panel,lbl = <8>;
-    panel,ldl = <275>;
-    panel,lel = <14>;
-    panel,gdck-sta = <34>;
-    panel,lgonl = <217>;
-    panel,fsl = <1>;
-    panel,fbl = <4>;
-    panel,fdl = <1650>;
-    panel,fel = <6>;
-    panel,mirror = <0>;
-    panel,panel_16bit = <1>;
-    panel,panel_color = <0>;
-    panel,width-mm = <157>;
-    panel,height-mm = <210>;
-#endif
-#if 1
-    /* ES100UC1 */
-    panel,width = <1600>;
-    panel,height = <1200>;
-    panel,vir_width = <1600>;
-    panel,vir_height = <1200>;
-    panel,sdck = <30000000>;        // 20210521:fix for EMR noise.
-    //panel,pixels-per-sdck = <8>;
-    panel,lsl = <10>; //<10>;
-    panel,lbl = <7>;
-    panel,ldl = <200>;
-    panel,lel = <73>; // <45>; // <60>; //<73>;  // 20210524: this change the ckv to 116.6K HZ.
-    panel,gdck-sta = <15>; //<15>;      // fix to 117K.
-    panel,lgonl = <243>;  // <219>; // <237>; //<243>;
-    panel,fsl = <1>;
-    panel,fbl = <3>;
-    panel,fdl = <1200>;
-    panel,fel = <3>;
-    panel,mirror = <0>;
-    panel,panel_16bit = <1>;
-    panel,panel_color = <0>;
-    panel,width-mm = <157>;
-    panel,height-mm = <210>;
-#endif
 };
 
 &cpu0 {
@@ -670,7 +558,7 @@
             chrg_finish_cur = <300>;
             virtual_power = <0>;
             dc_det_adc = <0>;
-            extcon = <&fusb302>;
+            extcon = <&usb2phy0>;
             gate_function_disable = <1>;
         };
 
@@ -712,27 +600,15 @@
             cy,flags = <6>;
             /* CY_CORE_EWG_NONE */
             cy,easy_wakeup_gesture = <0>;
-#if 0
-            cy,btn_keys = <172 /* KEY_HOMEPAGE */
-                        /* previously was KEY_HOME, new Android versions use KEY_HOMEPAGE */
-                        139 /* KEY_MENU */
-                        158 /* KEY_BACK */
-                        217 /* KEY_SEARCH */
-                        114 /* KEY_VOLUMEDOWN */
-                        115 /* KEY_VOLUMEUP */
-                        212 /* KEY_CAMERA */
-                        116>; /* KEY_POWER */
-#endif
-            cy,btn_keys-tag = <0>;
             cy,mt {
                 cy,name = "cyttsp5_mt";
                 cy,inp_dev_name = "cyttsp5_mt";
-                cy,flags = <0x28>; //0xa8 0x20: CY_MT_FLAG_INV_Y  CY_MT_FLAG_FLIP = 0x08 CY_MT_FLAG_INV_X = 0x10,
+                cy,flags = <0x00>; //0x20: CY_MT_FLAG_INV_Y  CY_MT_FLAG_FLIP = 0x08 CY_MT_FLAG_INV_X = 0x10,
                 cy,abs =
                     /* ABS_MT_POSITION_X, CY_ABS_MIN_X, CY_ABS_MAX_X, 0, 0 */
-                    <0x35 0 1200 0 0
+                    <0x35 0 1872 0 0
                     /* ABS_MT_POSITION_Y, CY_ABS_MIN_Y, CY_ABS_MAX_Y, 0, 0 */
-                    0x36 0 1600 0 0
+                    0x36 0 1404 0 0
                     /* ABS_MT_PRESSURE, CY_ABS_MIN_P, CY_ABS_MAX_P, 0, 0 */
                     0x3a 0 255 0 0
                     /* CY_IGNORE_VALUE, CY_ABS_MIN_W, CY_ABS_MAX_W, 0, 0 */
@@ -750,36 +626,9 @@
                     /* ABS_DISTANCE, 0, 255, 0, 0 */
                     0x19 0 255 0 0>;
 
-                    cy,vkeys_x = <1200>; //1404
-                    cy,vkeys_y = <1600>; //1872
-                    cy,revert_x = <0>;
-                    cy,revert_y = <0>;
-                    cy,xy_exchange = <0>;
-#if 0
-                    cy,virtual_keys =
-                        /* KeyCode CenterX CenterY Width Height */
-                        /* KEY_BACK */
-                        <158 1360 90 160 180
-                        /* KEY_MENU */
-                        139 1360 270 160 180
-                        /* KEY_HOMEPAGE */
-                        172 1360 450 160 180
-                        /* KEY SEARCH */
-                        217 1360 630 160 180>;
-#endif
+                    cy,vkeys_x = <1872>;
+                    cy,vkeys_y = <1404>;
             };
-#if 0
-            cy,btn {
-                cy,name = "cyttsp5_btn";
-                cy,inp_dev_name = "cyttsp5_btn";
-            };
-
-            cy,proximity {
-                cy,name = "cyttsp5_proximity";
-                cy,inp_dev_name = "cyttsp5_proximity";
-                cy,abs = <0x19 0 1 0 0>; /* ABS_DISTANCE, CY_PROXIMITY_MIN_VAL, CY_PROXIMITY_MAX_VAL, 0, 0 */
-            };
-#endif
         };
     };
 };
@@ -800,8 +649,8 @@
         gpio_detect = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
         gpio_intr = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
         gpio_rst = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
-        revert_x = <0>;
-        revert_y = <0>;
+        revert_x = <1>;
+        revert_y = <1>;
         xy_exchange = <0>;
         wacom-support-wakeup;
     };
@@ -828,7 +677,7 @@
         power-supply = <&vccio_sd>;
         int-n-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
         switch-gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_LOW>;
-        status = "okay";
+        status = "disabled";
      };
 };
 
@@ -1016,12 +865,12 @@
 
         soc_slppin_gpio: soc_slppin_gpio {
             rockchip,pins =
-                <0 RK_PA2 RK_FUNC_GPIO &pcfg_output_low>;
+                <0 RK_PA2 RK_FUNC_GPIO &pcfg_output_low_pull_down>;
         };
 
         soc_slppin_slp: soc_slppin_slp {
             rockchip,pins =
-                <0 RK_PA2 RK_FUNC_1 &pcfg_pull_none>;
+                <0 RK_PA2 RK_FUNC_1 &pcfg_pull_up>;
         };
 
         soc_slppin_rst: soc_slppin_rst {
@@ -1219,12 +1068,10 @@
 
 &usb2phy0 {
     status = "okay";
-    extcon = <&fusb302>;
 };
 
 &usbdrd_dwc3 {
     status = "okay";
-    extcon = <&fusb302>;
 };
 
 &usbdrd30 {
