@@ -11,34 +11,34 @@ if LIGHT_DEVICE
 config LS_CM3217
 	tristate "light sensor cm3217"
 	default n
-	
+
 config LS_CM3218
 	tristate "light sensor cm3218"
 	default n
- 
+
 config LS_CM3232
 	tristate "light sensor cm3232"
 	default n
- 
+
 config LS_AL3006
 	tristate "light sensor al3006"
 	default n
 
 config LS_STK3171
 	tristate "light sensor stk3171"
-	default n	 
+	default n
 
 config LS_ISL29023
 	tristate "light sensor isl29023"
-	default n	  
-	
+	default n
+
 config LS_AP321XX
 	tristate "light sensor ap321xx"
 	default n
 
 config LS_US5152
 	tristate "light sensor us5152"
-        default n
+	default n
 
 config LS_STK3410
 	tristate "light sensor stk3410"
@@ -46,5 +46,10 @@ config LS_STK3410
 
 config LS_EM3071X
 	tristate "light sensor em3071x"
+	default n
+
+config LS_LTR578
+	tristate "light sensor ltr578"
+	default n
 endif
 

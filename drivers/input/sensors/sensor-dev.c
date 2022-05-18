@@ -1878,6 +1878,13 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
 		break;
 	case SENSOR_TYPE_LIGHT:
 		sensor->input_dev->name = "lightsensor-level";
+		if (strcmp("ls_ltr578", sensor->i2c_id->name) == 0) {
+		    sensor->input_dev->name = "lightsensor-level-1";
+		} else if (strcmp("ls_stk3410", sensor->i2c_id->name) == 0) {
+		    sensor->input_dev->name = "lightsensor-level";
+		} else {
+		    sensor->input_dev->name = "lightsensor-level";
+		}
 		set_bit(EV_ABS, sensor->input_dev->evbit);
 		input_set_abs_params(sensor->input_dev, ABS_MISC, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
 		input_set_abs_params(sensor->input_dev, ABS_TOOL_WIDTH,  sensor->ops->brightness[0], sensor->ops->brightness[1], 0, 0);
@@ -1901,6 +1908,7 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
 		dev_err(&client->dev, "%s:unknow sensor type=%d\n", __func__, type);
 		break;
 	}
+	printk("===>sensor name: %s\n", sensor->input_dev->name);
 	sensor->input_dev->dev.parent = &client->dev;
 
 	result = input_register_device(sensor->input_dev);

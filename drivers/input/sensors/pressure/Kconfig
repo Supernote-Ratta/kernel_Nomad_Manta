@@ -11,5 +11,6 @@ if PRESSURE_DEVICE
  config PR_MS5607
 	 tristate "pressure sensor ms5607"
 	 default n
- 
+
+source "drivers/input/sensors/pressure/aw9610x/Kconfig"
 endif
