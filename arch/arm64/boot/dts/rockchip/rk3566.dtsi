@@ -6,37 +6,37 @@
 #include "rk3568.dtsi"
 
 / {
-	aliases {
-		/delete-property/ ethernet0;
-	};
+    aliases {
+        /delete-property/ ethernet0;
+    };
 };
 
 &cpu0_opp_table {
-	/delete-node/ opp-1992000000;
+    /delete-node/ opp-1992000000;
 };
 
 &power {
-	pd_pipe@RK3568_PD_PIPE {
-		reg = <RK3568_PD_PIPE>;
-		clocks = <&cru PCLK_PIPE>;
-		pm_qos = <&qos_pcie2x1>,
-			 <&qos_sata1>,
-			 <&qos_sata2>,
-			 <&qos_usb3_0>,
-			 <&qos_usb3_1>;
-	};
+    pd_pipe@RK3568_PD_PIPE {
+        reg = <RK3568_PD_PIPE>;
+        clocks = <&cru PCLK_PIPE>;
+        pm_qos = <&qos_pcie2x1>,
+             <&qos_sata1>,
+             <&qos_sata2>,
+             <&qos_usb3_0>,
+             <&qos_usb3_1>;
+    };
 };
 
 &rkisp {
-	rockchip,iq-feature = /bits/ 64 <0x3FBF7FE67FF>;
+    rockchip,iq-feature = /bits/ 64 <0x3FBF7FE67FF>;
 };
 
 &usbdrd_dwc3 {
-	phys = <&u2phy0_otg>;
-	phy-names = "usb2-phy";
-	extcon = <&usb2phy0>;
-	maximum-speed = "high-speed";
-	snps,dis_u2_susphy_quirk;
+    phys = <&u2phy0_otg>;
+    phy-names = "usb2-phy";
+    extcon = <&usb2phy0>;
+    maximum-speed = "high-speed";
+    snps,dis_u2_susphy_quirk;
 };
 
 /delete-node/ &combphy0_us;

@@ -26,4 +26,5 @@ obj-$(CONFIG_ROCKCHIP_EBC_DEV) += ebc-dev/
 obj-$(CONFIG_DRM_ROCKCHIP_RK618) += rk618/
 obj-$(CONFIG_DRM_ROCKCHIP_RK628) += rk628/
 obj-$(CONFIG_HTFY_EBC) += ht_eink/
-obj-$(CONFIG_HTFY_EBC) += ht_eink/htfy_tps65185.o
+obj-$(CONFIG_PMIC_EBC_TPS65185) += ht_eink/htfy_tps65185.o
+obj-$(CONFIG_PMIC_EBC_SY7636A) += ht_eink/htfy_sy7636a.o
