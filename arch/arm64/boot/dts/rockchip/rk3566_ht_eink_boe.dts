@@ -34,13 +34,13 @@
     };
 
     charge-animation {
+        status = "okay";
         compatible = "rockchip,uboot-charge";
         rockchip,uboot-charge-on = <0>;
         rockchip,android-charge-on = <0>;
         rockchip,uboot-low-power-voltage = <3350>;
         rockchip,screen-on-voltage = <3400>;
         rockchip,auto-wakeup-interval = <60>;
-        status = "okay";
     };
 
     adc_keys: adc-keys {
@@ -80,8 +80,8 @@
     };
 
     leds: gpio-leds {
-        compatible = "gpio-leds";
         status = "okay";
+        compatible = "gpio-leds";
         led@2 {
             gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-charging";
@@ -98,12 +98,12 @@
     };
 
     hall_sensor: hall-wh2506d {
+        status = "okay";
         compatible = "hall-wh2506d";
         pinctrl-names = "default";
         pinctrl-0 = <&hall_irq_gpio>;
         irq-gpio = <&gpio0 RK_PA0 IRQ_TYPE_EDGE_BOTH>;
         hall-active = <1>;
-        status = "okay";
     };
 
     vccsys: vccsys {
@@ -760,6 +760,7 @@
 
 &i2c3 {
     status = "okay";
+    clock-frequency = <400000>;
     pinctrl-names = "default";
     pinctrl-0 = <&i2c3m1_xfer>;
 
