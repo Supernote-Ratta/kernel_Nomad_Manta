@@ -707,55 +707,6 @@
         channel_use_flag = <0x1f>;
         sar-num = < 0 >;
     };
-
-    cyttsp: tsc@24 {
-        status = "okay";
-        compatible = "cy,cyttsp5_i2c_adapter";
-        reg = <0x24>;
-        cy,adapter_id = "cyttsp5_i2c_adapter";
-        pinctrl-names = "default";
-        pinctrl-0 = <&tsc_gpio>;
-        cytp-supply = <&vcc_tp>;
-        cy,core {
-            cy,name = "cyttsp5_core";
-            cy,irq_gpio =  <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
-            cy,rst_gpio =  <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
-            cy,hid_desc_register = <1>;
-            /* CY_CORE_FLAG_RESTORE_PARAMETERS */
-            cy,flags = <6>;
-            /* CY_CORE_EWG_NONE */
-            cy,easy_wakeup_gesture = <0>;
-            cy,mt {
-                cy,name = "cyttsp5_mt";
-                cy,inp_dev_name = "cyttsp5_mt";
-                cy,flags = <0x00>; //0x20: CY_MT_FLAG_INV_Y  CY_MT_FLAG_FLIP = 0x08 CY_MT_FLAG_INV_X = 0x10,
-                cy,abs =
-                    /* ABS_MT_POSITION_X, CY_ABS_MIN_X, CY_ABS_MAX_X, 0, 0 */
-                    <0x35 0 1872 0 0
-                    /* ABS_MT_POSITION_Y, CY_ABS_MIN_Y, CY_ABS_MAX_Y, 0, 0 */
-                    0x36 0 1404 0 0
-                    /* ABS_MT_PRESSURE, CY_ABS_MIN_P, CY_ABS_MAX_P, 0, 0 */
-                    0x3a 0 255 0 0
-                    /* CY_IGNORE_VALUE, CY_ABS_MIN_W, CY_ABS_MAX_W, 0, 0 */
-                    0xffff 0 255 0 0
-                    /* ABS_MT_TRACKING_ID, CY_ABS_MIN_T, CY_ABS_MAX_T, 0, 0 */
-                    0x39 0 15 0 0
-                    /* ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0 */
-                    0x30 0 255 0 0
-                    /* ABS_MT_TOUCH_MINOR, 0, 255, 0, 0 */
-                    0x31 0 255 0 0
-                    /* ABS_MT_ORIENTATION, -127, 127, 0, 0 */
-                    0x34 0xffffff81 127 0 0
-                    /* ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0 */
-                    0x37 0 1 0 0
-                    /* ABS_DISTANCE, 0, 255, 0, 0 */
-                    0x19 0 255 0 0>;
-
-                    cy,vkeys_x = <1872>;
-                    cy,vkeys_y = <1404>;
-            };
-        };
-    };
 };
 
 &i2c3 {
@@ -843,20 +794,7 @@
 };
 
 &spi3 {
-    status = "okay";
-    max-freq = <48000000>;
-    pinctrl-names = "default";
-    pinctrl-0 = <&spi3m1_cs0 &spi3m1_pins>;
-
-    ft9366: ft9366@0 {
-        status = "disabled";
-        compatible = "focaltech,fingerprint-spidev";
-        reg = <0>;
-        spi-max-frequency = <1000000>;
-        fingerprint,en-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
-        fingerprint,touch-int-gpio = <&gpio0 RK_PC0 IRQ_TYPE_EDGE_RISING>;
-        fingerprint,gpio_reset = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
-    };
+    status = "disabled";
 };
 
 &jpegd {
@@ -886,15 +824,6 @@
                 <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>,
                 <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>,
                 <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;
-        };
-    };
-
-    tsc {
-        tsc_gpio: tsc-gpio {
-            rockchip,pins =
-                <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_down>,
-                <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>,
-                <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
         };
     };
 
