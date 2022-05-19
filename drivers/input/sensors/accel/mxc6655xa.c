@@ -50,12 +50,15 @@
 #define MXC6655_PRECISION	12
 #define MXC6655_BOUNDARY	(0x1 << (MXC6655_PRECISION - 1))
 #define MXC6655_GRAVITY_STEP	(MXC6655_RANGE / MXC6655_BOUNDARY)
+static struct class *gsensor_class;
+static struct i2c_client *client_test = NULL;
 
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
 	struct sensor_private_data *sensor =
 		(struct sensor_private_data *)i2c_get_clientdata(client);
 	int result = 0;
+	client_test = client;
 
 	sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
 	if (enable)
@@ -74,6 +77,81 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 
 	return result;
 }
+// class node
+// cat /sys/class/gs_mxc6655xa/sensor_value
+// cat /sys/class/gs_mxc6655xa/sensor_ctrl
+static int sensor_convert_data(struct i2c_client *client,
+			       char high_byte, char low_byte);
+
+static ssize_t sensor_value_show(struct class *cls,struct class_attribute *attr, char *_buf)
+{
+    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client_test);
+    char value = 0;
+	ssize_t len = 0;
+	struct sensor_axis axis;
+	struct sensor_platform_data *pdata = sensor->pdata;
+	char buffer[6] = {0};
+	int x, y, z;
+	int ret = 0;
+    sensor_active(client_test, 1, 9600);
+
+	if (sensor->ops->read_len < 6) {
+		dev_err(&client_test->dev, "%s:Read len is error,len= %d\n",
+			__func__, sensor->ops->read_len);
+		return -1;
+	}
+
+	*buffer = sensor->ops->read_reg;
+	ret = sensor_rx_data(client_test, buffer, sensor->ops->read_len);
+	if (ret < 0) {
+		dev_err(&client_test->dev,
+			"mxc6655 read data failed, ret = %d\n", ret);
+		return ret;
+	}
+
+	/* x,y,z axis is the 12-bit acceleration output */
+	x = sensor_convert_data(client_test, buffer[0], buffer[1]);
+	y = sensor_convert_data(client_test, buffer[2], buffer[3]);
+	z = sensor_convert_data(client_test, buffer[4], buffer[5]);
+
+	pr_debug("%s: x = %d, y = %d, z = %d\n", __func__, x, y, z);
+
+	axis.x = (pdata->orientation[0]) * x + (pdata->orientation[1]) * y +
+		 (pdata->orientation[2]) * z;
+	axis.y = (pdata->orientation[3]) * x + (pdata->orientation[4]) * y +
+		 (pdata->orientation[5]) * z;
+	axis.z = (pdata->orientation[6]) * x + (pdata->orientation[7]) * y +
+		 (pdata->orientation[8]) * z;
+
+    len += sprintf(_buf, "%d %d %d:\n",axis.x,axis.y,axis.z);
+	return len;
+}
+
+
+static ssize_t sensor_value_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
+{
+
+	return 0;
+}
+
+static ssize_t sensor_ctrl_show(struct class *cls,struct class_attribute *attr, char *_buf)
+{
+
+	ssize_t len = 0;
+
+	return len;
+}
+
+
+static ssize_t sensor_ctrl_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
+{
+
+	return 0;
+}
+
+//static CLASS_ATTR(sensor_value, 0666, sensor_value_show, sensor_value_store);
+static CLASS_ATTR_RW(sensor_value);
+static CLASS_ATTR_RW(sensor_ctrl);
 
 static int sensor_init(struct i2c_client *client)
 {
@@ -116,6 +194,13 @@ static int sensor_init(struct i2c_client *client)
 			"%s:fail to set MXC6655_INT_MASK0.\n", __func__);
 		return result;
 	}
+	gsensor_class = class_create(THIS_MODULE, client->name);
+	result = class_create_file(gsensor_class, &class_attr_sensor_value);
+	if (result)
+		printk("Fail to create class gsensor_class_value.\n");
+	result = class_create_file(gsensor_class, &class_attr_sensor_ctrl);
+	if (result)
+		printk("Fail to create class gsensor_class_ctrl.\n");
 
 	return result;
 }

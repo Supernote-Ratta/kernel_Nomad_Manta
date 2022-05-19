@@ -126,6 +126,8 @@
 #define	STK_FLAG_ALSINT	(1 << 5)
 #define	STK_FLAG_PSDR	(1 << 6)
 #define	STK_FLAG_ALSDR	(1 << 7)
+static struct class *lsensor_class;
+static struct i2c_client *client_test = NULL;
 
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
@@ -133,7 +135,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 		(struct sensor_private_data *)i2c_get_clientdata(client);
 	int result = 0;
 	int status = 0;
-
+	client_test = client;
 	sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
 	if (!enable) {
 		status = ~ALS_ENABLE;
@@ -158,6 +160,62 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 
 	return result;
 }
+// class node
+// cat /sys/class/ls_stk3410/sensor_value
+// cat /sys/class/ls_stk3410/sensor_ctrl
+static ssize_t sensor_value_show(struct class *cls,struct class_attribute *attr, char *_buf)
+{
+    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client_test);
+    int result = 0;
+    char value = 0;
+	ssize_t len = 0;
+	char buffer[2] = {0};
+
+    sensor_active(client_test, 1, 9600);
+
+	if (sensor->ops->read_len < 2) {
+		dev_err(&client_test->dev, "%s:length is error, len=%d\n", __func__,
+			sensor->ops->read_len);
+		return -1;
+	}
+
+	buffer[0] = sensor->ops->read_reg;
+	result = sensor_rx_data(client_test, buffer, sensor->ops->read_len);
+	if (result) {
+		dev_err(&client_test->dev, "%s:sensor read data fail\n", __func__);
+		return result;
+	}
+	value = (buffer[0] << 8) | buffer[1];
+
+
+    len += sprintf(_buf, "%d:\n",value);
+	return len;
+}
+
+
+static ssize_t sensor_value_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
+{
+
+	return 0;
+}
+
+static ssize_t sensor_ctrl_show(struct class *cls,struct class_attribute *attr, char *_buf)
+{
+
+	ssize_t len = 0;
+
+	return len;
+}
+
+
+static ssize_t sensor_ctrl_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
+{
+
+	return 0;
+}
+
+static CLASS_ATTR_RW(sensor_value);
+static CLASS_ATTR_RW(sensor_ctrl);
 
 static int sensor_init(struct i2c_client *client)
 {
@@ -234,6 +292,13 @@ static int sensor_init(struct i2c_client *client)
 		dev_err(&client->dev, "%s:write INT_CTRL fail\n", __func__);
 		return result;
 	}
+	lsensor_class = class_create(THIS_MODULE, client->name);
+	result = class_create_file(lsensor_class, &class_attr_sensor_value);
+	if (result)
+		dev_err(&client->dev,"Fail to create class sensor_class_value.\n");
+	result = class_create_file(lsensor_class, &class_attr_sensor_ctrl);
+	if (result)
+		dev_err(&client->dev,"Fail to create class sensor_class_ctrl.\n");
 
 	return result;
 }

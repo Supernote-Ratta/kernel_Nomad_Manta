@@ -31,10 +31,12 @@
 #endif
 #include <linux/sensor-dev.h>
 #include "ls_ltr578.h"
+#include <linux/cdev.h>
 
 static int als_gainrange = ALS_DEF_GAIN;
 static struct i2c_client *client_test = NULL;
 static int cal_factor = 1000;
+static struct class *lsensor_class;
 
 int sensor_als_read(struct i2c_client *client)
 {
@@ -127,6 +129,56 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
     return result;
 }
 
+// class node
+// cat /sys/class/ls_ltr578/sensor_value
+// cat /sys/class/ls_ltr578/sensor_ctrl
+static ssize_t sensor_value_show(struct class *cls,struct class_attribute *attr, char *_buf)
+{
+    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client_test);
+    int result = 0;
+    char value = 0;
+	ssize_t len = 0;
+    sensor_active(client_test, 1, 9600);
+
+    if (sensor->pdata->irq_enable) {
+        if (sensor->ops->int_status_reg) {
+            value = sensor_read_reg(client_test, sensor->ops->int_status_reg);
+        }
+    }
+
+    //result = sensor->ops->active(client,1,0);
+    result = sensor_als_read(client_test);
+    result = (cal_factor * result) / 1000;
+
+    len += sprintf(_buf, "%d:\n",result);
+	return len;
+}
+
+
+static ssize_t sensor_value_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
+{
+
+	return 0;
+}
+
+static ssize_t sensor_ctrl_show(struct class *cls,struct class_attribute *attr, char *_buf)
+{
+
+	ssize_t len = 0;
+
+	return len;
+}
+
+
+static ssize_t sensor_ctrl_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
+{
+
+	return 0;
+}
+
+static CLASS_ATTR_RW(sensor_value);
+static CLASS_ATTR_RW(sensor_ctrl);
+
 static int sensor_init(struct i2c_client *client)
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
@@ -176,6 +228,13 @@ static int sensor_init(struct i2c_client *client)
     }
 
     sensor->status_cur = SENSOR_OFF;
+	lsensor_class = class_create(THIS_MODULE, client->name);
+	result = class_create_file(lsensor_class, &class_attr_sensor_value);
+	if (result)
+		printk("[ltr578als] Fail to create class sensor_class_value.\n");
+	result = class_create_file(lsensor_class, &class_attr_sensor_ctrl);
+	if (result)
+		printk("[ltr578als] Fail to create class sensor_class_ctrl.\n");
 
     return result;
 }
