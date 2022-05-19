@@ -150,7 +150,7 @@ static ssize_t sensor_value_show(struct class *cls,struct class_attribute *attr,
     result = sensor_als_read(client_test);
     result = (cal_factor * result) / 1000;
 
-    len += sprintf(_buf, "%d:\n",result);
+    len += sprintf(_buf, "%d\n",result);
 	return len;
 }
 

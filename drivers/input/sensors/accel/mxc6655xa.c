@@ -123,7 +123,7 @@ static ssize_t sensor_value_show(struct class *cls,struct class_attribute *attr,
 	axis.z = (pdata->orientation[6]) * x + (pdata->orientation[7]) * y +
 		 (pdata->orientation[8]) * z;
 
-    len += sprintf(_buf, "%d %d %d:\n",axis.x,axis.y,axis.z);
+    len += sprintf(_buf, "%d %d %d\n",axis.x,axis.y,axis.z);
 	return len;
 }
 

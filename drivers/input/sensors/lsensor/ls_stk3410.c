@@ -188,7 +188,7 @@ static ssize_t sensor_value_show(struct class *cls,struct class_attribute *attr,
 	value = (buffer[0] << 8) | buffer[1];
 
 
-    len += sprintf(_buf, "%d:\n",value);
+    len += sprintf(_buf, "%d\n",value);
 	return len;
 }
 
