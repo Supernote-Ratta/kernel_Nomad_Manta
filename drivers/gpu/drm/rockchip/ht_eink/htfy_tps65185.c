@@ -127,7 +127,7 @@ extern void papyrus_set_i2c_address(int address);
 */
 #define HW_GET_STATE_INTERVAL_MS           24
 
-#define BGB_PRINT                          0
+#define BGB_PRINT                          1
 #if BGB_PRINT
 #define tps65185_printk(fmt, args...)      printk(KERN_INFO "[tps] " "%s(%d): " fmt, __FUNCTION__, __LINE__, ##args)
 #else
@@ -182,6 +182,7 @@ struct papyrus_hw_state {
 
 static uint8_t papyrus2_i2c_addr = PAPYRUS2_1P1_I2C_ADDRESS;
 int pmic_id = 0;
+static struct class *tps_pmu_class;
 
 extern struct pmic_sess pmic_sess_data;
 extern bool fb_is_power_off(void);
@@ -263,24 +264,25 @@ static void papyrus_hw_get_pg(struct papyrus_sess *sess, struct papyrus_hw_state
 
 static int papyrus_hw_reset(struct papyrus_sess *sess)
 {
-    sess->need_init = true;
-    if (gpio_is_valid(sess->wake_up_pin)) {
-        gpio_set_value(sess->wake_up_pin, !sess->wakeup_active_high);
-        msleep(PAPYRUS_SLEEP_MINIMUM_MS);
-    }
-    if (gpio_is_valid(sess->vcom_ctl_pin)) {
-        gpio_set_value(sess->vcom_ctl_pin, !sess->vcomctl_active_high);
-    }
-    if (gpio_is_valid(sess->pwr_up_pin)) {
-        gpio_set_value(sess->pwr_up_pin, !sess->poweron_active_high);
-    }
 
-    if (gpio_is_valid(sess->wake_up_pin)) {
-        gpio_set_value(sess->wake_up_pin, sess->wakeup_active_high);
-        msleep(PAPYRUS_EEPROM_DELAY_MS);
-    }
+  // 20210817: 如果出错了，我们需要重新初始化 power-up 寄存器，修改延迟。所以此处需要设置
+  // need_init 标志。
+  sess->need_init = true;
+  
+  if (gpio_is_valid(sess->vcom_ctl_pin))
+	  gpio_set_value(sess->vcom_ctl_pin, !sess->vcomctl_active_high);
+  if (gpio_is_valid(sess->pwr_up_pin))
+	  gpio_set_value(sess->pwr_up_pin, !sess->poweron_active_high);
+	  
+  if (gpio_is_valid(sess->wake_up_pin)) {
+	  gpio_set_value(sess->wake_up_pin, !sess->wakeup_active_high);
+	  msleep(PAPYRUS_SLEEP_MINIMUM_MS);
 
-    return 0;
+	  gpio_set_value(sess->wake_up_pin, sess->wakeup_active_high);
+	  msleep(PAPYRUS_EEPROM_DELAY_MS);
+  }
+
+  return 0;
 }
 
 static void papyrus_hw_dump_reg(const char *stage, struct papyrus_sess *sess)
@@ -305,16 +307,7 @@ static int papyrus_hw_arg_init(struct papyrus_sess *sess)
 
     sess->vadj = 0x03;
     sess->upseq0 = SEQ_VEE(0) | SEQ_VNEG(1) | SEQ_VPOS(2) | SEQ_VDD(3);
-    if (sess->power_fault_cnt == 0) {
-        sess->upseq1 =  0x00;
-    } else if (sess->power_fault_cnt == 1) {
-        sess->upseq1 =  0x55;
-    } else if (sess->power_fault_cnt == 2) {
-        sess->upseq1 =  0xAA;
-    } else {
-        sess->upseq1 =  0xFF;
-    }
-
+	sess->upseq1 =  0x00;
     sess->dwnseq0 = SEQ_VDD(0) | SEQ_VPOS(1)  | SEQ_VNEG(2) | SEQ_VEE(3);
     sess->dwnseq1 = DDLY_6ms(0) | DDLY_6ms(1) | DDLY_6ms(2) | DDLY_6ms(3);
     stat |= papyrus_hw_setreg(sess, PAPYRUS_ADDR_VADJ, sess->vadj);
@@ -412,6 +405,29 @@ static int papyrus_hw_get_revid(struct papyrus_sess *sess)
     }
 }
 
+// class node
+// cat /sys/class/pmu/temperature
+static ssize_t papyrus_temperature_show(struct class *cls,struct class_attribute *attr, char *_buf)
+{
+    struct pmic_sess *psess = (struct pmic_sess *)&pmic_sess_data;
+
+    int temperature = 25;
+	ssize_t len = 0;
+	//u8 val = 0;
+	papyrus_hw_read_temperature(psess,&temperature);
+    len += sprintf(_buf, "%d:\n",temperature);
+	return len;
+}
+
+
+/*static ssize_t papyrus_temperature_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
+{
+
+	return 0;
+}*/
+//static CLASS_ATTR(temperature, 0644, papyrus_class_temperature_show, papyrus_class_temperature_store);
+static CLASS_ATTR_RO(papyrus_temperature);
+
 void papyrus_set_i2c_address(int address)
 {
     if (address == PAPYRUS2_1P0_I2C_ADDRESS) {
@@ -428,6 +444,7 @@ void papyrus_set_i2c_address(int address)
 static int papyrus_hw_init(struct papyrus_sess *sess, const char *chip_id)
 {
     int stat = 0;
+    int ret;
 
     if ((sess->pwr_up_pin != INVALID_GPIO)) {
         stat |= gpio_request(sess->pwr_up_pin, "papyrus-power-on");
@@ -479,7 +496,13 @@ static int papyrus_hw_init(struct papyrus_sess *sess, const char *chip_id)
         pmic_id = 0x6518;
     }
     stat = 0;
-
+	
+	tps_pmu_class = class_create(THIS_MODULE, "pmu");
+	ret =  class_create_file(tps_pmu_class, &class_attr_papyrus_temperature);
+	if (ret) {
+		pr_info("Fail to create class pmu_temperature.\n");
+    }
+    
     return stat;
 
 cleanup_i2c_adapter:
@@ -491,6 +514,8 @@ cleanup_i2c_adapter:
     if (sess->pwr_up_pin != INVALID_GPIO) {
         gpio_free(sess->pwr_up_pin);
     }
+	if (sess->error_pin != INVALID_GPIO)
+		gpio_free(sess->error_pin);
     pr_err("papyrus: ERROR: could not initialize I2C papyrus!\n");
 
     return stat;
@@ -541,7 +566,8 @@ static bool papyrus_hw_power_ack(struct pmic_sess *pmsess)
 
 static void papyrus_hw_cleanup(struct papyrus_sess *sess)
 {
-    gpio_free(sess->vcom_ctl_pin);
+	if (sess->vcom_ctl_pin != INVALID_GPIO)
+	    gpio_free(sess->vcom_ctl_pin);
     if (sess->pwr_up_pin != INVALID_GPIO) {
         gpio_free(sess->pwr_up_pin);
     }
@@ -734,12 +760,12 @@ static int papyrus_probe(struct pmic_sess *pmsess, struct i2c_client *client)
         goto free_sess;
     }
 
-    sess->error_pin = of_get_named_gpio_flags(node, "int-gpios", 0, &flags); // "error_pin"
+    /*sess->error_pin = of_get_named_gpio_flags(node, "int-gpios", 0, &flags); 
     if (!gpio_is_valid(sess->error_pin)) {
         sess->error_pin = INVALID_GPIO;
         pr_err("tsp65185: failed to find error_pin\n");
         goto free_sess;
-    }
+    }*/
 
     sess->pwr_up_pin = of_get_named_gpio_flags(node, "powerup-gpios", 0, &flags);
     if (!gpio_is_valid(sess->pwr_up_pin)) {
@@ -754,10 +780,10 @@ static int papyrus_probe(struct pmic_sess *pmsess, struct i2c_client *client)
     }
 
 
-    sess->error_pin = of_get_named_gpio_flags(node, "error_gpios", 0, &flags);
+    sess->error_pin = of_get_named_gpio_flags(node, "error-gpios", 0, &flags);
     if (!gpio_is_valid(sess->error_pin)) {
         sess->error_pin = INVALID_GPIO;
-        pr_err("tsp65185: failed to find error_pin\n");
+        pr_err("tsp65185: failed to find error gpios\n");
     }
     stat = papyrus_hw_init(sess, pmsess->drv->id);
     if (stat) {
@@ -952,46 +978,60 @@ static int tps65185_power_down(void *priv)
     return 0;
 }
 
-// return 1: check POWER GOOD; 0: check power fail. only check after power-on.
-static int tps65185_power_check(void *priv, int dump)
+// return 1: check POWER GOOD; 0: check power fail but Not-Fault.
+// -1: power Fault, needs reset. only check after power-on.
+static int tps65185_power_check(void *priv, int timeout)
 {
     int stat;
     uint8_t ints1, ints2, pwrg;
-    int power_good = 1;
     int err_pin_value = -1;
     struct papyrus_sess *sess = (struct papyrus_sess *)pmic_sess_data.drvpar;
 
-    // Once a fault is detected,the PWR_GOOD and nINT pins are pulled low and the corresponding
+    // Once a fault is detected,the PWR_GOOD and nINT pins are pulled low and the corresponding 
     // interrupt bit is set in the interrupt register.
-    if (sess->error_pin != INVALID_GPIO) {
-        err_pin_value = gpio_get_value(sess->error_pin);
-        if (err_pin_value == 0) {
-            power_good = 0;
-        } else {
-            if (!dump) {
-                return power_good;
-            }
-        }
-    }
+    if (sess->error_pin != INVALID_GPIO){
+       err_pin_value = gpio_get_value(sess->error_pin);
+       tps65185_printk("power_check: power-good(gpio%d)=%d,timeout=%d\n", sess->error_pin, err_pin_value, timeout);
+	   if(err_pin_value == 1) { // if high, means power-good.
+	        return 1;
+	   }
 
-    stat |= papyrus_hw_getreg(sess, PAPYRUS_ADDR_INT_STATUS1, &ints1);
-    stat |= papyrus_hw_getreg(sess, PAPYRUS_ADDR_INT_STATUS2, &ints2);
-    stat |= papyrus_hw_getreg(sess, PAPYRUS_ADDR_PG_STATUS, &pwrg);
-    if (stat) {
-        pr_err("papyrus: I2C error: %d\n", stat);
-        power_good = -1;
-    } else {
-        if (ints2 & ANY_PWR_FAULT) {
-            pr_err("papyrus: Power_Fault,reset papyrus,fault_cnt=%d\n", sess->power_fault_cnt);
-            sess->power_fault_cnt++;
-            papyrus_hw_reset(sess);
-            power_good = -1;
-        }
-    }
-    if ((power_good == -1) || dump) {
-        printk("INT1_STATUS=0X%08X,INT2_STATUS=0X%08X,PG_STATUS=0X%08X,pin=%d,pwr_good=%d\n", ints1, ints2, pwrg, err_pin_value, power_good);
-    }
-    return power_good;
+	   // 20211227：我们在 SNX A6X 上面发现上电异常，原因是在 65185上电的时候，不能通过I2C访问
+	   // 里面的寄存器（尤其是 INT1/INT2),否则容易造成上电异常(FAULT)。所以此处如果有GPIO，直接返回，除非TIMEOUT
+	   // 了才进行访问,判断是否是真正的异常。
+	   if(!timeout) return 0;
+	}
+	
+	stat |= papyrus_hw_getreg(sess,
+				PAPYRUS_ADDR_PG_STATUS, &pwrg); // power-good-status.
+	if (stat) {
+		pr_err("papyrus: I2C error: stat = %d\n", stat);
+		return -1;
+	} else {
+		if((pwrg & 0X000000FA) == 0X000000FA) {
+			return 1;
+		}
+		// 20210724: 如果已经出现 falt了，则不需要再等待了。
+	    if(timeout) {
+	    	// 20210512: 如果电源异常，我们通过读取 INT_STATUS1 和 INT_STATUS2 来清除异常。
+			stat |= papyrus_hw_getreg(sess,
+						PAPYRUS_ADDR_INT_STATUS1, &ints1);
+			stat |= papyrus_hw_getreg(sess,
+						PAPYRUS_ADDR_INT_STATUS2, &ints2);
+	    	pr_err("papyrus: Power_Fault,fcnt=%d,PG=0X%02X,INT1=0X%02X,INT2=0X%02X\n", 
+	    		sess->power_fault_cnt, pwrg, ints1, ints2);
+	    	sess->power_fault_cnt++;
+	    	
+			 if(ints2 & ANY_PWR_FAULT) {
+		    	// 20211227: don't reset,just power-up again!!
+		    	papyrus_hw_reset(sess);
+		    	//msleep(PAPYRUS_EEPROM_DELAY_MS);
+
+		    	papyrus_hw_send_powerup(sess);
+	    	}
+	    } 
+	}
+	return 0;
 }
 
 static int tps65185_temperature_get(void *priv, int *temp)
@@ -1005,23 +1045,23 @@ static int tps65185_temperature_get(void *priv, int *temp)
 
 __weak int htfy_register_ebc_pwr_ops(struct htfy_pwr_ops *ops)
 {
-    if (pmic_id != 0x6518) {
-        ops->priv = &pmic_sess_data;
-        ops->power_on = sy7636a_power_on;
-        ops->power_down = sy7636a_power_down;
-        ops->vcom_set = sy7636a_set_vcom_voltage;
-        ops->power_check = sy7636a_power_check;
-        ops->reinit = sy7636a_reinit;
-    } else {
-        ops->priv = &pmic_sess_data;
-        ops->power_on = tps65185_power_on;
-        ops->power_down = tps65185_power_down;
-        ops->vcom_set = tps65185_set_vcom_voltage;
-        ops->power_check = tps65185_power_check;
-        ops->reinit = tps65185_reinit;
-    }
-
-    return 0;
+    printk("===============htfy_register_ebc_pwr_ops:%d\n",pmic_id);
+	if(pmic_id != 0x6518){
+	    ops->priv = &pmic_sess_data;
+		ops->power_on = sy7636a_power_on;
+		ops->power_down = sy7636a_power_down;
+		ops->vcom_set = sy7636a_set_vcom_voltage;
+		ops->power_check = sy7636a_power_check;
+		ops->reinit = sy7636a_reinit;
+	}else{
+		ops->priv = &pmic_sess_data;
+    	ops->power_on = tps65185_power_on;
+    	ops->power_down = tps65185_power_down;
+    	ops->vcom_set = tps65185_set_vcom_voltage;
+    	ops->power_check = tps65185_power_check;
+    	ops->reinit = tps65185_reinit;
+	}
+	return 0;
 }
 
 __weak int htfy_register_ebc_temp_ops(struct htfy_gettemp_ops *ops)

@@ -101,7 +101,11 @@ struct pmic_sess {
     int is_inited;
 };
 
-extern int pmic_probe(struct pmic_sess **sess, const char *id, unsigned int dwell_time_ms, unsigned int vcomoff_time_ms, int v3p3_time_ms);
+extern int pmic_probe(struct pmic_sess **sess, const char *id,
+					unsigned int dwell_time_ms,
+					unsigned int vcomoff_time_ms,
+					int v3p3_time_ms);
+
 extern void pmic_remove(struct pmic_sess **sess);
 extern int pmic_set_registers_papyrus_1(struct pmic_sess *sess, uint8_t *vals);
 extern int pmic_set_registers_papyrus_2(struct pmic_sess *sess, uint8_t *vals);
@@ -135,8 +139,8 @@ extern bool pmic_standby_dwell_time_ready(struct pmic_sess *sess);
 extern void pmic_pm_sleep(struct pmic_sess *sess);
 extern void pmic_pm_resume(struct pmic_sess *sess);
 
-int tps65185_vcom_get(void);
-int tps65185_vcom_set(int vcom_mv);
+//int tps65185_vcom_get(void);
+//int tps65185_vcom_set(int vcom_mv);
 
 // NOTE: EINK 电源操作函数.电源模块提供实现函数，且提供 htfy_register_ebc_pwr_ops 供本模块调用.
 // 返回值: 0 --操作OK, < 0: 出错。
@@ -148,7 +152,7 @@ struct htfy_pwr_ops {
 
     // NOTE: sometime,power-on failed,add check status.return:1 power good, 0: power fail,
     // needs repower。
-    int (*power_check)(void *, int dump);
+    int     (*power_check)(void*, int timeout);
     int (*reinit)(void *, int epd_type);
 };
 

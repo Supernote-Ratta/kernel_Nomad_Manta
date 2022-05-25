@@ -204,11 +204,18 @@
     panel,mirror = <0>;
     panel,panel_16bit = <1>;
     panel,panel_color = <0>;
-    panel,width-mm = <157>;
-    panel,height-mm = <210>;
+    panel,width-mm = <210>;
+    panel,height-mm = <157>;
+    panel,dpi = <220>;
     panel,vcom-mv = <1670>;
 };
 
+// 20220523,hsl fix: 6*fb_size + 2*lcd_size + 512K 
+// 10.3: 6*2628288 + 2*657088 + 512*1024= 17608192 = 0X10CAE00
+&display_reserved {
+	reg = <0x0 0x10900000 0x0 0x10d0000>;
+};
+		
 &cpu0 {
     cpu-supply = <&vdd_cpu>;
 };
@@ -665,10 +672,10 @@
         pinctrl-0 = <&tps65185_gpio>;
         wakeup-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
         vcomctl-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
-        int-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+        //int-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
         powerup-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;//uboot/power up
         //poweren-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;//suspend/resume/sleep,before powerup pin
-        error_pin = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;   // 20210714: when error, output low. power good, output high.
+        error-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;   // 20210714: when error, output low. power good, output high.
     };
 
     fusb302: fusb30x@22 {
@@ -927,7 +934,7 @@
     status = "okay";
     pmuio1-supply = <&vcc3v3_pmu>;
     pmuio2-supply = <&vcca1v8_pmu>;
-    vccio1-supply = <&vccio_acodec>;
+    vccio1-supply = <&vccio_acodec>; // 1.8v
     vccio2-supply = <&vcc_1v8>;
     vccio3-supply = <&vccio_sd>;
     vccio4-supply = <&vcca1v8_pmu>;

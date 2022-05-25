@@ -39,6 +39,7 @@ extern int ht_ebc_dbg_bits;
 #define 	EDBG_VIDEO 			(1<<12)
 #define 	EDBG_SWITCH			(1<<13)
 #define 	EDBG_WARN 			(1<<14)		// warning msg.
+#define 	EDBG_CONFLICT   	(1<<15)	
 
 #define 	IDBG_WACOM 			(1<<16)
 
