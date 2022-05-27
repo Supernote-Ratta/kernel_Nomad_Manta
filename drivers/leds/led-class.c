@@ -63,7 +63,8 @@ unlock:
 	mutex_unlock(&led_cdev->led_access);
 	return ret;
 }
-static DEVICE_ATTR_RW(brightness);
+//static DEVICE_ATTR_RW(brightness);
+static DEVICE_ATTR(brightness, 0660, brightness_show, brightness_store);
 
 static ssize_t max_brightness_show(struct device *dev,
 		struct device_attribute *attr, char *buf)

@@ -590,6 +590,8 @@ static int32_t aw9610x_input_init(struct aw9610x *aw9610x, uint8_t *err_num)
             __set_bit(EV_SYN, aw9610x->channels_arr[i].input->evbit);
             __set_bit(KEY_F1, aw9610x->channels_arr[i].input->keybit);
             input_set_abs_params(aw9610x->channels_arr[i].input, ABS_DISTANCE, -1, 100, 0, 0);
+            input_set_capability(aw9610x->channels_arr[i].input, EV_KEY, KEY_F1);
+            input_set_capability(aw9610x->channels_arr[i].input, EV_KEY, KEY_P);
             ret = input_register_device(aw9610x->channels_arr[i].input);
             if (ret) {
                 AWLOGE(aw9610x->dev, "failed to register input device");
@@ -632,7 +634,7 @@ static void aw9610x_reg_version_comp(struct aw9610x *aw9610x, struct aw_bin *aw_
     uint32_t blfilt1_tmp = 0;
 
     if ((aw9610x->chip_name[7] == 'A') &&
-        (aw_bin->header_info[0].chip_type[7] == '\0')) {
+    (aw_bin->header_info[0].chip_type[7] == '\0')) {
         AWLOGI(aw9610x->dev, "enter");
         for (i = 0; i < 6; i++) {
             aw9610x_i2c_read(aw9610x, REG_BLFILT_CH0 + (0x3c * i), &blfilt1_data);
@@ -654,11 +656,10 @@ static void aw9610x_bin_valid_loaded(struct aw9610x *aw9610x, struct aw_bin *aw_
     uint32_t reg_data;
     uint32_t start_addr = aw_bin_data_s->header_info[0].valid_data_addr;
 
-    for (i = 0; i < aw_bin_data_s->header_info[0].valid_data_len;
-         i += 6, start_addr += 6) {
+    for (i = 0; i < aw_bin_data_s->header_info[0].valid_data_len; i += 6, start_addr += 6) {
         reg_addr = (aw_bin_data_s->info.data[start_addr]) | aw_bin_data_s->info.data[start_addr + 1] << 8;
         reg_data = aw_bin_data_s->info.data[start_addr + 2] | (aw_bin_data_s->info.data[start_addr + 3] << 8) |
-                   (aw_bin_data_s->info.data[start_addr + 4] << 16) | (aw_bin_data_s->info.data[start_addr + 5] << 24);
+        (aw_bin_data_s->info.data[start_addr + 4] << 16) | (aw_bin_data_s->info.data[start_addr + 5] << 24);
         if ((reg_addr == REG_EEDA0) || (reg_addr == REG_EEDA1)) {
             continue;
         }
@@ -1149,8 +1150,7 @@ static ssize_t aw9610x_operation_mode_set(struct device *dev, struct device_attr
         return ret;
     }
 
-    if (aw9610x->mode == AW9610X_ACTIVE_MODE &&
-        aw9610x->old_mode != AW9610X_ACTIVE_MODE) {
+    if (aw9610x->mode == AW9610X_ACTIVE_MODE && aw9610x->old_mode != AW9610X_ACTIVE_MODE) {
         if (aw9610x->old_mode == AW9610X_DEEPSLEEP_MODE) {
             aw9610x_i2c_write(aw9610x, REG_OSCEN, AW9610X_CPU_WORK_MASK);
             enable_irq(aw9610x->to_irq);
@@ -1279,15 +1279,15 @@ static void aw9610x_irq_handle(struct aw9610x *aw9610x)
     for (i = 0; i < AW_CHANNEL_MAX; i++) {
         curr_status = (((uint8_t)(curr_status_val >> (24 + i)) & 0x1))
 #ifdef AW_INPUT_TRIGGER_TH1
-                      | (((uint8_t)(curr_status_val >> (16 + i)) & 0x1) << 1)
+        | (((uint8_t)(curr_status_val >> (16 + i)) & 0x1) << 1)
 #endif
 #ifdef AW_INPUT_TRIGGER_TH2
-                      | (((uint8_t)(curr_status_val >> (8 + i)) & 0x1) << 2)
+        | (((uint8_t)(curr_status_val >> (8 + i)) & 0x1) << 2)
 #endif
 #ifdef AW_INPUT_TRIGGER_TH3
-                      | (((uint8_t)(curr_status_val >> (i)) & 0x1) << 3)
+        | (((uint8_t)(curr_status_val >> (i)) & 0x1) << 3)
 #endif
-                      ;
+        ;
         AWLOGI(aw9610x->dev, "curr_state[%d] = 0x%x", i, curr_status);
 
         if (aw9610x->channels_arr[i].used == AW_FALSE) {
@@ -1327,6 +1327,9 @@ static void aw9610x_irq_handle(struct aw9610x *aw9610x)
         input_sync(aw9610x->channels_arr[i].input);
 
         aw9610x->channels_arr[i].last_channel_info = curr_status;
+        input_report_key(aw9610x->channels_arr[i].input, KEY_F1, curr_status);
+        input_sync(aw9610x->channels_arr[i].input);
+        AWLOGI(aw9610x->dev, "input_report_key:KEY_F1");
     }
 }
 
@@ -1792,8 +1795,8 @@ static int aw9610x_ps_notify_callback(struct notifier_block *self, unsigned long
 #else
     if (event == PSY_EVENT_PROP_CHANGED
 #endif
-        && psy && psy->desc->get_property && psy->desc->name &&
-        !strncmp(psy->desc->name, USB_POWER_SUPPLY_NAME, sizeof(USB_POWER_SUPPLY_NAME))) {
+    && psy && psy->desc->get_property && psy->desc->name &&
+    !strncmp(psy->desc->name, USB_POWER_SUPPLY_NAME, sizeof(USB_POWER_SUPPLY_NAME))) {
         AWLOGI(aw9610x->dev, "ps notification: event = %lu", event);
         retval = aw9610x_ps_get_state(aw9610x, psy, &present);
         if (retval) {

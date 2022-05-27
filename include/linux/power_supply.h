@@ -407,6 +407,10 @@ enum power_supply_property {
 	 * MODEL_NAME and SERIAL_NUMBER. Don't add below SERIAL_NUMBER.
 	 */
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+	/* changed tower: for battmanager. */
+	POWER_SUPPLY_PROP_BATTERY_PROTECT,
+	POWER_SUPPLY_PROP_BATTERY_MAINTAIN,
+	/* changed end. */
 };
 
 enum power_supply_type {

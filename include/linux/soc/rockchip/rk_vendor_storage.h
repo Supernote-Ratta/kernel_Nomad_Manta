@@ -28,6 +28,14 @@
 #define LAN_RGMII_DL_ID			16
 #define EINK_VCOM_ID			17
 
+/*BOE futao add EINK_FACTOY_PROC EINK_PSN */
+#define EINK_FACTOY_PROC        18
+#define EINK_PSN                19
+#define EINK_TARGET_REGION      20
+#define EINK_TARGET_COUNTRY_CODE   21
+#define EINK_DEVICE_MAIN_COMPONENTS_ID_BACKUP   22
+#define EINK_BOARD_BUILT_TIME_ID 23
+
 int rk_vendor_read(u32 id, void *pbuf, u32 size);
 int rk_vendor_write(u32 id, void *pbuf, u32 size);
 int rk_vendor_register(void *read, void *write);

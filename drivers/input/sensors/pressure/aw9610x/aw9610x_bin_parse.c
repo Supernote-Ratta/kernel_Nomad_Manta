@@ -94,8 +94,7 @@ static int aw_check_sum(struct aw_bin *bin, int bin_num)
 
     DBG("enter\n");
 
-    p_check_sum =
-        &(bin->info.data[(bin->header_info[bin_num].valid_data_addr - bin->header_info[bin_num].header_len)]);
+    p_check_sum = &(bin->info.data[(bin->header_info[bin_num].valid_data_addr - bin->header_info[bin_num].header_len)]);
     DBG("aw_bin_parse p_check_sum = %p\n", p_check_sum);
     check_sum = GET_32_DATA(*(p_check_sum + 3), *(p_check_sum + 2), *(p_check_sum + 1), *(p_check_sum));
 
@@ -136,8 +135,7 @@ static int aw_check_register_num_v1(struct aw_bin *bin, int bin_num)
 
     DBG("enter\n");
 
-    p_check_sum =
-        &(bin->info.data[(bin->header_info[bin_num].valid_data_addr)]);
+    p_check_sum = &(bin->info.data[(bin->header_info[bin_num].valid_data_addr)]);
     DBG("aw_bin_parse p_check_sum = %p\n", p_check_sum);
     parse_register_num = GET_32_DATA(*(p_check_sum + 3), *(p_check_sum + 2), *(p_check_sum + 1), *(p_check_sum));
     check_register_num = (bin->header_info[bin_num].bin_data_len - 4) / (bin->header_info[bin_num].reg_byte_len + bin->header_info[bin_num].data_byte_len);
@@ -259,7 +257,7 @@ static int aw_parse_each_of_multi_bins_1_0_0(unsigned int bin_num, int bin_seria
         valid_data_len = bin->header_info[bin->all_bin_parse_num - 1].bin_data_len;
         bin->p_addr += (60 + valid_data_len);
         bin->header_info[bin->all_bin_parse_num].valid_data_addr = bin->header_info[bin->all_bin_parse_num - 1].valid_data_addr +
-                bin->header_info[bin->all_bin_parse_num - 1].bin_data_len + 60;
+        bin->header_info[bin->all_bin_parse_num - 1].bin_data_len + 60;
     }
 
     ret = aw_parse_bin_header_1_0_0(bin);

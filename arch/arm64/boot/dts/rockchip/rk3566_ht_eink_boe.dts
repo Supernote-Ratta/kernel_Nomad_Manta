@@ -11,6 +11,7 @@
 #include <dt-bindings/input/rk-input.h>
 #include <dt-bindings/sensor-dev.h>
 #include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/usb/pd.h>
 #include "rk3566.dtsi"
 #include "rk3568-android.dtsi"
 #include "rk3566-eink.dtsi"
@@ -85,14 +86,14 @@
         led@2 {
             gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-charging";
-            label = "battery_charging";
+            label = "led_r";
             retain-state-suspended;
         };
 
         led@1 {
             gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-charging-or-full";
-            label = "battery-charging-or-full";
+            label = "led_g";
             default-state = "off";
         };
     };
@@ -586,11 +587,11 @@
             dcdc_boost: BOOST {
                 regulator-always-on;
                 regulator-boot-on;
-                regulator-min-microvolt = <4700000>;
-                regulator-max-microvolt = <5400000>;
+                regulator-min-microvolt = <5000000>;
+                regulator-max-microvolt = <5000000>;
                 regulator-name = "boost";
                 regulator-state-mem {
-                    regulator-off-in-suspend;
+                    regulator-on-in-suspend;
                     regulator-changeable-in-suspend;
                 };
             };
@@ -635,7 +636,7 @@
             chrg_finish_cur = <300>;
             virtual_power = <0>;
             dc_det_adc = <0>;
-            extcon = <&usb2phy0>;
+            extcon = <&usbc0>;
             gate_function_disable = <1>;
         };
 
@@ -660,6 +661,7 @@
 
 &i2c1 {
     status = "okay";
+    clock-frequency = <400000>;
 
     ls_stk3410: light@48 {
         status = "okay";
@@ -715,6 +717,25 @@
         channel_use_flag = <0x1f>;
         sar-num = < 0 >;
     };
+
+    usbc0: et7303@4e {
+        compatible = "etek,et7303";
+        reg = <0x4e>;
+        interrupt-parent = <&gpio0>;
+        interrupts = <22 IRQ_TYPE_LEVEL_LOW>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&et7303_int>;
+        status = "okay";
+
+        usb_con: connector {
+            data-role = "dual";
+            power-role = "dual";
+            try-power-role = "sink";
+            source-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)>;
+            sink-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)>;
+            op-sink-microwatt = <10000000>;
+        };
+    };
 };
 
 &i2c3 {
@@ -745,9 +766,9 @@
         reg = <0x68>;
         pinctrl-names = "default";
         pinctrl-0 = <&einkpmic_gpio>;
-        powerup_pin = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
-        vcomctl_pin = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
-        error_pin = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;
+        powerup-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+        vcomctl-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+        error-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;
     };
 
     sy7636a: sy7636a@62 {
@@ -921,6 +942,12 @@
         };
     };
 
+    typec {
+        et7303_int: et7303-int {
+            rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+        };
+    };
+
     wacom {
         emr_gpio: emr-gpio {
             rockchip,pins =
@@ -1069,10 +1096,12 @@
 
 &usb2phy0 {
     status = "okay";
+    extcon = <&usbc0>;
 };
 
 &usbdrd_dwc3 {
     status = "okay";
+    extcon = <&usbc0>;
 };
 
 &usbdrd30 {

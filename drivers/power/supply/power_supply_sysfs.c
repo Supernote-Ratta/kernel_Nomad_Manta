@@ -16,7 +16,7 @@
 #include <linux/power_supply.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
-
+#include <linux/sysfs.h>
 #include "power_supply.h"
 
 /*
@@ -37,6 +37,10 @@
 	.show = power_supply_show_property,				\
 	.store = power_supply_store_property,				\
 }
+/* changed tower: for battmanager. */
+#define POWER_SUPPLY_ATTR_W(_name)					\
+	__ATTR(_name, 0644, power_supply_show_property, power_supply_store_property)
+/* changed end. */
 
 static struct device_attribute power_supply_attrs[];
 
@@ -80,6 +84,16 @@ static const char * const power_supply_capacity_level_text[] = {
 static const char * const power_supply_scope_text[] = {
 	"Unknown", "System", "Device"
 };
+
+/* changed tower: for battmanager. */
+static const char * const power_supply_bat_protect_text[] = {
+	"Off", "On"
+};
+
+static const char * const power_supply_bat_maintain_text[] = {
+	"Off", "On", "L95", "L90", "L80"
+};
+/* changed end. */
 
 static const char * const power_supply_usbc_text[] = {
 	"Nothing attached", "Sink attached", "Powered cable w/ sink",
@@ -257,6 +271,14 @@ static ssize_t power_supply_store_property(struct device *dev,
 	case POWER_SUPPLY_PROP_SCOPE:
 		ret = sysfs_match_string(power_supply_scope_text, buf);
 		break;
+	/* changed tower: for battmanager. */
+	case POWER_SUPPLY_PROP_BATTERY_PROTECT:
+		ret = sysfs_match_string(power_supply_bat_protect_text, buf);
+		break;
+	case POWER_SUPPLY_PROP_BATTERY_MAINTAIN:
+		ret = sysfs_match_string(power_supply_bat_maintain_text, buf);
+		break;
+	/* changed end. */
 	default:
 		ret = -EINVAL;
 	}
@@ -520,6 +542,10 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(battery_type),
 	POWER_SUPPLY_ATTR(cycle_counts),
 	POWER_SUPPLY_ATTR(serial_number),
+	/* changed tower: for battmanager. */
+	POWER_SUPPLY_ATTR_W(batt_protect),
+	POWER_SUPPLY_ATTR_W(batt_maintain),
+	/* changed end. */
 };
 
 static struct attribute *

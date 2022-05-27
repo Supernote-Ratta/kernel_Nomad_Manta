@@ -669,13 +669,26 @@
         compatible = "ti,tps65185";
         reg = <0x68>;
         pinctrl-names = "default";
-        pinctrl-0 = <&tps65185_gpio>;
+        pinctrl-0 = <&einkpmic_gpio>;
         wakeup-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
         vcomctl-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
         //int-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
         powerup-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;//uboot/power up
         //poweren-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;//suspend/resume/sleep,before powerup pin
         error-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;   // 20210714: when error, output low. power good, output high.
+    };
+
+    sy7636a: sy7636a@62 {
+        status = "okay";
+        compatible = "sy7636a";
+        reg = <0x62>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&einkpmic_gpio>;
+        powerup-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+        vcomctl-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+        error-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
+        vdd-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
+        pmicon-gpios  = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
     };
 
     fusb302: fusb30x@22 {
@@ -856,14 +869,15 @@
         };
     };
 
-    tps_pmic {
-        tps65185_gpio: tps65185-gpio {
+    eink_pmic {
+        einkpmic_gpio: einkpmic-gpio {
             rockchip,pins =
-                    <4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
-                    <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>,
-                    <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,
-                    <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,
-                    <3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
+                <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>,
+                <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>,
+                <3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,
+                <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,
+                <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,
+                <4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
         };
     };
 

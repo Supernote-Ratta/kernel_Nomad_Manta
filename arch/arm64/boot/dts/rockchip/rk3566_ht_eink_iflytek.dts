@@ -789,7 +789,7 @@
         int-n-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
         switch-gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_LOW>;
         status = "okay";
-     };
+    };
 };
 
 &i2c4 {

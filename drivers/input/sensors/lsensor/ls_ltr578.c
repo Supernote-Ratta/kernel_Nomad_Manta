@@ -35,7 +35,7 @@
 
 static int als_gainrange = ALS_DEF_GAIN;
 static struct i2c_client *client_test = NULL;
-static int cal_factor = 1000;
+static int cal_factor = 100;
 static struct class *lsensor_class;
 
 int sensor_als_read(struct i2c_client *client)
@@ -132,12 +132,12 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 // class node
 // cat /sys/class/ls_ltr578/sensor_value
 // cat /sys/class/ls_ltr578/sensor_ctrl
-static ssize_t sensor_value_show(struct class *cls,struct class_attribute *attr, char *_buf)
+static ssize_t sensor_value_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client_test);
     int result = 0;
     char value = 0;
-	ssize_t len = 0;
+    ssize_t len = 0;
     sensor_active(client_test, 1, 9600);
 
     if (sensor->pdata->irq_enable) {
@@ -150,30 +150,30 @@ static ssize_t sensor_value_show(struct class *cls,struct class_attribute *attr,
     result = sensor_als_read(client_test);
     result = (cal_factor * result) / 1000;
 
-    len += sprintf(_buf, "%d\n",result);
-	return len;
+    len += sprintf(_buf, "%d\n", result);
+    return len;
 }
 
 
-static ssize_t sensor_value_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
+static ssize_t sensor_value_store(struct class *cls, struct class_attribute *attr, const char *buf, size_t _count)
 {
 
-	return 0;
+    return 0;
 }
 
-static ssize_t sensor_ctrl_show(struct class *cls,struct class_attribute *attr, char *_buf)
+static ssize_t sensor_ctrl_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
 
-	ssize_t len = 0;
+    ssize_t len = 0;
 
-	return len;
+    return len;
 }
 
 
-static ssize_t sensor_ctrl_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
+static ssize_t sensor_ctrl_store(struct class *cls, struct class_attribute *attr, const char *buf, size_t _count)
 {
 
-	return 0;
+    return 0;
 }
 
 static CLASS_ATTR_RW(sensor_value);
@@ -228,13 +228,15 @@ static int sensor_init(struct i2c_client *client)
     }
 
     sensor->status_cur = SENSOR_OFF;
-	lsensor_class = class_create(THIS_MODULE, client->name);
-	result = class_create_file(lsensor_class, &class_attr_sensor_value);
-	if (result)
-		printk("[ltr578als] Fail to create class sensor_class_value.\n");
-	result = class_create_file(lsensor_class, &class_attr_sensor_ctrl);
-	if (result)
-		printk("[ltr578als] Fail to create class sensor_class_ctrl.\n");
+    lsensor_class = class_create(THIS_MODULE, client->name);
+    result = class_create_file(lsensor_class, &class_attr_sensor_value);
+    if (result) {
+        printk("[ltr578als] Fail to create class sensor_class_value.\n");
+    }
+    result = class_create_file(lsensor_class, &class_attr_sensor_ctrl);
+    if (result) {
+        printk("[ltr578als] Fail to create class sensor_class_ctrl.\n");
+    }
 
     return result;
 }
@@ -248,19 +250,19 @@ static int light_report_value(struct input_dev *input, int data)
         data = 0; // no light
     }
 
-    if (data <= 10) {
+    if (data <= 100) {
         index = 0; goto report;
-    } else if (data <= 160) {
+    } else if (data <= 1600) {
         index = 1; goto report;
-    } else if (data <= 225) {
+    } else if (data <= 2250) {
         index = 2; goto report;
-    } else if (data <= 320) {
+    } else if (data <= 3200) {
         index = 3; goto report;
-    } else if (data <= 640) {
+    } else if (data <= 6400) {
         index = 4; goto report;
-    } else if (data <= 1280) {
+    } else if (data <= 12800) {
         index = 5; goto report;
-    } else if (data <= 2600) {
+    } else if (data <= 26000) {
         index = 6; goto report;
     } else {
         index = 7; goto report;
@@ -287,10 +289,10 @@ static int sensor_report_value(struct i2c_client *client)
 
     //result = sensor->ops->active(client,1,0);
     result = sensor_als_read(client);
-    result = (cal_factor * result) / 1000;
+    result = (cal_factor * result) / 100;
     index = light_report_value(sensor->input_dev, result);
 
-    printk("[ltr578als] %s:%s result=0x%x,index=%d\n", __func__, sensor->ops->name, result, index);
+    //printk("[ltr578als] %s:%s result=0x%x,index=%d\n", __func__, sensor->ops->name, result, index);
 
     return result;
 }
@@ -312,7 +314,7 @@ static int sensor_report_value1(struct i2c_client *client)
     result = sensor_als_read(client);
     index = light_report_value(sensor->input_dev, result);
 
-    printk("[ltr578als] %s:%s result=0x%x,index=%d\n", __func__, sensor->ops->name, result, index);
+    //printk("[ltr578als] %s:%s result=0x%x,index=%d\n", __func__, sensor->ops->name, result, index);
 
     return result;
 }
@@ -326,7 +328,8 @@ int light_ltr578_get_value(void)
     mdelay(100);
     sensor_active(client_test, 1, 9600);
     result = sensor_report_value(client_test);
-    printk("%s: result=%4d\n", __func__, result);
+    result = result / 10;
+    printk("%s: lux=%4d\n", __func__, result);
 
     return result;
 }
@@ -358,6 +361,24 @@ int light_ltr578_get_cal_factor(void)
 
 }
 EXPORT_SYMBOL(light_ltr578_get_cal_factor);
+
+void set_ltr578_cali_value(int value)
+{
+    cal_factor = value;
+    printk("%s: set cal_factor=%4d\n", __func__, cal_factor);
+}
+EXPORT_SYMBOL(set_ltr578_cali_value);
+
+int get_ltr578_cali_value(void)
+{
+    int result = 0;
+
+    result = cal_factor;
+    printk("%s: calibration=%4d\n", __func__, result);
+
+    return result;
+}
+EXPORT_SYMBOL(get_ltr578_cali_value);
 
 struct sensor_operate light_ltr578_ops = {
     .name               = "ls_ltr578",
