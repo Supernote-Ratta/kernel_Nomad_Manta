@@ -67,7 +67,7 @@
 #define PAPYRUS_MV_TO_VCOMREG_SY7636A(MV)     (MV/10)
 #define PAPYRUS_V3P3OFF_DELAY_MS              10  //100
 
-#if 1
+#if 0
 #define sy7636a_printk(fmt, args...)          printk(KERN_INFO "[sy7636a] " "%s(%d): " fmt, __FUNCTION__, __LINE__, ##args)
 #else
 #define sy7636a_printk(fmt, args...)

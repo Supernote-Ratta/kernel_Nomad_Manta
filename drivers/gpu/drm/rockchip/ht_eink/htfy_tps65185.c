@@ -127,7 +127,7 @@ extern void papyrus_set_i2c_address(int address);
 */
 #define HW_GET_STATE_INTERVAL_MS           24
 
-#define BGB_PRINT                          1
+#define BGB_PRINT                          0
 #if BGB_PRINT
 #define tps65185_printk(fmt, args...)      printk(KERN_INFO "[tps] " "%s(%d): " fmt, __FUNCTION__, __LINE__, ##args)
 #else
