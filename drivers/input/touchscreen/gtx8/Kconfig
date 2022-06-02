@@ -1,0 +1,12 @@
+#
+# Goodix touchscreen driver configuration
+#
+config TOUCHSCREEN_GOODIX_GTX8
+	tristate "Goodix GTx8 touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have a Goodix GTx8 touch controller
+	  to your system.
+
+	  If build module, say M.
+	  If unsure, say N.

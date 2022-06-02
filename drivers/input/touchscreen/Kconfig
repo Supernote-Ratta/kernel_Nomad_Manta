@@ -1397,6 +1397,15 @@ config TOUCHSCREEN_FT5436
 	  Say Y here if you have Focaltech touch panel.
 	  If unsure, say N.
 
+config TOUCHSCREEN_HDX8801
+	bool "HDX8801 pen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you have HDX8801 pen.
+	  If unsure, say N.
+
 source "drivers/input/touchscreen/cyttsp5/Kconfig"
 
+source "drivers/input/touchscreen/gtx8/Kconfig"
 endif

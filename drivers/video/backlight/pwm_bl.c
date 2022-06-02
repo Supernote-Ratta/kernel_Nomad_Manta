@@ -107,11 +107,11 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	struct pwm_bl_data *pb = bl_get_data(bl);
 	int brightness = bl->props.brightness;
 	int duty_cycle;
-
-	if (bl->props.power != FB_BLANK_UNBLANK ||
-	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
-	    bl->props.state & BL_CORE_FBBLANK)
-		brightness = 0;
+//220601 tanlq
+	//if (bl->props.power != FB_BLANK_UNBLANK ||
+	//    bl->props.fb_blank != FB_BLANK_UNBLANK ||
+	//    bl->props.state & BL_CORE_FBBLANK)
+	//	brightness = 0;
 
 	if (pb->notify)
 		brightness = pb->notify(pb->dev, brightness);
@@ -475,7 +475,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 						  GPIOD_ASIS);
 	if (IS_ERR(pb->enable_gpio)) {
 		ret = PTR_ERR(pb->enable_gpio);
-		goto err_alloc;
+		//goto err_alloc; //220601 tanlq
 	}
 
 	/*
@@ -509,7 +509,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	pb->power_supply = devm_regulator_get(&pdev->dev, "power");
 	if (IS_ERR(pb->power_supply)) {
 		ret = PTR_ERR(pb->power_supply);
-		goto err_alloc;
+		//goto err_alloc;//220601 tanlq
 	}
 
 	pb->pwm = devm_pwm_get(&pdev->dev, NULL);
