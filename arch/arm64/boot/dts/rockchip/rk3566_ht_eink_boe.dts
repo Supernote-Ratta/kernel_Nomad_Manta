@@ -187,7 +187,7 @@
     backlight_warm: backlight-warm {
         status = "okay";
         compatible = "pwm-backlight";
-        pwms = <&pwm0 0 25000 0>;
+        pwms = <&pwm1 0 25000 0>;
         brightness-levels = <
             0     18  100   200  300 400
             500   600   700   800   900   1000  1100  1200  
@@ -210,7 +210,7 @@
      backlight_cold: backlight-cold {
         status = "okay";
         compatible = "pwm-backlight";
-        pwms = <&pwm1 0 25000 0>;
+        pwms = <&pwm0 0 25000 0>;
         brightness-levels = <
             0     18  100   200  300 400
             500   600   700   800   900   1000  1100  1200  
