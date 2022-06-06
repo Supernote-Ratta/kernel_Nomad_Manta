@@ -52,7 +52,7 @@
     };
 
     gpio_keys: gpio-keys {
-        status = "okay";
+        status = "disabled";
         compatible = "gpio-keys";
         autorepeat;
 
@@ -83,12 +83,6 @@
             default-state = "off";
         };
 
-        led@3 {
-            gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-            linux,default-trigger = "fp-tmp";
-            label = "led_b";
-            default-state = "off";
-        };
     };
 
     hall_sensor: hall-wh2506d {
@@ -523,7 +517,7 @@
                 regulator-max-microvolt = <1800000>;
                 regulator-name = "vccio_sd";
                 regulator-state-mem {
-                    regulator-on-in-suspend;
+                    regulator-off-in-suspend;
                     regulator-changeable-in-suspend;
                 };
             };
@@ -950,6 +944,11 @@
     };
 };
 
+&xin32k {
+    pinctrl-names = "default";
+    pinctrl-0 = <&clk32k_out1>;
+};
+
 &pmu_io_domains {
     status = "okay";
     pmuio1-supply = <&vcc3v3_pmu>;
@@ -1028,10 +1027,10 @@
     >;
     rockchip,regulator-off-in-mem-lite =
         <&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
-        <&vccio_acodec>, <&vccio_sd>, <&vcc1v8_dvp>, <&dcdc_boost>, <&otg_switch>,
+        <&vccio_acodec>, <&dcdc_boost>, <&otg_switch>,
         <&sleep_sta_ctl>;
     rockchip,regulator-on-in-mem-lite =
-        <&vcc_ddr>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc3v3_pmu>;
+        <&vcc_ddr>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc1v8_dvp>, <&vccio_sd>, <&vcc3v3_pmu>;
 
     rockchip,regulator-off-in-mem =
         <&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
