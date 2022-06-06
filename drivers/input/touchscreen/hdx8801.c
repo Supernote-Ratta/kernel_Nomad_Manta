@@ -655,10 +655,8 @@ static int hdx_probe(struct i2c_client *client, const struct i2c_device_id *ids)
     //enable_irq(client->irq);
 	return 0;
 
-	exit_input:
+exit_input:
 		input_unregister_device(hdx->dig_dev);
-		devm_gpio_free(&client->dev, hdx->reset_gpio);
-		devm_gpio_free(&client->dev, hdx->irq);
 		kfree(hdx);
 err_free_reset_gpio:
 	devm_gpio_free(&client->dev, hdx->reset_gpio);

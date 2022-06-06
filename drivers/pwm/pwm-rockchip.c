@@ -125,6 +125,7 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * bits, every possible input period can be obtained using the
 	 * default prescaler value for all practical clock rate values.
 	 */
+	 printk("rockchip_pwm_config state:%d duty_cycle:%d",state->period,state->duty_cycle);
 	div = (u64)pc->clk_rate * state->period;
 	period = DIV_ROUND_CLOSEST_ULL(div,
 				       pc->data->prescaler * NSEC_PER_SEC);
