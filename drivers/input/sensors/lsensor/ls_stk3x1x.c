@@ -687,7 +687,7 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
     result = value * ls_data->calibration_value / 1000;
     ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
     //len += sprintf(_buf, "origin lux: %d, after calibration: %d\n", value, result);
-    len += sprintf(_buf, "x: %d, y: %d, z: %d\n", value, ls_data->ir_code, result);
+    len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, value, ls_data->ir_code);
     return len;
 }
 static CLASS_ATTR_RO(lux_value);

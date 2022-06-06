@@ -159,7 +159,7 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
     value = sensor_als_read(ls_data->client);
     result = value * ls_data->calibration_value / 1000;
     //len += sprintf(_buf, "origin lux: %d, after calibration: %d\n", value, result);
-	len += sprintf(_buf, "x: %d, y: %d, z: %d\n", ls_data->als, ls_data->ir_code, result);
+	len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, ls_data->als, ls_data->ir_code);
     return len;
 }
 static CLASS_ATTR_RO(lux_value);
