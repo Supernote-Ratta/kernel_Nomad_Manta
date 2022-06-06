@@ -762,6 +762,13 @@ config LEDS_NIC78BX
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-nic78bx.
 
+config LEDS_CLASS_BOE
+	bool "BOE LED multiple class support"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for BOE multiple LEDs. Say 'y' to enable this
+	  support in kernel.
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 

@@ -101,11 +101,7 @@ struct pmic_sess {
     int is_inited;
 };
 
-extern int pmic_probe(struct pmic_sess **sess, const char *id,
-					unsigned int dwell_time_ms,
-					unsigned int vcomoff_time_ms,
-					int v3p3_time_ms);
-
+extern int pmic_probe(struct pmic_sess **sess, const char *id, unsigned int dwell_time_ms, unsigned int vcomoff_time_ms, int v3p3_time_ms);
 extern void pmic_remove(struct pmic_sess **sess);
 extern int pmic_set_registers_papyrus_1(struct pmic_sess *sess, uint8_t *vals);
 extern int pmic_set_registers_papyrus_2(struct pmic_sess *sess, uint8_t *vals);
@@ -152,7 +148,7 @@ struct htfy_pwr_ops {
 
     // NOTE: sometime,power-on failed,add check status.return:1 power good, 0: power fail,
     // needs repower。
-    int     (*power_check)(void*, int timeout);
+    int (*power_check)(void*, int timeout);
     int (*reinit)(void *, int epd_type);
 };
 

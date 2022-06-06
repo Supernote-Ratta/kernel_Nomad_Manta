@@ -44,6 +44,10 @@ config LS_STK3410
 	tristate "light sensor stk3410"
 	default n
 
+config LS_STK3x1x
+	tristate "light sensor stk3x1x"
+	default n
+
 config LS_EM3071X
 	tristate "light sensor em3071x"
 	default n

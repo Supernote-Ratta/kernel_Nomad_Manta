@@ -178,15 +178,6 @@ static int sensor_init(struct i2c_client *client)
         dev_err(&client->dev, "%s:fail to set MXC6655_INT_MASK0.\n", __func__);
         return result;
     }
-    gsensor_class = class_create(THIS_MODULE, client->name);
-    result = class_create_file(gsensor_class, &class_attr_sensor_value);
-    if (result) {
-        printk("Fail to create class gsensor_class_value.\n");
-    }
-    result = class_create_file(gsensor_class, &class_attr_sensor_ctrl);
-    if (result) {
-        printk("Fail to create class gsensor_class_ctrl.\n");
-    }
 
     return result;
 }
@@ -332,7 +323,20 @@ static struct sensor_operate gsensor_mxc6655_ops = {
 
 static int gsensor_mxc6655_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 {
-    return sensor_register_device(client, NULL, devid, &gsensor_mxc6655_ops);
+    int ret = 0;
+
+    gsensor_class = class_create(THIS_MODULE, client->name);
+    ret = class_create_file(gsensor_class, &class_attr_sensor_value);
+    if (ret) {
+        printk("Fail to create class gsensor_class_value.\n");
+    }
+    ret = class_create_file(gsensor_class, &class_attr_sensor_ctrl);
+    if (ret) {
+        printk("Fail to create class gsensor_class_ctrl.\n");
+    }
+
+    ret = sensor_register_device(client, NULL, devid, &gsensor_mxc6655_ops);
+    return ret;
 }
 
 static int gsensor_mxc6655_remove(struct i2c_client *client)

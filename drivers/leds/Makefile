@@ -90,4 +90,4 @@ obj-$(CONFIG_LEDS_USER)			+= uleds.o
 # LED Triggers
 obj-$(CONFIG_LEDS_TRIGGERS)		+= trigger/
 
-obj-y	+= mynode.o
+obj-$(CONFIG_LEDS_CLASS_BOE)	+= leds-boe.o

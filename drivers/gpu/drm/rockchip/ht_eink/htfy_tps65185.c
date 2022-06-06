@@ -510,7 +510,9 @@ cleanup_i2c_adapter:
     if (sess->wake_up_pin != INVALID_GPIO) {
         gpio_free(sess->wake_up_pin);
     }
-    gpio_free(sess->vcom_ctl_pin);
+    if (sess->vcom_ctl_pin != INVALID_GPIO) {
+        gpio_free(sess->vcom_ctl_pin);
+    }
     if (sess->pwr_up_pin != INVALID_GPIO) {
         gpio_free(sess->pwr_up_pin);
     }

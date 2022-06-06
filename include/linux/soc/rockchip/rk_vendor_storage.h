@@ -10,31 +10,31 @@
 #ifndef __PLAT_RK_VENDOR_STORAGE_H
 #define __PLAT_RK_VENDOR_STORAGE_H
 
-#define RSV_ID				0
-#define SN_ID				1
-#define WIFI_MAC_ID			2
-#define LAN_MAC_ID			3
-#define BT_MAC_ID			4
-#define HDCP_14_HDMI_ID			5
-#define HDCP_14_DP_ID			6
-#define HDCP_2X_ID			7
-#define DRM_KEY_ID			8
-#define PLAYREADY_CERT_ID		9
-#define ATTENTION_KEY_ID		10
-#define PLAYREADY_ROOT_KEY_0_ID		11
-#define PLAYREADY_ROOT_KEY_1_ID		12
-#define SENSOR_CALIBRATION_ID		13
-#define IMEI_ID				15
-#define LAN_RGMII_DL_ID			16
-#define EINK_VCOM_ID			17
-
-/*BOE futao add EINK_FACTOY_PROC EINK_PSN */
-#define EINK_FACTOY_PROC        18
-#define EINK_PSN                19
-#define EINK_TARGET_REGION      20
-#define EINK_TARGET_COUNTRY_CODE   21
-#define EINK_DEVICE_MAIN_COMPONENTS_ID_BACKUP   22
-#define EINK_BOARD_BUILT_TIME_ID 23
+#define RSV_ID                      0
+#define SN_ID                       1
+#define WIFI_MAC_ID                 2
+#define LAN_MAC_ID                  3
+#define BT_MAC_ID                   4
+#define HDCP_14_HDMI_ID             5
+#define HDCP_14_DP_ID               6
+#define HDCP_2X_ID                  7
+#define DRM_KEY_ID                  8
+#define PLAYREADY_CERT_ID           9
+#define ATTENTION_KEY_ID            10
+#define PLAYREADY_ROOT_KEY_0_ID     11
+#define PLAYREADY_ROOT_KEY_1_ID     12
+#define SENSOR_CALIBRATION_ID       13
+#define IMEI_ID                     15
+#define LAN_RGMII_DL_ID             16
+#define EINK_VCOM_ID                17
+#define EINK_FACTOY_PROC            18
+#define EINK_PSN                    19
+#define EINK_TARGET_REGION          20
+#define EINK_TARGET_COUNTRY_CODE    21
+#define EINK_COMPONENTS_ID_BACKUP   22
+#define EINK_BOARD_BUILT_TIME_ID    23
+#define LIGHT3X1X_CALIBRATION_ID    24
+#define LIGHT578_CALIBRATION_ID     25
 
 int rk_vendor_read(u32 id, void *pbuf, u32 size);
 int rk_vendor_write(u32 id, void *pbuf, u32 size);
