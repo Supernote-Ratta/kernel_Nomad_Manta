@@ -181,7 +181,7 @@
 };
 
 &ebc_dev {
-    pmic = <&tps65185>;
+    pmic = <&tps65185 &sy7636a>;
     //backlight = <&backlight>;
     status = "okay";
     /* ES103TC1 */
@@ -199,7 +199,7 @@
     panel,fsl = <1>;
     panel,fbl = <4>;
     panel,fdl = <1404>;
-    panel,fel = <12>;
+    panel,fel = <2>;
     panel,mirror = <0>;
     panel,panel_16bit = <1>;
     panel,panel_color = <0>;
@@ -868,14 +868,13 @@
         };
     };
 
-    eink_pmic {
+	eink_pmic {
         einkpmic_gpio: einkpmic-gpio {
             rockchip,pins =
-                <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>,
-                <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>,
                 <3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,
                 <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,
-                <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,
+                <3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_down>,
+                <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>,
                 <4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
         };
     };
