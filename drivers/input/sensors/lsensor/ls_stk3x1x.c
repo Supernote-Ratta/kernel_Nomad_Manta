@@ -115,10 +115,10 @@
 #define STK_ALS_THRESHOLD              30
 
 #define LIGHT_SLOPE_CWF                1000
-#define LIGHT_SLOPE_D65                1000
-#define LIGHT_SLOPE_A                  1000
-#define LIGHT_RATIO_D                  4300
-#define LIGHT_RATIO_C                  1000
+#define LIGHT_SLOPE_D65                860
+#define LIGHT_SLOPE_A                  680
+#define LIGHT_RATIO_D                  300
+#define LIGHT_RATIO_C                  940
 
 /*****************************************************************************/
 #define STK3310SA_PID                  0x17

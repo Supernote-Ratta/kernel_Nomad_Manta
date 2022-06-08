@@ -81,12 +81,12 @@ static int sensor_als_read(struct i2c_client *client)
     }
 
     ratio = clearval * 100 / (alsval + 1);
-    if (ratio <= 45) {
+    if (ratio <= 240) {
+        cal_factor = 10;
+    } else if (ratio <= 2000) {
         cal_factor = 8;
-    } else if (ratio <= 180) {
-        cal_factor = 4;
     } else {
-        cal_factor = 5;
+        cal_factor = 7;
     }
 
     luxdata_int = alsval * cal_factor * ALS_WIN_FACTOR / ls_data->als_gainrange;
@@ -171,6 +171,7 @@ static int sensor_init(struct i2c_client *client)
 
     printk("%s:line=%d\n", __func__, __LINE__);
 
+#if 0
     /* Reset the devices */
     regdata = sensor_read_reg(client, sensor->ops->ctrl_reg);
     if ((regdata & 0x03) == 0) {
@@ -180,6 +181,7 @@ static int sensor_init(struct i2c_client *client)
         }
     }
     msleep(5);
+#endif
 
     ls_data->als_gainrange = ALS_DEF_GAIN;
     if (ls_data->als_gainrange == 1) {
