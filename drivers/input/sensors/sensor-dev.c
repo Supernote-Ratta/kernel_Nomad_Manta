@@ -128,7 +128,10 @@ static ssize_t accel_calibration_show(struct class *class, struct class_attribut
 #define ACCEL_CAPTURE_TIMES 20
 #define ACCEL_SENSITIVE 16384
 /* +-1 * 16384 / 9.8 */
-#define ACCEL_OFFSET_MAX 6000
+/* changed tower: for mxc6655xa. */
+#define ACCEL_OFFSET_XY_MAX 3200
+#define ACCEL_OFFSET_Z_MAX   7500
+//#define ACCEL_OFFSET_MAX 6000
 static int accel_do_calibration(struct sensor_private_data *sensor)
 {
     int i;
@@ -142,7 +145,9 @@ static int accel_do_calibration(struct sensor_private_data *sensor)
         if (ret < 0) {
             dev_err(&sensor->client->dev, "in %s read accel data error\n", __func__);
         }
-        if (abs(sensor->axis.x) > ACCEL_OFFSET_MAX || abs(sensor->axis.y) > ACCEL_OFFSET_MAX || abs(abs(sensor->axis.z) - ACCEL_SENSITIVE) > ACCEL_OFFSET_MAX) {
+        //if (abs(sensor->axis.x) > ACCEL_OFFSET_MAX || abs(sensor->axis.y) > ACCEL_OFFSET_MAX || abs(abs(sensor->axis.z) - ACCEL_SENSITIVE) > ACCEL_OFFSET_MAX) {
+        if (abs(sensor->axis.x) > ACCEL_OFFSET_XY_MAX || abs(sensor->axis.y) > ACCEL_OFFSET_XY_MAX || abs(abs(sensor->axis.z) - ACCEL_SENSITIVE) > ACCEL_OFFSET_Z_MAX) {
+		/* changed end. */
             sum_accel[0] = 0;
             sum_accel[1] = 0;
             sum_accel[2] = 0;
