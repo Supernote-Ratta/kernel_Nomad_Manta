@@ -82,9 +82,9 @@ static int sensor_als_read(struct i2c_client *client)
 
     ratio = clearval * 100 / (alsval + 1);
     if (ratio <= 240) {
-        cal_factor = 10;
+        cal_factor = 9;
     } else if (ratio <= 2000) {
-        cal_factor = 8;
+        cal_factor = 7;
     } else {
         cal_factor = 7;
     }
