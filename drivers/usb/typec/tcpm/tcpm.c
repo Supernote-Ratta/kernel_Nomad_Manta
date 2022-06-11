@@ -511,7 +511,7 @@ static const char * const pd_rev[] = {
 #define tcpm_sink_tx_ok(port) \
 	(tcpm_port_is_sink(port) && \
 	((port)->cc1 == TYPEC_CC_RP_3_0 || (port)->cc2 == TYPEC_CC_RP_3_0))
-
+int cc_type = 0;
 static enum tcpm_state tcpm_default_state(struct tcpm_port *port)
 {
 	if (port->port_type == TYPEC_PORT_DRP) {
@@ -3457,6 +3457,7 @@ static int tcpm_snk_attach(struct tcpm_port *port)
 		 port->cc1 != TYPEC_CC_OPEN ? "CC1" : "CC2");
 	tcpm_send_orientation_notify(port);
 	tcpm_send_data_role_notify(port, port->attached, port->data_role);
+	cc_type = port->cc1;
 
 	return 0;
 }
