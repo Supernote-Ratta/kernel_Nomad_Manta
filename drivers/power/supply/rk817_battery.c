@@ -39,10 +39,8 @@
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
 #include <linux/rk817_charger.h>
-//#include "../../gpu/drm/rockchip/ht_eink/htfyun_pmic.h"
-extern int get_pmic_temperature(void);
 
-static int dbg_enable = 0;
+static int dbg_enable;
 static char charge_enable = 1;
 module_param_named(dbg_level, dbg_enable, int, 0644);
 
@@ -775,70 +773,6 @@ static int rk817_bat_get_ioffset(struct rk817_battery_device *battery)
 	ioffset_value |= rk817_bat_field_read(battery, IOFFSET_L);
 
 	return ioffset_value;
-}
-
-static int rk817_bat_get_temp(struct rk817_battery_device *battery)
-{
-
-#if 0
-	int  temp_value = 0,temp_value1=0;
-	int adc_to_vol;
-
-	temp_value |= rk817_bat_field_read(battery, BAT_TS_H) << 8;
-	temp_value |= rk817_bat_field_read(battery, BAT_TS_L);
-	temp_value1 |= rk817_bat_field_read(battery, REGE9);
-	adc_to_vol = temp_value * 1200 / 65536;
-	printk("rk817_bat_get_temp:adc=%d adcv=%d templimit:0x%2x\n",temp_value,adc_to_vol,temp_value1);
-	//if(battery->current_avg>0){
-	//	adc_to_vol -= 7; //
-	//}
-	//if(battery->current_avg >0){//103充电时adc会比不插充电器小,78插充电器adc会升高
-		
-	//}else{
-	//	adc_to_vol+=10;
-	//}
-    #if 0
-	if(adc_to_vol > battery->pdata->temp_t[0]){ // <0
-		return 0;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[0]-30){ // 0-3
-		return 3;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[1]+10){ // 3-13
-		return 13;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[1]){ // 13-15
-		return 15;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[1]-10){ // 15-17// adc 55会自动不充电
-		return 17;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[2]+5){ // 17-43
-		return 43;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[2]){ // 43-45
-		return 45;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[2]-5){ // 45-47
-		return 47;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[3]+5){ // 47-55
-		return 55;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[3]){ // 55-60
-		return 59;
-	}
-	else{ //60
-		return 60;
-	}
-    #endif
-//printk("rk817_bat_get_temp:%d \n",temp_value);
-	return 30;//adc_to_vol;
-	#else
-	int temperature;
-	temperature = get_pmic_temperature();
-	return temperature;
-	#endif
 }
 
 static void rk817_bat_current_calibration(struct rk817_battery_device *battery)
@@ -2003,12 +1937,7 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 		dev_err(dev, "design_qmax not found!\n");
 		return ret;
 	}
-	pdata->max_chrg_voltage = out_value;
-	ret = of_property_read_u32(np, "max_chrg_voltage", &out_value);
-	if (ret < 0) {
-		dev_err(dev, "max_chrg_voltage not found!\n");
-		//return ret;
-	}
+	pdata->design_qmax = out_value;
 
 	/* parse unnecessary param */
 	ret = of_property_read_u32(np, "sample_res", &pdata->sample_res);
@@ -2561,17 +2490,6 @@ rk817_bat_update_charging_status(struct rk817_battery_device *battery)
 		battery->charge_count++;
 }
 
-void rk817_bat_enable_charge(struct rk817_battery_device *battery)
-{
-	rk817_bat_field_write(battery, REGE9, 0xFA);
-	//power_supply_changed(battery->bat);
-}
-
-void rk817_bat_disable_charge(struct rk817_battery_device *battery)
-{
-	rk817_bat_field_write(battery, REGE9, 0x05);
-	//power_supply_changed(battery->bat);
-}
 static void rk817_bat_update_info(struct rk817_battery_device *battery)
 {
 	battery->voltage_avg = rk817_bat_get_battery_voltage(battery);
@@ -2583,9 +2501,6 @@ static void rk817_bat_update_info(struct rk817_battery_device *battery)
 	battery->voltage_usb = rk817_bat_get_USB_voltage(battery);
 	battery->chrg_status = get_charge_status(battery);
 	rk817_bat_update_charging_status(battery);
-		//battery->temperature =
-//rk817_bat_enable_charge(battery);
-    battery->temperature = rk817_bat_get_temp(battery);//temperature;//
 	DBG("valtage usb: %d\n", battery->voltage_usb);
 	DBG("UPDATE: voltage_avg = %d\n"
 		"voltage_sys = %d\n"
@@ -2593,15 +2508,14 @@ static void rk817_bat_update_info(struct rk817_battery_device *battery)
 		"rsoc = %d\n"
 		"chrg_status = %d\n"
 		"PWRON_CUR = %d\n"
-		"remain_cap = %d\n"
-		"temperature = %d\n",
+		"remain_cap = %d\n",
 		battery->voltage_avg,
 		battery->voltage_sys,
 		battery->current_avg,
 		battery->rsoc,
 		battery->chrg_status,
 		rk817_bat_get_pwron_current(battery),
-		battery->remain_cap,battery->temperature);
+		battery->remain_cap);
 
 	/* smooth charge */
 	if (battery->remain_cap / 1000 > battery->fcc) {

@@ -420,18 +420,11 @@ static ssize_t papyrus_temperature_show(struct class *cls,struct class_attribute
 }
 
 
-static ssize_t papyrus_temperature_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
+/*static ssize_t papyrus_temperature_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
 {
-	int new_state, ret;
 
-	ret = kstrtoint(buf, 10, &new_state);
-	if (ret) {
-		printk("%s: kstrtoint error return %d\n", __func__, ret);
-		return ret;
-	}
-	return _count;
-
-}
+	return 0;
+}*/
 //static CLASS_ATTR(temperature, 0644, papyrus_class_temperature_show, papyrus_class_temperature_store);
 static CLASS_ATTR_RO(papyrus_temperature);
 
@@ -1124,19 +1117,6 @@ static int __init lm_proc_init(void)
 }
 late_initcall(lm_proc_init);
 #endif
-
-int get_pmic_temperature(void)
-{
-	int value = 25;
-
-    if (pmic_id != 0x6518) {
-        sy7636a_temperature_get(&pmic_sess_data, &value);
-    } else {
-        tps65185_temperature_get(&pmic_sess_data, &value);
-    }
-	return value;
-}
-
 /*--------------------------------------------------------------------------------------------------------------*/
 
 static int tps65185_probe(struct i2c_client *client, const struct i2c_device_id *id)

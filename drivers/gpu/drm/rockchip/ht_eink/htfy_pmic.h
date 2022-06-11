@@ -137,7 +137,6 @@ extern void pmic_pm_resume(struct pmic_sess *sess);
 
 //int tps65185_vcom_get(void);
 //int tps65185_vcom_set(int vcom_mv);
-//extern int pmic_get_temperature(void);
 
 // NOTE: EINK 电源操作函数.电源模块提供实现函数，且提供 htfy_register_ebc_pwr_ops 供本模块调用.
 // 返回值: 0 --操作OK, < 0: 出错。

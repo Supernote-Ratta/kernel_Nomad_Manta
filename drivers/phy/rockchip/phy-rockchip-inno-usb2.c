@@ -46,7 +46,7 @@
 #define FILTER_COUNTER		0xF4240
 
 struct rockchip_usb2phy;
-#define DEBUG
+
 enum rockchip_usb2phy_port_id {
 	USB2PHY_PORT_OTG,
 	USB2PHY_PORT_HOST,
