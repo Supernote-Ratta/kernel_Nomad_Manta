@@ -374,7 +374,14 @@ static ssize_t sy7636a_temperature_show(struct class *cls, struct class_attribut
 
 static ssize_t sy7636a_temperature_store(struct class *cls, struct class_attribute *attr, const char *buf, size_t _count)
 {
-    return 0;
+	int new_state, ret;
+
+	ret = kstrtoint(buf, 10, &new_state);
+	if (ret) {
+		sy7636a_printk("%s: kstrtoint error return %d\n", __func__, ret);
+		return ret;
+	}
+	return _count;
 }
 static CLASS_ATTR_RW(sy7636a_temperature);
 

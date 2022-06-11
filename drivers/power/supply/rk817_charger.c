@@ -19,7 +19,7 @@
 #include <linux/rk817_charger.h>
 /* changed end. */
 
-static int dbg_enable;
+static int dbg_enable = 1;
 module_param_named(dbg_level, dbg_enable, int, 0644);
 
 #define DBG(args...) \
@@ -252,6 +252,8 @@ static enum power_supply_property rk817_usb_props[] = {
     POWER_SUPPLY_PROP_VOLTAGE_MAX,
     POWER_SUPPLY_PROP_CURRENT_MAX,
 };
+extern int cc_type;
+static void rk817_charge_set_input_current(struct rk817_charger *charge, int input_current);
 
 static int rk817_charge_ac_get_property(struct power_supply *psy, enum power_supply_property psp, union power_supply_propval *val)
 {
@@ -265,7 +267,9 @@ static int rk817_charge_ac_get_property(struct power_supply *psy, enum power_sup
             } else {
                 val->intval = (charge->ac_in | charge->dc_in);
             }
-
+			if(cc_type!= 0){
+                rk817_charge_set_input_current(charge, INPUT_1500MA);
+            }
             DBG("ac report online: %d\n", val->intval);
             break;
         case POWER_SUPPLY_PROP_STATUS:
@@ -517,7 +521,7 @@ static void rk817_charge_set_chrg_current(struct rk817_charger *charge, int chrg
     if (chrg_current < 500 || chrg_current > 3500) {
         dev_err(charge->dev, "the charge current is error!\n");
     }
-
+printk("rk817_charge_set_chrg_current:%d",chrg_current);
     if (chrg_current < 1000) {
         rk817_charge_field_write(charge, CHRG_CUR_SEL, CHRG_CUR_500MA);
     } else if (chrg_current < 1500) {
@@ -564,7 +568,7 @@ static void rk817_charge_set_input_current(struct rk817_charger *charge, int inp
     if (input_current < 80 || input_current > 3000) {
         dev_err(charge->dev, "the input current is error.\n");
     }
-
+printk("rk817_charge_set_input_current:%d",input_current);
     if (input_current < 450) {
         rk817_charge_field_write(charge, USB_ILIM_SEL, INPUT_CUR_80MA);
     } else if (input_current < 850) {
@@ -654,6 +658,10 @@ static void rk817_charge_set_otg_in(struct rk817_charger *charge, int online)
 
 static void rk817_charge_set_chrg_param(struct rk817_charger *charge, enum charger_t charger)
 {
+printk("rk817_charge_set_chrg_param:%d usb_in:%d ac_in:%d dc_in:%d \n",charger,
+	charge->usb_in,charge->ac_in,charge->dc_in);
+	cc_type = 0;
+
     switch (charger) {
         case USB_TYPE_NONE_CHARGER:
             charge->usb_in = 0;
@@ -676,6 +684,13 @@ static void rk817_charge_set_chrg_param(struct rk817_charger *charge, enum charg
             power_supply_changed(charge->ac_psy);
             break;
         case USB_TYPE_AC_CHARGER:
+			charge->ac_in = 1;
+            charge->usb_in = 0;
+            charge->prop_status = POWER_SUPPLY_STATUS_CHARGING;
+            rk817_charge_set_input_current(charge, INPUT_450MA);
+            power_supply_changed(charge->usb_psy);
+            power_supply_changed(charge->ac_psy);
+            break;
         case USB_TYPE_CDP_CHARGER:
             charge->ac_in = 1;
             charge->usb_in = 0;
@@ -954,12 +969,16 @@ static void rk817_charger_evt_worker(struct work_struct *work)
     struct extcon_dev *edev = charge->cable_edev;
     enum charger_t charger = USB_TYPE_UNKNOWN_CHARGER;
     static const char *const event[] = {"UN", "NONE", "USB", "AC", "CDP1.5A"};
+	//union extcon_property_value property;
 
     /* Determine cable/charger type */
     if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0) {
         charger = USB_TYPE_USB_CHARGER;
     } else if (extcon_get_state(edev, EXTCON_CHG_USB_DCP) > 0) {
         charger = USB_TYPE_AC_CHARGER;
+		//extcon_get_property(edev, EXTCON_USB,EXTCON_PROP_USB_TYPEC_POLARITY,&property)) {
+		//if (property.intval==0)
+	//charger = EXTCON_CHG_USB_SLOW;
     } else if (extcon_get_state(edev, EXTCON_CHG_USB_CDP) > 0) {
         charger = USB_TYPE_CDP_CHARGER;
     }
@@ -1097,6 +1116,15 @@ static int rk817_charge_usb_init(struct rk817_charger *charge)
             extcon_unregister_notifier(edev, EXTCON_CHG_USB_DCP, &charge->cable_cg_nb);
             return ret;
         }
+
+		//ret = extcon_register_notifier(edev, EXTCON_CHG_USB_CDP, &charge->cable_cg_nb);
+        //if (ret < 0) {
+         //   dev_err(dev, "failed to register notifier for CDP\n");
+         //   extcon_unregister_notifier(edev, EXTCON_CHG_USB_SDP, &charge->cable_cg_nb);
+        //    extcon_unregister_notifier(edev, EXTCON_CHG_USB_DCP, &charge->cable_cg_nb);
+        //    return ret;
+        //}
+		//EXTCON_PROP_USB_TYPEC_POLARITY
 
         /* Register host */
         INIT_DELAYED_WORK(&charge->host_work, rk817_charge_host_evt_worker);
