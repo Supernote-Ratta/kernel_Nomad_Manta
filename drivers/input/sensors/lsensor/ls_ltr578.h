@@ -18,7 +18,7 @@
 #define LTR578_I2C_SLAVE_ADDR   0x53//0xA6 // 0x53 << 1
 #define DRIVER_VERSION          "2.0"
 
-/* LTR578 Registers */
+/* LTR-578 Registers */
 #define APS_RW_MAIN_CTRL        0x00
 #define APS_RW_PS_LED           0x01
 #define APS_RW_PS_N_PULSES      0x02
@@ -41,7 +41,7 @@
 #define APS_RW_ALS_THRES_LOW_1  0x25
 #define APS_RW_ALS_THRES_LOW_2  0x26
 
-/* LTR578's Read Only Registers */
+/* 578's Read Only Registers */
 #define APS_RO_PART_ID          0x06
 #define APS_RO_MAIN_STATUS      0x07
 #define APS_RO_PS_DATA_0        0x08
@@ -67,7 +67,7 @@
 #define ALS_RANGE_18            18
 
 #define ALS_RESO_MEAS           0x22
-#define ALS_DEF_GAIN            3
+#define ALS_DEF_GAIN            18
 
 #define ALS_WIN_FACTOR          1
 

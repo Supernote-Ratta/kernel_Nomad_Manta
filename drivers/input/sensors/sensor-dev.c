@@ -136,7 +136,9 @@ static int accel_do_calibration(struct sensor_private_data *sensor)
 {
     int i;
     int ret;
+    /* changed tower: for gsensor calibration. */
     int max_try_times = 100;
+    /* changed end. */
     long int sum_accel[3] = {0, 0, 0};
 
     mutex_lock(&sensor->operation_mutex);
@@ -1239,6 +1241,7 @@ static long light_dev_ioctl(struct file *file, unsigned int cmd, unsigned long a
     int result = 0;
     short rate;
 
+    wait_event_interruptible(sensor->is_factory_ok, (atomic_read(&sensor->is_factory) == 0));
     switch (cmd) {
         case LIGHTSENSOR_IOCTL_SET_RATE:
             if (copy_from_user(&rate, argp, sizeof(rate))) {

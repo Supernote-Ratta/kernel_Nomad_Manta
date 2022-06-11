@@ -152,6 +152,7 @@ struct stk3x1x_data {
     uint16_t ir_code;
     uint16_t als_correct_factor;
     uint16_t calibration_value;
+    uint16_t calibration_reference;
     uint8_t alsctrl_reg;
     uint8_t psctrl_reg;
     uint8_t ledctrl_reg;
@@ -241,6 +242,19 @@ static uint16_t light3x1x_calibration_data_read(uint16_t *value)
     int ret;
 
     ret = rk_vendor_read(LIGHT3X1X_CALIBRATION_ID, (void *)value, 2);
+    if (ret < 0) {
+        printk(KERN_ERR "%s failed!\n", __func__);
+        return ret;
+    }
+
+    return 0;
+}
+
+static uint16_t light3x1x_calibration_data_write(uint16_t *value)
+{
+    int ret;
+
+    ret = rk_vendor_write(LIGHT3X1X_CALIBRATION_ID, (void *)value, 2);
     if (ret < 0) {
         printk(KERN_ERR "%s failed!\n", __func__);
         return ret;
@@ -663,34 +677,177 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
     int result = 0, value = 0;
+    uint16_t ircode = 0;
     ssize_t len = 0;
+    char index = 0;
     char buffer[2] = {0};
 
     if (!ls_data) {
         printk(KERN_ERR "%s ls data is null!\n", __func__);
         return 0;
     }
-    sensor_active(ls_data->client, 1, 9600);
 
+    sensor_active(ls_data->client, 1, 9600);
     if (sensor->ops->read_len < 2) {
-        dev_err(&ls_data->client->dev, "%s:length is error, len=%d\n", __func__, sensor->ops->read_len);
-        return -1;
+        printk(KERN_ERR "%s:lenth is error,len=%d\n", __func__, sensor->ops->read_len);
+        return 0;
     }
+    value = sensor_read_reg(ls_data->client, STK_FLAG_REG);
+    if (value < 0) {
+        printk(KERN_ERR "stk %s read STK_FLAG_REG, ret=%d\n", __func__, value);
+        return 0;
+    }
+    if (!(value & STK_FLG_ALSDR_MASK)) {
+        return 0;
+    }
+
+#ifdef STK_IRS
+    result = stk_als_ir_skip_als(ls_data->client, sensor);
+    if (result == 1) {
+        return 0;
+    }
+#endif
 
     buffer[0] = sensor->ops->read_reg;
     result = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
     if (result) {
-        dev_err(&ls_data->client->dev, "%s:sensor read data fail\n", __func__);
-        return result;
+        printk(KERN_ERR "%s:line=%d,error\n", __func__, __LINE__);
+        return 0;
     }
+
     value = (buffer[0] << 8) | buffer[1];
-    result = value * ls_data->calibration_value / 1000;
-    ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
-    //len += sprintf(_buf, "origin lux: %d, after calibration: %d\n", value, result);
-    len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, value, ls_data->ir_code);
+    stk_als_cal(ls_data->client, &value);
+#ifdef STK_IRS
+    stk_als_ir_get_corr(value);
+    result = (value * ls_data->als_correct_factor * ls_data->calibration_value) / (1000 * 100);
+#endif
+    ircode = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
+    len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, value, ircode);
     return len;
 }
 static CLASS_ATTR_RO(lux_value);
+
+static int do_calibration(struct sensor_private_data *sensor)
+{
+    int ret = -1, i = 0;
+    int count = 100;
+    uint16_t value = 0, adjvalue = 0;
+    char buffer[2] = {0}, oktimes = 0;
+
+    sensor_active(ls_data->client, 1, 9600);
+
+    if (sensor->ops->read_len < 2) {
+        dev_err(&ls_data->client->dev, "%s:length is error, len=%d\n", __func__, sensor->ops->read_len);
+        return ret;
+    }
+
+    buffer[0] = sensor->ops->read_reg;
+    for (i = 0; i < count; i++) {
+        ret = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
+        if (ret) {
+            printk(KERN_ERR "%s:sensor read data fail times: %d\n", __func__, i);
+        } else {
+            value = (buffer[0] << 8) | buffer[1];
+            adjvalue += value;
+            value = 0;
+            oktimes++;
+        }
+    }
+
+    if (!oktimes) {
+        printk(KERN_ERR "%s:can not read sensor read data when calibration\n", __func__);
+        return ret;
+    }
+    adjvalue = (adjvalue / oktimes) ? (adjvalue / oktimes) : ls_data->calibration_reference;
+    ls_data->calibration_value = (ls_data->calibration_reference * 100) / adjvalue;
+
+    printk("calibration value: %d\n", ls_data->calibration_value);
+    ret = light3x1x_calibration_data_write(&ls_data->calibration_value);
+    if (ret) {
+        printk(KERN_ERR "%s wirte calibration fail!\n", __func__);
+        return ret;
+    }
+
+    return 0;
+}
+
+static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *attr, char *_buf)
+{
+    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    uint16_t value = 0;
+    int len = 0;
+
+    if (!ls_data) {
+        printk(KERN_ERR "%s ls data is null!\n", __func__);
+        return len;
+    }
+    if (light3x1x_calibration_data_read(&value)) {
+        printk(KERN_ERR "read light stk3x1x calibration error!\n");
+        return len;
+    }
+    len += sprintf(_buf, "%d\n", value);
+    return len;
+}
+
+static ssize_t lux_calibration_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+{
+    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    int value = 0;
+    int ret = -1, pre_status;
+
+    if (!ls_data) {
+        printk(KERN_ERR "%s ls data is null!\n", __func__);
+        return ret;
+    }
+
+    ret = kstrtoint(buf, 10, &value);
+    if (ret) {
+        printk(KERN_ERR "%s: kstrtoint error return %d\n", __func__, ret);
+        return ret;
+    }
+    if (1 != value) {
+        printk(KERN_ERR "%s: error value\n", __func__);
+        return -1;
+    }
+    atomic_set(&sensor->is_factory, 1);
+
+    pre_status = sensor->status_cur;
+    if (pre_status == SENSOR_OFF) {
+        mutex_lock(&sensor->operation_mutex);
+        sensor->ops->active(sensor->client, SENSOR_ON, sensor->pdata->poll_delay_ms);
+        mutex_unlock(&sensor->operation_mutex);
+    } else {
+        sensor->stop_work = 1;
+        if (sensor->pdata->irq_enable) {
+            disable_irq_nosync(sensor->client->irq);
+        } else {
+            cancel_delayed_work_sync(&sensor->delaywork);
+        }
+    }
+    ret = do_calibration(sensor);
+    if (ret) {
+        printk(KERN_ERR "%s: calibration fail!\n", __func__);
+    }
+
+    if (pre_status == SENSOR_ON) {
+        sensor->stop_work = 0;
+        if (sensor->pdata->irq_enable) {
+            enable_irq(sensor->client->irq);
+        } else {
+            schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
+        }
+    } else {
+        mutex_lock(&sensor->operation_mutex);
+        sensor->ops->active(sensor->client, SENSOR_OFF, sensor->pdata->poll_delay_ms);
+        mutex_unlock(&sensor->operation_mutex);
+    }
+
+    atomic_set(&sensor->is_factory, 0);
+    wake_up(&sensor->is_factory_ok);
+
+    return ret ? ret : count;
+}
+static CLASS_ATTR_RW(lux_calibration);
 
 static int sensor_init(struct i2c_client *client)
 {
@@ -772,7 +929,7 @@ static int sensor_init(struct i2c_client *client)
 #endif
     res = light3x1x_calibration_data_read(&ls_data->calibration_value);
     if (res) {
-        ls_data->calibration_value = 1000;
+        ls_data->calibration_value = 100;
         dev_err(&client->dev, "Fail to get light3x1x calibration data!!! use default: %d\n", ls_data->calibration_value);
     }
 
@@ -828,7 +985,7 @@ static int sensor_report_value(struct i2c_client *client)
     stk_als_cal(client, &value);
 #ifdef STK_IRS
     stk_als_ir_get_corr(value);
-    value = value * ls_data->als_correct_factor / 1000;
+    value = (value * ls_data->als_correct_factor * ls_data->calibration_value) / (1000 * 100);
 #endif
 
     index = light_report_abs_value(sensor->input_dev, value);
@@ -880,10 +1037,15 @@ static int light_stk3x1x_probe(struct i2c_client *client, const struct i2c_devic
         printk(KERN_ERR "%s: failed to allocate stk3x1x_data\n", __func__);
         return -ENOMEM;
     }
+    ls_data->calibration_reference = 500;
     ls_data->lsensor_class = class_create(THIS_MODULE, client->name);
     ret = class_create_file(ls_data->lsensor_class, &class_attr_lux_value);
     if (ret) {
         dev_err(&client->dev, "Fail to create class light3x1x class value.\n");
+    }
+    ret = class_create_file(ls_data->lsensor_class, &class_attr_lux_calibration);
+    if (ret) {
+        dev_err(&client->dev, "Fail to create class light3x1x class calibration!\n");
     }
     ret = sensor_register_device(client, NULL, devid, &light_stk3x1x_ops);
     return ret;

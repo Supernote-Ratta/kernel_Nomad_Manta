@@ -1,4 +1,4 @@
-/* drivers/input/sensors/access/kxtik.c
+/*
  *
  * Copyright (C) 2012-2015 ROCKCHIP.
  * Author: luowei <lw@rock-chips.com>
@@ -38,8 +38,9 @@ struct ltr578_data {
     struct class *lsensor_class;
     int als_gainrange;
     uint16_t calibration_value;
-	int als;
-	int ir_code;
+    uint16_t calibration_reference;
+    int als;
+    int ir_code;
 };
 
 static struct ltr578_data *ls_data;
@@ -49,6 +50,19 @@ static uint16_t light578_calibration_data_read(uint16_t *value)
     int ret;
 
     ret = rk_vendor_read(LIGHT578_CALIBRATION_ID, (void *)value, 2);
+    if (ret < 0) {
+        printk(KERN_ERR "%s failed!\n", __func__);
+        return ret;
+    }
+
+    return 0;
+}
+
+static uint16_t light578_calibration_data_write(uint16_t *value)
+{
+    int ret;
+
+    ret = rk_vendor_write(LIGHT578_CALIBRATION_ID, (void *)value, 2);
     if (ret < 0) {
         printk(KERN_ERR "%s failed!\n", __func__);
         return ret;
@@ -81,17 +95,17 @@ static int sensor_als_read(struct i2c_client *client)
     }
 
     ratio = clearval * 100 / (alsval + 1);
-    if (ratio <= 240) {
+    if (ratio <= 45) {
         cal_factor = 9;
-    } else if (ratio <= 2000) {
+    } else if (ratio <= 250) {
         cal_factor = 7;
     } else {
         cal_factor = 7;
     }
 
     luxdata_int = alsval * cal_factor * ALS_WIN_FACTOR / ls_data->als_gainrange;
-	ls_data->als = alsval;
-	ls_data->ir_code = clearval;
+    ls_data->als = alsval;
+    ls_data->ir_code = clearval;
     printk("%s als_value: %d , clearval_value: %d , luxdata_int = %d\n", __func__, alsval, clearval, luxdata_int);
     return luxdata_int;
 }
@@ -157,12 +171,122 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
         }
     }
     value = sensor_als_read(ls_data->client);
-    result = value * ls_data->calibration_value / 1000;
-    //len += sprintf(_buf, "origin lux: %d, after calibration: %d\n", value, result);
-	len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, ls_data->als, ls_data->ir_code);
+    result = value * ls_data->calibration_value / 100;
+    len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, ls_data->als, ls_data->ir_code);
     return len;
 }
 static CLASS_ATTR_RO(lux_value);
+
+static int do_calibration(struct sensor_private_data *sensor)
+{
+    int ret = -1, i = 0;
+    int count = 100;
+    uint16_t value = 0, adjvalue = 0;
+    char oktimes = 0;
+
+    sensor_active(ls_data->client, 1, 9600);
+
+    if (sensor->ops->read_len < 2) {
+        dev_err(&ls_data->client->dev, "%s:length is error, len=%d\n", __func__, sensor->ops->read_len);
+        return ret;
+    }
+
+    for (i = 0; i < count; i++) {
+        value = sensor_als_read(ls_data->client);
+        adjvalue += value;
+        oktimes++;
+    }
+
+    adjvalue = (adjvalue / oktimes) ? (adjvalue / oktimes) : ls_data->calibration_reference;
+    ls_data->calibration_value = (ls_data->calibration_reference * 100) / adjvalue;
+
+    printk("calibration value: %d\n", ls_data->calibration_value);
+    ret = light578_calibration_data_write(&ls_data->calibration_value);
+    if (ret) {
+        printk(KERN_ERR "%s wirte calibration fail!\n", __func__);
+        return ret;
+    }
+
+    return 0;
+}
+
+static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *attr, char *_buf)
+{
+    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    uint16_t value = 0;
+    int len = 0;
+
+    if (!ls_data) {
+        printk(KERN_ERR "%s ls data is null!\n", __func__);
+        return len;
+    }
+    if (light578_calibration_data_read(&value)) {
+        printk(KERN_ERR "read light ltr578 calibration error!\n");
+        return len;
+    }
+    len += sprintf(_buf, "%d\n", value);
+    return len;
+}
+
+static ssize_t lux_calibration_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+{
+    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    int value = 0;
+    int ret = -1, pre_status;
+
+    if (!ls_data) {
+        printk(KERN_ERR "%s ls data is null!\n", __func__);
+        return ret;
+    }
+
+    ret = kstrtoint(buf, 10, &value);
+    if (ret) {
+        printk(KERN_ERR "%s: kstrtoint error return %d\n", __func__, ret);
+        return ret;
+    }
+    if (1 != value) {
+        printk(KERN_ERR "%s: error value\n", __func__);
+        return -1;
+    }
+    atomic_set(&sensor->is_factory, 1);
+
+    pre_status = sensor->status_cur;
+    if (pre_status == SENSOR_OFF) {
+        mutex_lock(&sensor->operation_mutex);
+        sensor->ops->active(sensor->client, SENSOR_ON, sensor->pdata->poll_delay_ms);
+        mutex_unlock(&sensor->operation_mutex);
+    } else {
+        sensor->stop_work = 1;
+        if (sensor->pdata->irq_enable) {
+            disable_irq_nosync(sensor->client->irq);
+        } else {
+            cancel_delayed_work_sync(&sensor->delaywork);
+        }
+    }
+    ret = do_calibration(sensor);
+    if (ret) {
+        printk(KERN_ERR "%s: calibration fail!\n", __func__);
+    }
+
+    if (pre_status == SENSOR_ON) {
+        sensor->stop_work = 0;
+        if (sensor->pdata->irq_enable) {
+            enable_irq(sensor->client->irq);
+        } else {
+            schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
+        }
+    } else {
+        mutex_lock(&sensor->operation_mutex);
+        sensor->ops->active(sensor->client, SENSOR_OFF, sensor->pdata->poll_delay_ms);
+        mutex_unlock(&sensor->operation_mutex);
+    }
+
+    atomic_set(&sensor->is_factory, 0);
+    wake_up(&sensor->is_factory_ok);
+
+    return ret ? ret : count;
+}
+static CLASS_ATTR_RW(lux_calibration);
 
 static int sensor_init(struct i2c_client *client)
 {
@@ -215,7 +339,7 @@ static int sensor_init(struct i2c_client *client)
 
     ret = light578_calibration_data_read(&ls_data->calibration_value);
     if (ret) {
-        ls_data->calibration_value = 1000;
+        ls_data->calibration_value = 100;
         dev_err(&client->dev, "Fail to get light3x1x calibration data!use default: %d\n", ls_data->calibration_value);
     }
 
@@ -271,7 +395,7 @@ static int sensor_report_value(struct i2c_client *client)
     }
 
     result = sensor_als_read(client);
-    result = ls_data->calibration_value * result / 1000;
+    result = ls_data->calibration_value * result / 100;
     index = light_report_value(sensor->input_dev, result);
 
     printk("%s:%s result=0x%x, index=%d\n", __func__, sensor->ops->name, result, index);
@@ -308,10 +432,15 @@ static int light_ltr578_probe(struct i2c_client *client, const struct i2c_device
         dev_err(&client->dev, "%s: failed to allocate ltr578_data!\n", __func__);
         return -ENOMEM;
     }
+    ls_data->calibration_reference = 500;
     ls_data->lsensor_class = class_create(THIS_MODULE, client->name);
     ret = class_create_file(ls_data->lsensor_class, &class_attr_lux_value);
     if (ret) {
         dev_err(&client->dev, "Fail to create class light578 class value!\n");
+    }
+    ret = class_create_file(ls_data->lsensor_class, &class_attr_lux_calibration);
+    if (ret) {
+        dev_err(&client->dev, "Fail to create class light578 class calibration!\n");
     }
     ret = sensor_register_device(client, NULL, devid, &light_ltr578_ops);
     return ret;
