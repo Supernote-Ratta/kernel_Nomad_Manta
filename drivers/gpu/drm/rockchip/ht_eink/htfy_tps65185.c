@@ -404,32 +404,33 @@ static int papyrus_hw_get_revid(struct papyrus_sess *sess)
         return revid;
     }
 }
-
+extern int sy7636a_temperature;
 // class node
 // cat /sys/class/pmu/temperature
 static ssize_t papyrus_temperature_show(struct class *cls,struct class_attribute *attr, char *_buf)
 {
-    struct pmic_sess *psess = (struct pmic_sess *)&pmic_sess_data;
+    //struct pmic_sess *psess = (struct pmic_sess *)&pmic_sess_data;
+    //temperature = 25;
+    ssize_t len = 0;
 
-    int temperature = 25;
-	ssize_t len = 0;
-	//u8 val = 0;
-	papyrus_hw_read_temperature(psess,&temperature);
-    len += sprintf(_buf, "%d:\n",temperature);
-	return len;
+    //papyrus_hw_read_temperature(psess, &temperature);
+    len += sprintf(_buf, "%d:\n", sy7636a_temperature);
+    return len;
+
 }
-
 
 static ssize_t papyrus_temperature_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
 {
-	int new_state, ret;
+	int ret;
 
-	ret = kstrtoint(buf, 10, &new_state);
-	if (ret) {
-		printk("%s: kstrtoint error return %d\n", __func__, ret);
-		return ret;
-	}
+	//sscanf(buf, "%d", &sy7636a_temperature);
+	 ret = kstrtoint(buf, 10, &sy7636a_temperature);
+	 if (ret) {
+		 pr_err("%s: kstrtoint error return %d\n", __func__, ret);
+		 return ret;
+	 }
 	return _count;
+
 
 }
 //static CLASS_ATTR(temperature, 0644, papyrus_class_temperature_show, papyrus_class_temperature_store);
@@ -1124,17 +1125,22 @@ static int __init lm_proc_init(void)
 }
 late_initcall(lm_proc_init);
 #endif
+int sy7636a_temperature = 25;
 
 int get_pmic_temperature(void)
 {
-	int value = 25;
+#if 1
+	sy7636a_temperature = 25;
 
     if (pmic_id != 0x6518) {
-        sy7636a_temperature_get(&pmic_sess_data, &value);
+        sy7636a_temperature_get(&pmic_sess_data, &sy7636a_temperature);
     } else {
-        tps65185_temperature_get(&pmic_sess_data, &value);
+        tps65185_temperature_get(&pmic_sess_data, &sy7636a_temperature);
     }
-	return value;
+	return sy7636a_temperature;
+	#else
+	return sy7636a_temperature;
+	#endif
 }
 
 /*--------------------------------------------------------------------------------------------------------------*/

@@ -252,7 +252,9 @@ static enum power_supply_property rk817_usb_props[] = {
     POWER_SUPPLY_PROP_VOLTAGE_MAX,
     POWER_SUPPLY_PROP_CURRENT_MAX,
 };
+#ifdef CONFIG_TYPEC_TCPM
 extern int cc_type;
+#endif
 static void rk817_charge_set_input_current(struct rk817_charger *charge, int input_current);
 
 static int rk817_charge_ac_get_property(struct power_supply *psy, enum power_supply_property psp, union power_supply_propval *val)
@@ -267,9 +269,12 @@ static int rk817_charge_ac_get_property(struct power_supply *psy, enum power_sup
             } else {
                 val->intval = (charge->ac_in | charge->dc_in);
             }
+			
+#ifdef CONFIG_TYPEC_TCPM
 			if(cc_type!= 0){
                 rk817_charge_set_input_current(charge, INPUT_1500MA);
             }
+#endif
             DBG("ac report online: %d\n", val->intval);
             break;
         case POWER_SUPPLY_PROP_STATUS:
@@ -660,8 +665,9 @@ static void rk817_charge_set_chrg_param(struct rk817_charger *charge, enum charg
 {
 printk("rk817_charge_set_chrg_param:%d usb_in:%d ac_in:%d dc_in:%d \n",charger,
 	charge->usb_in,charge->ac_in,charge->dc_in);
+#ifdef CONFIG_TYPEC_TCPM
 	cc_type = 0;
-
+#endif
     switch (charger) {
         case USB_TYPE_NONE_CHARGER:
             charge->usb_in = 0;
@@ -687,7 +693,15 @@ printk("rk817_charge_set_chrg_param:%d usb_in:%d ac_in:%d dc_in:%d \n",charger,
 			charge->ac_in = 1;
             charge->usb_in = 0;
             charge->prop_status = POWER_SUPPLY_STATUS_CHARGING;
+#ifdef CONFIG_TYPEC_TCPM
             rk817_charge_set_input_current(charge, INPUT_450MA);
+#else
+			if (charger == USB_TYPE_AC_CHARGER) {
+                rk817_charge_set_input_current(charge, charge->max_input_current);
+            } else {
+                rk817_charge_set_input_current(charge, INPUT_1500MA);
+            }
+#endif
             power_supply_changed(charge->usb_psy);
             power_supply_changed(charge->ac_psy);
             break;
