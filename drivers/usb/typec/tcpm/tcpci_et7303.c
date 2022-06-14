@@ -18,6 +18,9 @@
 #define ET7303_VID		0x6DCF
 #define ET7303_PID		0x1711
 
+#define RT1711H_VID		0x29CF
+#define RT1711H_PID		0x1711
+
 #define ET7303_RTCTRL8		0x9B
 
 /* Autoidle timeout = (tout * 2 + 1) * 6.4ms */
@@ -196,14 +199,14 @@ static int et7303_check_revision(struct i2c_client *i2c)
 	ret = i2c_smbus_read_word_data(i2c, TCPC_VENDOR_ID);
 	if (ret < 0)
 		return ret;
-	if (ret != ET7303_VID) {
+	if (ret != ET7303_VID && ret != RT1711H_VID) {
 		dev_err(&i2c->dev, "vid is not correct, 0x%04x\n", ret);
 		return -ENODEV;
 	}
 	ret = i2c_smbus_read_word_data(i2c, TCPC_PRODUCT_ID);
 	if (ret < 0)
 		return ret;
-	if (ret != ET7303_PID) {
+	if (ret != ET7303_PID && ret != RT1711H_PID) {
 		dev_err(&i2c->dev, "pid is not correct, 0x%04x\n", ret);
 		return -ENODEV;
 	}
