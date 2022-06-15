@@ -42,8 +42,11 @@
 //#include "../../gpu/drm/rockchip/ht_eink/htfyun_pmic.h"
 extern int get_pmic_temperature(void);
 
-static int dbg_enable = 1;
+static int dbg_enable = 0;
 static char charge_enable = 1;
+static int temperature_disable_charge = 0;
+static int charge_only_for_power = 0;
+
 module_param_named(dbg_level, dbg_enable, int, 0644);
 
 #define DBG(args...) \
@@ -639,6 +642,7 @@ struct rk817_battery_device {
 	/* changed tower: for battmanager. */
 	int				open_battery_protect;
 	int				open_battery_maintain;
+	int				battery_factory;
 	/* changed end. */
 };
 
@@ -1479,7 +1483,7 @@ static int rk817_bat_get_charge_status(struct rk817_battery_device *battery)
 {
 	int status;
 	/* changed tower: for battmanager. */
-	struct rk817_charger* charge = rk817_charge_get_charger();
+	//struct rk817_charger* charge = rk817_charge_get_charger();
 	/* changed end. */
 
 	if (battery->chip_id == RK809_ID) {
@@ -1853,7 +1857,6 @@ static void rk817_bat_init_caltimer(struct rk817_battery_device *battery)
 	add_timer(&battery->caltimer);
 	INIT_DELAYED_WORK(&battery->calib_delay_work, rk817_bat_internal_calib);
 }
-static int charge_disable_flag = 0;
 
 static void rk817_bat_init_fg(struct rk817_battery_device *battery)
 {
@@ -1879,7 +1882,9 @@ static void rk817_bat_init_fg(struct rk817_battery_device *battery)
 	battery->dbg_pwr_rsoc = battery->rsoc;
 	battery->dbg_pwr_vol = battery->voltage_avg;
 	battery->temperature = VIRTUAL_TEMPERATURE;
-	charge_disable_flag = 0;
+	temperature_disable_charge = 0;
+	charge_only_for_power = 0;
+	charge_enable = 1;
 
 	DBG("probe init: battery->dsoc = %d, rsoc = %d\n"
 		"remain_cap = %d\n, battery_vol = %d\n, system_vol = %d, qmax = %d\n",
@@ -2324,6 +2329,8 @@ static int rk817_battery_set_property(struct power_supply *psy, enum power_suppl
 		case POWER_SUPPLY_PROP_BATTERY_MAINTAIN:
 			battery->open_battery_maintain = val->intval;
 			break;
+		//case POWER_SUPPLY_PROP_BATTERY_FACTORY:
+		//	battery->battery_factory = val->intval;
 		case POWER_SUPPLY_PROP_STATUS:
 			charge = rk817_charge_get_charger();
 			printk("##fan## %s set battery status val=%d, i2c_addr=0x%x\n",__func__,val->intval,charge->client->addr);
@@ -2521,99 +2528,124 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 // 10-45 正常充电
 	struct rk817_charger* charge = rk817_charge_get_charger();
 	int status;
+	//int power_supply;//0-battery 1-usb 2-charger
 	status = rk817_bat_field_read(battery, CHG_STS);
-
-	printk("rk817_bat_temperature_chrg temp:%d charge_disable_flag:%d\n",temp,charge_disable_flag);
 
 	if (battery->bat ==NULL) {
 		dev_err(battery->dev, "register bat power supply fail\n");
 		return 0;
 	}
-	printk("=====rk817_bat_temperature_chrg temp:%d charge_disable_flag:%d\n",temp,charge_disable_flag);
+	printk("=====rk817_bat_temperature_chrg temp:%d temperature_disable_charge:%d charge_enable:%d charge_only_for_power:%d battery_protect:%d battery_maintain:%d\n",
+		temp,temperature_disable_charge,charge_enable,charge_only_for_power,
+		battery->open_battery_protect,battery->open_battery_maintain);
 
 	if ((temp <= 0)||(temp >= 50)){
-		
-	printk("=====rk817_bat_temperature_chrg temp00000:%d charge_disable_flag:%d\n",temp,charge_disable_flag);
-		if(charge_disable_flag == 0) {
-			charge_disable_flag = 1;
+		if(temperature_disable_charge == 0) {
+			temperature_disable_charge = 1;
 			//charge_low_flag = 0;
 			rk817_bat_disable_battery_charge(battery);
 			printk("rk817_bat_temperature_chrg:rk817_bat_disable_charge \n");
 		}
+		charge_enable = 0;
 		return 0;
 	}
 
-	if ((temp > 3) && (temp < 59)) {
-		if(charge_disable_flag == 1){
-			charge_disable_flag = 0;
-			//charge_low_flag = 0;
-			rk817_bat_enable_battery_charge(battery);
-			printk("rk817_bat_temperature_chrg:rk817_bat_enable_charge \n");
-		}
+	if ((temp > 3) && (temp < 50)) {
+		temperature_disable_charge = 0;
 	}
 	
-	/* changed tower: for battmanager. */
-	DBG("############### rk817_bat_get_charge_status battery->dsoc = %d, status = %d\n", battery->dsoc, status);
-	if (charge != NULL) {
-		if(charge_disable_flag==0){
-		if(battery->open_battery_protect){
-			DBG("############### rk817_bat_get_charge_status rk817_charge_get_usb_to_sys_status(charge) = %d\n", rk817_charge_get_usb_to_sys_status(charge));
-			if (battery->dsoc / 1000 > 60) {//stop charge, battery supply
-				DBG("######################### DISABLE CHARGE1, BATTERY SUPPLY\n");
-				rk817_charge_usb_to_sys_disable(charge);
-			} else if (battery->dsoc / 1000 == 60) { //switch to usb supply
-				DBG("######################## DISABLE CHARGE1, USB SUPPLY\n");
-				rk817_charge_usb_to_sys_enable(charge); //enable usb charge
-				rk817_bat_disable_battery_charge(battery); //stop battery charge
-			} else if (battery->dsoc /1000 <= 40) { //restart charge
-				DBG("####################### fan 0 ENABLE CHARGE\n");
-				if (charge_enable) {
-					rk817_charge_usb_to_sys_enable(charge); //enable usb charge
-					rk817_bat_enable_battery_charge(battery); //start battery charge
+	if (temperature_disable_charge == 0) {
+		if(charge != NULL){
+			/* changed tower: for battmanager. */
+			DBG("############### rk817_bat_get_charge_status battery->dsoc = %d, status = %d\n", battery->dsoc, status);
+			if(battery->open_battery_protect){
+				DBG("############### rk817_bat_get_charge_status rk817_charge_get_usb_to_sys_status(charge) = %d\n", rk817_charge_get_usb_to_sys_status(charge));
+				if (battery->dsoc / 1000 > 60) {//stop charge, battery supply
+					DBG("######################### DISABLE CHARGE1, BATTERY SUPPLY\n");
+					charge_enable = 0;
+					charge_only_for_power = 0;
+					//rk817_charge_usb_to_sys_disable(charge);
+				} else if (battery->dsoc / 1000 > 40) { //switch to usb supply
+					DBG("######################## DISABLE CHARGE1, USB SUPPLY\n");
+					//charge_enable = 0;
+					charge_only_for_power = 1;
+					//rk817_charge_usb_to_sys_enable(charge); //enable usb charge
+					//rk817_bat_disable_battery_charge(battery); //stop battery charge
+				} 
+					else if (battery->dsoc /1000 <= 40) { //restart charge
+					DBG("####################### fan 0 ENABLE CHARGE\n");
+					charge_enable = 1;
+					charge_only_for_power = 0;
+					//if (charge_enable) {
+					//	rk817_charge_usb_to_sys_enable(charge); //enable usb charge
+					//	rk817_bat_enable_battery_charge(battery); //start battery charge
+					//}
 				}
+			} else {
+				DBG("####################### fan 1 enable charege battery protect mode closed\n");
+				charge_enable = 1;
+
+				//if (charge_enable) {
+				//	rk817_charge_usb_to_sys_enable(charge);//enable usb charge
+				//	rk817_bat_enable_battery_charge(battery);//start battery charge
+				//}
 			}
-		} else {
-			DBG("####################### fan 1 enable charege battery protect mode closed\n");
-			if (charge_enable) {
-				rk817_charge_usb_to_sys_enable(charge);//enable usb charge
-				rk817_bat_enable_battery_charge(battery);//start battery charge
+			if (battery->open_battery_maintain && !battery->open_battery_protect) {
+				switch (battery->open_battery_maintain) {
+					case 1://100
+						DBG("####################### MAINTAIN 100\n");
+						charge_enable = 1;
+						break;
+					case 2://95
+						DBG("####################### MAINTAIN 95\n");
+						if (battery->dsoc / 1000 > 95) {
+							//rk817_bat_disable_battery_charge(battery);
+							charge_enable = 0;
+						}
+						break;
+					case 3://90
+						DBG("####################### MAINTAIN 90\n");
+						if (battery->dsoc / 1000 > 90) {
+							charge_enable = 0;
+							//rk817_bat_disable_battery_charge(battery);
+						}
+						break;
+					case 4://80
+						DBG("####################### MAINTAIN 80\n");
+						if (battery->dsoc / 1000 > 80) {
+							charge_enable = 0;
+							//rk817_bat_disable_battery_charge(battery);
+						}
+						break;
+					default:
+						break;
+				}
+			} else if (!battery->open_battery_maintain && !battery->open_battery_protect) {
+				DBG("####################### fan 3 enable charge battery maintain mode closed\n");
+				charge_enable = 1;
+
+				//if (charge_enable) {
+				//	rk817_charge_usb_to_sys_enable(charge);//enable usb charge
+				//	rk817_bat_enable_battery_charge(battery);//start battery charge
+				//}
 			}
+
+		}else{
+			charge_enable = 1;
 		}
-		if (battery->open_battery_maintain && !battery->open_battery_protect) {
-			switch (battery->open_battery_maintain) {
-				case 1://100
-					DBG("####################### MAINTAIN 100\n");
-					break;
-				case 2://95
-					DBG("####################### MAINTAIN 95\n");
-					if (battery->dsoc / 1000 > 95) {
-						rk817_bat_disable_battery_charge(battery);
-					}
-					break;
-				case 3://90
-					DBG("####################### MAINTAIN 90\n");
-					if (battery->dsoc / 1000 > 90) {
-						rk817_bat_disable_battery_charge(battery);
-					}
-					break;
-				case 4://80
-					DBG("####################### MAINTAIN 80\n");
-					if (battery->dsoc / 1000 > 80) {
-						rk817_bat_disable_battery_charge(battery);
-					}
-					break;
-				default:
-					break;
-			}
-		} else if (!battery->open_battery_maintain && !battery->open_battery_protect) {
-			DBG("####################### fan 3 enable charge battery maintain mode closed\n");
-			if (charge_enable) {
-				rk817_charge_usb_to_sys_enable(charge);//enable usb charge
-				rk817_bat_enable_battery_charge(battery);//start battery charge
+		if(charge_enable){
+			rk817_charge_usb_to_sys_enable(charge);
+			rk817_bat_enable_battery_charge(battery);//start battery charge
+		}else{
+			if(charge_only_for_power){
+				rk817_charge_usb_to_sys_enable(charge); //enable usb charge
+				rk817_bat_disable_battery_charge(battery);
+			}else{
+				rk817_charge_usb_to_sys_disable(charge);
+				rk817_bat_disable_battery_charge(battery);
 			}
 		}
 	}
-		}
 	/* changed end. */
 #if 0
 	if ((temp <= 13)||(temp >= 47)){
@@ -3301,6 +3333,9 @@ static irqreturn_t rk809_plug_in_isr(int irq, void *cg)
 	battery = (struct rk817_battery_device *)cg;
 	battery->plugin_trigger = 1;
 	battery->plugout_trigger = 0;
+	charge_enable = 1;
+	temperature_disable_charge = 0;
+	charge_only_for_power = 0;
 	power_supply_changed(battery->bat);
 	if (battery->is_register_chg_psy)
 		power_supply_changed(battery->chg_psy);
@@ -3315,6 +3350,9 @@ static irqreturn_t rk809_plug_out_isr(int irq, void *cg)
 	battery = (struct rk817_battery_device *)cg;
 	battery->plugin_trigger = 0;
 	battery->plugout_trigger = 1;
+	charge_enable = 1;
+	temperature_disable_charge = 0;
+	charge_only_for_power = 0;
 	power_supply_changed(battery->bat);
 	if (battery->is_register_chg_psy)
 		power_supply_changed(battery->chg_psy);

@@ -693,7 +693,7 @@ printk("rk817_charge_set_chrg_param:%d usb_in:%d ac_in:%d dc_in:%d \n",charger,
 			charge->ac_in = 1;
             charge->usb_in = 0;
             charge->prop_status = POWER_SUPPLY_STATUS_CHARGING;
-#ifdef CONFIG_TYPEC_TCPM
+#if 0 //def CONFIG_TYPEC_TCPM
             rk817_charge_set_input_current(charge, INPUT_450MA);
 #else
 			if (charger == USB_TYPE_AC_CHARGER) {

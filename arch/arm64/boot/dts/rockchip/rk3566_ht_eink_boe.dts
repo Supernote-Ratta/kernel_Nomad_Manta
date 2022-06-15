@@ -603,8 +603,8 @@
                 3794 3811 3831 3857 3902 3949 3990
                 4034 4083 4135 4191 4249 4307 4350>;
 				//4287 4310>; 4307 4374
-            design_capacity = <4150>;
-            design_qmax = <4565>;
+            design_capacity = <3500>;
+            design_qmax = <3850>;
             bat_res = <100>;
             sleep_enter_current = <150>;
             sleep_exit_current = <180>;

@@ -1655,7 +1655,12 @@ static int goodix_ts_suspend(struct goodix_ts_core *core_data)
 	int r;
 
 	ts_info("Suspend start");
-
+	
+    goodix_ts_irq_enable(core_data, false);
+	//if (device_may_wakeup(ts_dev->dev)) {
+		enable_irq_wake(core_data->irq);
+	//	}
+return 0;
 	/*
 	 * notify suspend event, inform the esd protector
 	 * and charger detector to turn off the work
@@ -1737,6 +1742,9 @@ static int goodix_ts_resume(struct goodix_ts_core *core_data)
 	int r;
 
 	ts_info("Resume start");
+	goodix_ts_irq_enable(core_data, true);
+	disable_irq_wake(core_data->irq);
+	return 0;
 
 	mutex_lock(&goodix_modules.mutex);
 	if (!list_empty(&goodix_modules.head)) {
@@ -1814,6 +1822,7 @@ int goodix_ts_fb_notifier_callback(struct notifier_block *self,
 	struct goodix_ts_core *core_data =
 		container_of(self, struct goodix_ts_core, fb_notifier);
 	struct fb_event *fb_event = data;
+	ts_info("goodix_ts_fb_notifier_callback event:%d \n",event);
 
 	if (fb_event && fb_event->data && core_data) {
 		if (event == FB_EARLY_EVENT_BLANK) {
@@ -1859,7 +1868,6 @@ static void goodix_ts_lateresume(struct early_suspend *h)
 #endif
 
 #ifdef CONFIG_PM
-#if !defined(CONFIG_FB) && !defined(CONFIG_HAS_EARLYSUSPEND)
 /**
  * goodix_ts_pm_suspend - PM suspend function
  * Called by kernel during system suspend phrase
@@ -1882,7 +1890,6 @@ static int goodix_ts_pm_resume(struct device *dev)
 
 	return goodix_ts_resume(core_data);
 }
-#endif
 #endif
 
 /**
@@ -2114,10 +2121,8 @@ static int goodix_ts_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 static const struct dev_pm_ops dev_pm_ops = {
-#if !defined(CONFIG_FB) && !defined(CONFIG_HAS_EARLYSUSPEND)
 	.suspend = goodix_ts_pm_suspend,
 	.resume = goodix_ts_pm_resume,
-#endif
 };
 #endif
 
