@@ -182,7 +182,7 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
     }
     if (1 == wpen->revert_y) {
         y =  wpen->features.y_max - y;
-		//ty = -ty;
+		ty = 0x10000-ty;
     }
 
     input_report_key(input, BTN_TOUCH, tsw || ers);
