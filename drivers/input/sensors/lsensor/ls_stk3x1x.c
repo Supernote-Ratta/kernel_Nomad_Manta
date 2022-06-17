@@ -152,7 +152,8 @@ struct stk3x1x_data {
     struct class *lsensor_class;
     uint16_t ir_code;
     uint16_t als_correct_factor;
-    uint16_t calibration_value;
+    uint16_t lightcalibration_value;
+    uint16_t darkcalibration_value;
     uint16_t calibration_reference;
     uint8_t alsctrl_reg;
     uint8_t psctrl_reg;
@@ -256,6 +257,32 @@ static uint16_t light3x1x_calibration_data_write(uint16_t *value)
     int ret;
 
     ret = rk_vendor_write(LIGHT3X1X_CALIBRATION_ID, (void *)value, 2);
+    if (ret < 0) {
+        printk(KERN_ERR "%s failed!\n", __func__);
+        return ret;
+    }
+
+    return 0;
+}
+
+static uint16_t light3x1x_darkcalibration_data_read(uint16_t *value)
+{
+    int ret;
+
+    ret = rk_vendor_read(LIGHT3X1X_DCALIBRATION_ID, (void *)value, 2);
+    if (ret < 0) {
+        printk(KERN_ERR "%s failed!\n", __func__);
+        return ret;
+    }
+
+    return 0;
+}
+
+static uint16_t light3x1x_darkcalibration_data_write(uint16_t *value)
+{
+    int ret;
+
+    ret = rk_vendor_write(LIGHT3X1X_DCALIBRATION_ID, (void *)value, 2);
     if (ret < 0) {
         printk(KERN_ERR "%s failed!\n", __func__);
         return ret;
@@ -515,19 +542,19 @@ static void stk_als_ir_get_corr(int32_t als)
             ir_ratio = (ls_data->ir_code * 100) / (als + 1);
         }
 
-        /*  
+        /*
         if (ls_data->ir_code > 32000) {
             ls_data->als_correct_factor = LIGHT_SLOPE_A;
             printk("stk3x1x_als_compensation: light type = A");
         }
         */
-		if (ls_data->ir_code > LIGHT_RATIO_A) {
-            ls_data->als_correct_factor = LIGHT_SLOPE_A*(10000-(ir_ratio*3-5061))/10000;
-		    printk("%s: stk als_correct_factor_A=%d", __func__, ls_data->als_correct_factor);	
+        if (ls_data->ir_code > LIGHT_RATIO_A) {
+            ls_data->als_correct_factor = LIGHT_SLOPE_A * (10000 - (ir_ratio * 3 - 5061)) / 10000;
+            printk("%s: stk als_correct_factor_A=%d", __func__, ls_data->als_correct_factor);
             // printk("stk3x1x_als_compensation: light type = A");
         } else if (ls_data->ir_code > LIGHT_RATIO_D) {
-            ls_data->als_correct_factor = LIGHT_SLOPE_D65*(10000-(ir_ratio*2-1355))/10000;
-		    printk("%s: stk als_correct_factor_D=%d", __func__, ls_data->als_correct_factor);
+            ls_data->als_correct_factor = LIGHT_SLOPE_D65 * (10000 - (ir_ratio * 2 - 1355)) / 10000;
+            printk("%s: stk als_correct_factor_D=%d", __func__, ls_data->als_correct_factor);
             // printk("stk3x1x_als_compensation: light type = D");
         } else {
             ls_data->als_correct_factor = LIGHT_SLOPE_CWF;
@@ -563,9 +590,6 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
     int result = 0;
-    // int status = 0;
-    // char buffer[3] = {0};
-    // int high = 0x80, low = 0x60;
 #ifdef STK_IRS
     int ret = 0;
 #endif
@@ -584,7 +608,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
     }
 #endif
 #endif
-    sensor->ops->ctrl_data = (uint8_t)((sensor->ops->ctrl_data) & (~(STK_STATE_EN_ALS_MASK | STK_STATE_EN_WAIT_MASK)));
+    sensor->ops->ctrl_data = (uint8_t)((sensor->ops->ctrl_data) & (~(STK_STATE_EN_ALS_MASK)));
 
     if (enable) {
         sensor->ops->ctrl_data |= STK_STATE_EN_ALS_MASK;
@@ -626,6 +650,7 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
         return 0;
     }
 
+    usleep_range(100000, 150000);
     buffer[0] = sensor->ops->read_reg;
     result = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
     if (result) {
@@ -633,24 +658,65 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
         return 0;
     }
 
-    value = (buffer[0] << 8) | buffer[1];
+    value = ((buffer[0] << 8) | buffer[1]) - ls_data->darkcalibration_value;
+    value = (value < 0) ? 0 : value;
     ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
     ircode = ls_data->ir_code;
 #ifdef STK_IRS
     stk_als_ir_get_corr(value);
-    result = (value * ls_data->als_correct_factor * ls_data->calibration_value) / (1000 * 100);
-    printk("value: %d correct factor: %d calibration: %d\n", value, ls_data->als_correct_factor, ls_data->calibration_value);
+    result = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
 #endif
-    len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, value, ircode);
+    len += sprintf(_buf, "%d\n", result);
     return len;
 }
 static CLASS_ATTR_RO(lux_value);
 
-static int do_calibration(struct sensor_private_data *sensor)
+static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr, char *_buf)
+{
+    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    int result = 0, rawvalue = 0, value = 0, ircode = 0;
+    ssize_t len = 0;
+    char index = 0;
+    char buffer[2] = {0};
+
+    if (!ls_data) {
+        printk(KERN_ERR "%s ls data is null!\n", __func__);
+        return 0;
+    }
+
+    sensor_active(ls_data->client, 1, 9600);
+    if (sensor->ops->read_len < 2) {
+        printk(KERN_ERR "%s:lenth is error,len=%d\n", __func__, sensor->ops->read_len);
+        return 0;
+    }
+
+    usleep_range(100000, 150000);
+    buffer[0] = sensor->ops->read_reg;
+    result = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
+    if (result) {
+        printk(KERN_ERR "%s:line=%d,error\n", __func__, __LINE__);
+        return 0;
+    }
+
+    rawvalue = (buffer[0] << 8) | buffer[1];
+    value = ((rawvalue - ls_data->darkcalibration_value) < 0) ? 0 : (rawvalue - ls_data->darkcalibration_value);
+    ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
+    ircode = ls_data->ir_code;
+#ifdef STK_IRS
+    stk_als_ir_get_corr(value);
+    result = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
+    printk("stk3x1x: ----ret:%d factor:%d value:%d ir:%d----\n", result, ls_data->als_correct_factor, value, ircode);
+#endif
+    len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, value, ircode);
+    return len;
+}
+static CLASS_ATTR_RO(lux_rawdata);
+
+static int do_calibration(struct sensor_private_data *sensor, int dark)
 {
     int ret = -1, i = 0;
-    int count = 100;
-    uint16_t value = 0, adjvalue = 0;
+    int count = 100, adjvalue = 0;
+    uint16_t value = 0;
     char buffer[2] = {0}, oktimes = 0;
 
     sensor_active(ls_data->client, 1, 9600);
@@ -660,31 +726,48 @@ static int do_calibration(struct sensor_private_data *sensor)
         return ret;
     }
 
-    buffer[0] = sensor->ops->read_reg;
+    usleep_range(100000, 150000);
     for (i = 0; i < count; i++) {
+        buffer[0] = sensor->ops->read_reg;
         ret = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
         if (ret) {
             printk(KERN_ERR "%s:sensor read data fail times: %d\n", __func__, i);
         } else {
             value = (buffer[0] << 8) | buffer[1];
             adjvalue += value;
+            printk("----adjvalue: %d, value: %d\n", adjvalue, value);
             value = 0;
             oktimes++;
+            usleep_range(100000, 150000);
         }
+        //stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
     }
 
     if (!oktimes) {
         printk(KERN_ERR "%s:can not read sensor read data when calibration\n", __func__);
         return ret;
     }
-    adjvalue = (adjvalue / oktimes) ? (adjvalue / oktimes) : ls_data->calibration_reference;
-    ls_data->calibration_value = (ls_data->calibration_reference * 100) / adjvalue;
 
-    printk("calibration value: %d\n", ls_data->calibration_value);
-    ret = light3x1x_calibration_data_write(&ls_data->calibration_value);
-    if (ret) {
-        printk(KERN_ERR "%s wirte calibration fail!\n", __func__);
-        return ret;
+    if (!dark) {
+        adjvalue = (adjvalue / oktimes) ? (adjvalue / oktimes) : ls_data->calibration_reference;
+        ls_data->lightcalibration_value = (ls_data->calibration_reference * 100) / adjvalue;
+        printk("times: %d, adjvalue: %d, lightcalibration value: %d\n", oktimes, adjvalue, ls_data->lightcalibration_value);
+
+        ret = light3x1x_calibration_data_write(&ls_data->lightcalibration_value);
+        if (ret) {
+            printk(KERN_ERR "%s wirte calibration fail!\n", __func__);
+            return ret;
+        }
+    } else {
+        adjvalue = adjvalue / oktimes;
+        ls_data->darkcalibration_value = adjvalue;
+        printk("times: %d, adjvalue: %d, darkcalibration value: %d\n", oktimes, adjvalue, ls_data->darkcalibration_value);
+
+        ret = light3x1x_darkcalibration_data_write(&ls_data->darkcalibration_value);
+        if (ret) {
+            printk(KERN_ERR "%s wirte dark calibration fail!\n", __func__);
+            return ret;
+        }
     }
 
     return 0;
@@ -693,7 +776,7 @@ static int do_calibration(struct sensor_private_data *sensor)
 static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
-    uint16_t value = 0;
+    uint16_t value = 0, dvalue = 0;
     int len = 0;
 
     if (!ls_data) {
@@ -704,15 +787,20 @@ static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *a
         printk(KERN_ERR "read light stk3x1x calibration error!\n");
         return len;
     }
-    len += sprintf(_buf, "%d\n", value);
+    if (light3x1x_darkcalibration_data_read(&dvalue)) {
+        printk(KERN_ERR "read light stk3x1x dark calibration error!\n");
+        return len;
+    }
+    len += sprintf(_buf, "%d  %d\n", dvalue, value);
     return len;
 }
 
 static ssize_t lux_calibration_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
-    int value = 0;
-    int ret = -1, pre_status;
+    int value = 0, dark = 0;
+    uint16_t zero = 0;
+    int ret = 1, pre_status;
 
     if (!ls_data) {
         printk(KERN_ERR "%s ls data is null!\n", __func__);
@@ -724,10 +812,20 @@ static ssize_t lux_calibration_store(struct class *class, struct class_attribute
         printk(KERN_ERR "%s: kstrtoint error return %d\n", __func__, ret);
         return ret;
     }
-    if (1 != value) {
+
+    if (0 == value) {
+        light3x1x_calibration_data_write(&zero);
+        light3x1x_darkcalibration_data_write(&zero);
+        return count;
+    } else if (1 == value) {
+        dark = 0;
+    } else if (2 == value) {
+        dark = 1;
+    } else {
         printk(KERN_ERR "%s: error value\n", __func__);
         return -1;
     }
+
     atomic_set(&sensor->is_factory, 1);
 
     pre_status = sensor->status_cur;
@@ -743,7 +841,7 @@ static ssize_t lux_calibration_store(struct class *class, struct class_attribute
             cancel_delayed_work_sync(&sensor->delaywork);
         }
     }
-    ret = do_calibration(sensor);
+    ret = do_calibration(sensor, dark);
     if (ret) {
         printk(KERN_ERR "%s: calibration fail!\n", __func__);
     }
@@ -770,86 +868,66 @@ static CLASS_ATTR_RW(lux_calibration);
 
 static int sensor_init(struct i2c_client *client)
 {
-    int res = 0;
+    struct sensor_private_data *sensor = (struct sensor_private_data *)i2c_get_clientdata(client);
+    int ret = 0;
 
     printk("stk %s init ...\n", __func__);
-
-    res = sensor_write_reg(client, STK_WAIT_REG, 0x7F);
-    if (res < 0) {
-        printk(KERN_ERR "stk %s i2c test error line:%d\n", __func__, __LINE__);
-        goto EXIT_ERR;
+    ret = sensor->ops->active(client, 0, 0);
+    if (ret) {
+        dev_err(&client->dev, "%s:sensor active fail\n", __func__);
+        return ret;
     }
+    sensor->status_cur = SENSOR_OFF;
 
-    res = sensor_read_reg(client, STK_WAIT_REG);
-    if (res != 0x7F) {
-        printk(KERN_ERR "stk %s i2c test error line:%d\n", __func__, __LINE__);
-        goto EXIT_ERR;
-    }
-
-    res = sensor_write_reg(client, STK_SW_RESET_REG, 0x0);
-    if (res < 0) {
+    ret = sensor_write_reg(client, STK_SW_RESET_REG, 0x0);
+    if (ret < 0) {
         printk(KERN_ERR "stk %s i2c error line:%d\n", __func__, __LINE__);
         goto EXIT_ERR;
     }
     usleep_range(13000, 15000);
-    res = stk3x1x_check_pid(client);
-    if (res < 0) {
+    ret = stk3x1x_check_pid(client);
+    if (ret < 0) {
         printk(KERN_ERR "stk %s i2c error line:%d\n", __func__, __LINE__);
         goto EXIT_ERR;
     }
 
-    res = sensor_write_reg(client, STK_STATE_REG, stk3x1x_pfdata.state_reg);
-    if (res < 0) {
+    ret = sensor_write_reg(client, STK_STATE_REG, stk3x1x_pfdata.state_reg);
+    if (ret < 0) {
         printk(KERN_ERR "stk %s i2c error line:%d\n", __func__, __LINE__);
         goto EXIT_ERR;
     }
 
-    res = sensor_write_reg(client, STK_PSCTRL_REG, stk3x1x_pfdata.psctrl_reg);
-    if (res < 0) {
-        printk(KERN_ERR "stk %s i2c error line:%d\n", __func__, __LINE__);
-        goto EXIT_ERR;
-    }
-
-    res = sensor_write_reg(client, STK_ALSCTRL_REG, stk3x1x_pfdata.alsctrl_reg);
-    if (res < 0) {
-        printk(KERN_ERR "stk %s i2c error line:%d\n", __func__, __LINE__);
-        goto EXIT_ERR;
-    }
-
-    if (ls_data->pid == STK3310SA_PID || ls_data->pid == STK3311SA_PID) {
-        stk3x1x_pfdata.ledctrl_reg &= 0x3F;
-    }
-    res = sensor_write_reg(client, STK_LEDCTRL_REG, stk3x1x_pfdata.ledctrl_reg);
-    if (res < 0) {
-        printk(KERN_ERR "stk %s i2c error line:%d\n", __func__, __LINE__);
-        goto EXIT_ERR;
-    }
-
-    res = sensor_write_reg(client, STK_WAIT_REG, stk3x1x_pfdata.wait_reg);
-    if (res < 0) {
+    ret = sensor_write_reg(client, STK_ALSCTRL_REG, stk3x1x_pfdata.alsctrl_reg);
+    if (ret < 0) {
         printk(KERN_ERR "stk %s i2c error line:%d\n", __func__, __LINE__);
         goto EXIT_ERR;
     }
 
 #ifndef STK_POLL_ALS
     value = STK_INT_REG;
-    res = sensor_rx_data(client, value, 1);
-    if (res) {
-        printk(KERN_ERR "%s:line=%d,error=%d\n", __func__, __LINE__, res);
-        return res;
+    ret = sensor_rx_data(client, value, 1);
+    if (ret) {
+        printk(KERN_ERR "%s:line=%d,error=%d\n", __func__, __LINE__, ret);
+        return ret;
     }
 
     value |= STK_INT_ALS;
-    res = sensor_write_reg(client, STK_INT_REG, value);
-    if (res < 0) {
+    ret = sensor_write_reg(client, STK_INT_REG, value);
+    if (ret < 0) {
         printk(KERN_ERR "stk %s i2c error line:%d\n", __func__, __LINE__);
         goto EXIT_ERR;
     }
 #endif
-    res = light3x1x_calibration_data_read(&ls_data->calibration_value);
-    if (res) {
-        ls_data->calibration_value = 100;
-        dev_err(&client->dev, "Fail to get light3x1x calibration data!!! use default: %d\n", ls_data->calibration_value);
+    ret = light3x1x_calibration_data_read(&ls_data->lightcalibration_value);
+    if (ret) {
+        ls_data->lightcalibration_value = 100;
+        dev_err(&client->dev, "Fail to get light3x1x calibration data!!! use default: %d\n", ls_data->lightcalibration_value);
+    }
+
+    ret = light3x1x_darkcalibration_data_read(&ls_data->darkcalibration_value);
+    if (ret) {
+        ls_data->darkcalibration_value = 0;
+        dev_err(&client->dev, "Fail to get light3x1x darkcalibration data!!! use default: %d\n", ls_data->darkcalibration_value);
     }
 
     ls_data->als_code_last = 0;
@@ -858,8 +936,8 @@ static int sensor_init(struct i2c_client *client)
     return 0;
 
 EXIT_ERR:
-    printk(KERN_ERR "stk init fail dev: %d\n", res);
-    return res;
+    printk(KERN_ERR "stk init fail dev: %d\n", ret);
+    return ret;
 }
 
 static int sensor_report_value(struct i2c_client *client)
@@ -897,14 +975,15 @@ static int sensor_report_value(struct i2c_client *client)
         return result;
     }
 
-    value = (buffer[0] << 8) | buffer[1];
+    value = ((buffer[0] << 8) | buffer[1]) - ls_data->darkcalibration_value;
+    value = (value < 0) ? 0 : value;
 #ifdef STK_DEBUG_PRINTF
     printk("%s: value == %d \n", __func__, value);
 #endif
     ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
 #ifdef STK_IRS
     stk_als_ir_get_corr(value);
-    value = (value * ls_data->als_correct_factor * ls_data->calibration_value) / (1000 * 100);
+    value = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
 #endif
 
     index = light_report_abs_value(sensor->input_dev, value);
@@ -966,6 +1045,10 @@ static int light_stk3x1x_probe(struct i2c_client *client, const struct i2c_devic
     if (ret) {
         dev_err(&client->dev, "Fail to create class light3x1x class calibration!\n");
     }
+    ret = class_create_file(ls_data->lsensor_class, &class_attr_lux_rawdata);
+    if (ret) {
+        dev_err(&client->dev, "Fail to create class light3x1x class raw!\n");
+    }
     ret = sensor_register_device(client, NULL, devid, &light_stk3x1x_ops);
     return ret;
 }
@@ -993,7 +1076,17 @@ static struct i2c_driver light_stk3x1x_driver = {
     },
 };
 
-module_i2c_driver(light_stk3x1x_driver);
+static int __init light_stk3x1x_init(void)
+{
+    return i2c_add_driver(&light_stk3x1x_driver);;
+}
+late_initcall(light_stk3x1x_init);
+
+static void __exit light_stk3x1x_exit(void)
+{
+    i2c_del_driver(&light_stk3x1x_driver);
+}
+module_exit(light_stk3x1x_exit);
 
 MODULE_AUTHOR("Lex Hsieh <lex_hsieh@sensortek.com.tw>");
 MODULE_DESCRIPTION("Sensortek stk3x1x Proximity Sensor driver");

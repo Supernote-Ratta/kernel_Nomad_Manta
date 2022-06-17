@@ -35,6 +35,9 @@
 #define EINK_BOARD_BUILT_TIME_ID    23
 #define LIGHT3X1X_CALIBRATION_ID    24
 #define LIGHT578_CALIBRATION_ID     25
+#define WAVEFORM_INFO_ID            26
+#define LIGHT3X1X_DCALIBRATION_ID   27
+#define LIGHT578_DCALIBRATION_ID    28
 
 int rk_vendor_read(u32 id, void *pbuf, u32 size);
 int rk_vendor_write(u32 id, void *pbuf, u32 size);
