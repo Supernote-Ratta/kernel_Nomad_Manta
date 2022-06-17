@@ -19,7 +19,7 @@
 #include <linux/rk817_charger.h>
 /* changed end. */
 
-static int dbg_enable = 1;
+static int dbg_enable = 0;
 module_param_named(dbg_level, dbg_enable, int, 0644);
 
 #define DBG(args...) \
@@ -29,7 +29,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
         } \
     } while (0)
 
-#define CHARGE_DRIVER_VERSION       "1.0"
+// 220617:1.Set charge current to 450mA for Boe no-cc line
+#define CHARGE_DRIVER_VERSION       "220617"
 
 #define DISABLE                      0x00
 #define ENABLE                       0x01
@@ -269,12 +270,6 @@ static int rk817_charge_ac_get_property(struct power_supply *psy, enum power_sup
             } else {
                 val->intval = (charge->ac_in | charge->dc_in);
             }
-			
-#ifdef CONFIG_TYPEC_TCPM
-			if(cc_type!= 0){
-                rk817_charge_set_input_current(charge, INPUT_1500MA);
-            }
-#endif
             DBG("ac report online: %d\n", val->intval);
             break;
         case POWER_SUPPLY_PROP_STATUS:
@@ -665,9 +660,6 @@ static void rk817_charge_set_chrg_param(struct rk817_charger *charge, enum charg
 {
 printk("rk817_charge_set_chrg_param:%d usb_in:%d ac_in:%d dc_in:%d \n",charger,
 	charge->usb_in,charge->ac_in,charge->dc_in);
-#ifdef CONFIG_TYPEC_TCPM
-	cc_type = 0;
-#endif
     switch (charger) {
         case USB_TYPE_NONE_CHARGER:
             charge->usb_in = 0;
@@ -689,22 +681,16 @@ printk("rk817_charge_set_chrg_param:%d usb_in:%d ac_in:%d dc_in:%d \n",charger,
             power_supply_changed(charge->usb_psy);
             power_supply_changed(charge->ac_psy);
             break;
-        case USB_TYPE_AC_CHARGER:
+		//tanlq add 220617 for boe no cc_report line
+        case USB_TYPE_AC_OLD_CHARGER:
 			charge->ac_in = 1;
             charge->usb_in = 0;
             charge->prop_status = POWER_SUPPLY_STATUS_CHARGING;
-#if 0 //def CONFIG_TYPEC_TCPM
             rk817_charge_set_input_current(charge, INPUT_450MA);
-#else
-			if (charger == USB_TYPE_AC_CHARGER) {
-                rk817_charge_set_input_current(charge, charge->max_input_current);
-            } else {
-                rk817_charge_set_input_current(charge, INPUT_1500MA);
-            }
-#endif
             power_supply_changed(charge->usb_psy);
             power_supply_changed(charge->ac_psy);
             break;
+		case USB_TYPE_AC_CHARGER:
         case USB_TYPE_CDP_CHARGER:
             charge->ac_in = 1;
             charge->usb_in = 0;
@@ -982,7 +968,7 @@ static void rk817_charger_evt_worker(struct work_struct *work)
     struct rk817_charger *charge = container_of(work, struct rk817_charger, usb_work.work);
     struct extcon_dev *edev = charge->cable_edev;
     enum charger_t charger = USB_TYPE_UNKNOWN_CHARGER;
-    static const char *const event[] = {"UN", "NONE", "USB", "AC", "CDP1.5A"};
+    static const char *const event[] = {"UN", "NONE", "USB", "AC", "ACLOW","CDP1.5A"};
 	//union extcon_property_value property;
 
     /* Determine cable/charger type */
@@ -990,9 +976,13 @@ static void rk817_charger_evt_worker(struct work_struct *work)
         charger = USB_TYPE_USB_CHARGER;
     } else if (extcon_get_state(edev, EXTCON_CHG_USB_DCP) > 0) {
         charger = USB_TYPE_AC_CHARGER;
-		//extcon_get_property(edev, EXTCON_USB,EXTCON_PROP_USB_TYPEC_POLARITY,&property)) {
-		//if (property.intval==0)
-	//charger = EXTCON_CHG_USB_SLOW;
+//tanlq add 220617 for boe no cc_report line
+#ifdef CONFIG_TYPEC_TCPM
+		if(cc_type == 0){
+			charger = USB_TYPE_AC_OLD_CHARGER;
+		}
+		printk("====rk817_charger_evt_worker:ac charger cc_type:0x%2x\n",cc_type);
+#endif
     } else if (extcon_get_state(edev, EXTCON_CHG_USB_CDP) > 0) {
         charger = USB_TYPE_CDP_CHARGER;
     }
@@ -1096,7 +1086,6 @@ static int rk817_charge_usb_init(struct rk817_charger *charge)
     int ret;
 
     charge->usb_charger_wq = alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM | WQ_FREEZABLE, "rk817-usb-wq");
-
     /* type-C */
     if (charge->pdata->extcon) {
         edev = extcon_get_edev_by_phandle(dev, 0);
@@ -1130,15 +1119,6 @@ static int rk817_charge_usb_init(struct rk817_charger *charge)
             extcon_unregister_notifier(edev, EXTCON_CHG_USB_DCP, &charge->cable_cg_nb);
             return ret;
         }
-
-		//ret = extcon_register_notifier(edev, EXTCON_CHG_USB_CDP, &charge->cable_cg_nb);
-        //if (ret < 0) {
-         //   dev_err(dev, "failed to register notifier for CDP\n");
-         //   extcon_unregister_notifier(edev, EXTCON_CHG_USB_SDP, &charge->cable_cg_nb);
-        //    extcon_unregister_notifier(edev, EXTCON_CHG_USB_DCP, &charge->cable_cg_nb);
-        //    return ret;
-        //}
-		//EXTCON_PROP_USB_TYPEC_POLARITY
 
         /* Register host */
         INIT_DELAYED_WORK(&charge->host_work, rk817_charge_host_evt_worker);
@@ -1561,7 +1541,7 @@ static int rk817_charge_probe(struct platform_device *pdev)
     /* changed tower: for battmanager. */
     rk817_charge_set_charger(charge);
     /* changed end. */
-    DBG("driver version: %s\n", CHARGE_DRIVER_VERSION);
+    printk("driver version: %s\n", CHARGE_DRIVER_VERSION);
 
     return 0;
 irq_fail:

@@ -59,6 +59,8 @@ struct wacom_features {
     int x_max;
     int y_max;
     int pressure_max;
+	int tx;
+	int ty;
     char fw_version;
 };
 
@@ -92,6 +94,7 @@ struct wacom_pencil {
 
 /* debug option */
 static bool debug = true;
+
 module_param(debug, bool, 0444);
 MODULE_PARM_DESC(debug, "print a lot of debug information");
 
@@ -136,10 +139,14 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
     struct input_dev *input = wpen->input;
     u8 *data = wpen->data;
     unsigned int x, y, pressure;
+	int tx,ty;
     unsigned char tsw, f1, f2, ers;
     int error;
 
     //wacom_dbg("entering %s\n", __func__);
+	if(input==NULL){
+		return IRQ_HANDLED;
+	}
 
     if (device_can_wakeup(&wpen->client->dev)) {
         pm_stay_awake(&wpen->client->dev);
@@ -156,6 +163,8 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
     x = le16_to_cpup((__le16 *)&data[4]);
     y = le16_to_cpup((__le16 *)&data[6]);
     pressure = le16_to_cpup((__le16 *)&data[8]);
+	tx = le16_to_cpup((__le16 *)&data[11]);
+	ty = le16_to_cpup((__le16 *)&data[13]);
 
     if (!wpen->prox) {
         wpen->tool = (data[3] & 0x0c) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
@@ -165,12 +174,15 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
 
     if (1 == wpen->swap_xy) {
         swap(x, y);
+		//swap(tx, ty);
     }
     if (1 == wpen->revert_x) {
         x = wpen->features.x_max - x;
+		//tx = -tx;
     }
     if (1 == wpen->revert_y) {
         y =  wpen->features.y_max - y;
+		//ty = -ty;
     }
 
     input_report_key(input, BTN_TOUCH, tsw || ers);
@@ -180,6 +192,8 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
     input_report_abs(input, ABS_X, x);
     input_report_abs(input, ABS_Y, y);
     input_report_abs(input, ABS_PRESSURE, pressure);
+	input_report_abs(input, ABS_TILT_X, tx);
+    input_report_abs(input, ABS_TILT_Y, ty);
     input_sync(input);
 
 out:
@@ -277,7 +291,7 @@ static int wacom_input_open(struct input_dev *dev)
     struct wacom_pencil *wpen = input_get_drvdata(dev);
     struct i2c_client *client = wpen->client;
 
-    enable_irq(client->irq);
+	enable_irq(client->irq);
 
     return 0;
 }
@@ -583,6 +597,8 @@ static int input_init(struct wacom_pencil *wpen)
     input_set_abs_params(wpen->input, ABS_X, 0, wpen->features.x_max, 0, 0);
     input_set_abs_params(wpen->input, ABS_Y, 0, wpen->features.y_max, 0, 0);
     input_set_abs_params(wpen->input, ABS_PRESSURE, 0, wpen->features.pressure_max, 0, 0);
+	input_set_abs_params(wpen->input, ABS_TILT_X, -9000, 9000, 0, 0);
+	input_set_abs_params(wpen->input, ABS_TILT_Y, -9000, 9000, 0, 0);
     input_set_drvdata(wpen->input, wpen);
     ret = input_register_device(wpen->input);
     if (ret) {

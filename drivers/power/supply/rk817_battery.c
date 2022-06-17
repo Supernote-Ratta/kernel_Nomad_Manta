@@ -58,7 +58,10 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 
 #define BAT_INFO(fmt, args...) pr_info(fmt, ##args)
 
-#define DRIVER_VERSION	"1.00"
+// 220617:1.Charge temperature limit
+//		  2.Battery Protect & battery maintain
+#define DRIVER_VERSION	"220617"
+
 #define SFT_SET_KB	1
 
 #define DIV(x)	((x) ? (x) : 1)

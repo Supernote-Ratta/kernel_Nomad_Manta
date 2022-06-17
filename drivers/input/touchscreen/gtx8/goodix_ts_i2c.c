@@ -1773,6 +1773,10 @@ static int goodix_i2c_probe(struct i2c_client *client,
 			ts_err("failed parse device info form dts, %d", r);
 			return -EINVAL;
 		}
+		r = of_property_read_bool(client->dev.of_node, "tp-support-wakeup");
+	    if (r) {
+			device_init_wakeup(&client->dev, true);
+		}
 	} else {
 		ts_err("no valid device tree node found");
 		return -ENODEV;

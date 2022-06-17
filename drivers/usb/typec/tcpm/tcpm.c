@@ -798,6 +798,7 @@ static void tcpm_send_orientation_notify(struct tcpm_port *port)
 			    EXTCON_PROP_USB_TYPEC_POLARITY, property);
 	extcon_set_property(port->extcon, EXTCON_DISP_DP,
 			    EXTCON_PROP_USB_TYPEC_POLARITY, property);
+
 }
 
 static void tcpm_send_data_role_notify(struct tcpm_port *port, bool attached,
@@ -3457,7 +3458,6 @@ static int tcpm_snk_attach(struct tcpm_port *port)
 		 port->cc1 != TYPEC_CC_OPEN ? "CC1" : "CC2");
 	tcpm_send_orientation_notify(port);
 	tcpm_send_data_role_notify(port, port->attached, port->data_role);
-	cc_type = port->cc1;
 
 	return 0;
 }
@@ -4491,6 +4491,15 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 		       tcpm_port_is_disconnected(port) ? "disconnected"
 						       : "connected");
 
+	if(tcpm_port_is_disconnected(port)){
+		cc_type = 0;
+	}else{
+		if((cc1 != 0)||(cc2 != 0)){
+			cc_type = cc1<<8|cc2;
+		}else{
+			cc_type = 0;
+		}
+	}
 	switch (port->state) {
 	case TOGGLING:
 		if (tcpm_port_is_debug(port) || tcpm_port_is_audio(port) ||
@@ -4650,9 +4659,13 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 
 static void _tcpm_pd_vbus_on(struct tcpm_port *port)
 {
-	tcpm_log_force(port, "VBUS on");
+	tcpm_log_force(port, "VBUS on:%d",port->state);
 	port->vbus_present = true;
 	switch (port->state) {
+	case TOGGLING:
+		tcpm_log_force(port, "Set cc_type = 0 ");
+		cc_type = 0;
+		break;
 	case SNK_TRANSITION_SINK_VBUS:
 		port->explicit_contract = true;
 		/* Set the VDM flag ASAP */

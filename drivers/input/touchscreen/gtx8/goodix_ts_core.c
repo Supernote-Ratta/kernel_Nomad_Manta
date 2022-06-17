@@ -1648,6 +1648,7 @@ static void goodix_ts_release_connects(struct goodix_ts_core *core_data)
  * goodix_ts_suspend - Touchscreen suspend function
  * Called by PM/FB/EARLYSUSPEN module to put the device to  sleep
  */
+ extern bool fb_power_off(void);
 static int goodix_ts_suspend(struct goodix_ts_core *core_data)
 {
 	struct goodix_ext_module *ext_module, *next;
@@ -1655,11 +1656,12 @@ static int goodix_ts_suspend(struct goodix_ts_core *core_data)
 	int r;
 
 	ts_info("Suspend start");
-	
+
     goodix_ts_irq_enable(core_data, false);
-	//if (device_may_wakeup(ts_dev->dev)) {
+	if (device_may_wakeup(ts_dev->dev)) {
 		enable_irq_wake(core_data->irq);
-	//	}
+	}
+
 return 0;
 	/*
 	 * notify suspend event, inform the esd protector
@@ -1743,7 +1745,9 @@ static int goodix_ts_resume(struct goodix_ts_core *core_data)
 
 	ts_info("Resume start");
 	goodix_ts_irq_enable(core_data, true);
-	disable_irq_wake(core_data->irq);
+	if (device_may_wakeup(ts_dev->dev)) {
+        disable_irq_wake(core_data->irq);
+    }
 	return 0;
 
 	mutex_lock(&goodix_modules.mutex);
@@ -1811,7 +1815,7 @@ out:
 	return 0;
 }
 
-#ifdef CONFIG_FB
+#if 0//def CONFIG_FB
 /**
  * goodix_ts_fb_notifier_callback - Framebuffer notifier callback
  * Called by kernel during framebuffer blanck/unblank phrase
@@ -1829,10 +1833,12 @@ int goodix_ts_fb_notifier_callback(struct notifier_block *self,
 			/* before fb blank */
 		} else if (event == FB_EVENT_BLANK) {
 			int *blank = fb_event->data;
-			if (*blank == FB_BLANK_UNBLANK)
-				goodix_ts_resume(core_data);
-			else if (*blank == FB_BLANK_POWERDOWN)
-				goodix_ts_suspend(core_data);
+			//tanlq 220616 delete,because powerup run will cause  Unbalanced IRQ 89 wake disable
+			//if (*blank == FB_BLANK_UNBLANK)
+				//goodix_ts_resume(core_data);
+			//else
+				//if (*blank == FB_BLANK_POWERDOWN)
+				//goodix_ts_suspend(core_data); //usb-in sleep will suspend
 		}
 	}
 
@@ -1960,7 +1966,7 @@ int goodix_ts_stage2_init(struct goodix_ts_core *core_data)
 	}
 	ts_info("success register irq");
 
-#ifdef CONFIG_FB
+#if 0//def CONFIG_FB
 	core_data->fb_notifier.notifier_call = goodix_ts_fb_notifier_callback;
 	if (fb_register_client(&core_data->fb_notifier))
 		ts_err("Failed to register fb notifier client:%d", r);
