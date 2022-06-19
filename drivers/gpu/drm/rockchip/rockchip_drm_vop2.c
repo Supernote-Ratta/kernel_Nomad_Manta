@@ -3511,8 +3511,10 @@ static int vop2_crtc_enable_vblank(struct drm_crtc *crtc)
 	const struct vop_intr *intr = vp_data->intr;
 	unsigned long flags;
 
-	if (WARN_ON(!vop2->is_enabled))
-		return -EPERM;
+    if(!vop2->is_enabled) 
+        return -EPERM;
+	//if (WARN_ON(!vop2->is_enabled))
+	//	return -EPERM;
 
 	spin_lock_irqsave(&vop2->irq_lock, flags);
 
@@ -3533,8 +3535,10 @@ static void vop2_crtc_disable_vblank(struct drm_crtc *crtc)
 	const struct vop_intr *intr = vp_data->intr;
 	unsigned long flags;
 
-	if (WARN_ON(!vop2->is_enabled))
-		return;
+    if(!vop2->is_enabled) 
+        return ;
+	//if (WARN_ON(!vop2->is_enabled))
+	//	return;
 
 	spin_lock_irqsave(&vop2->irq_lock, flags);
 
