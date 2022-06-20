@@ -37,7 +37,7 @@ struct ltr578_data {
     struct i2c_client *client;
     struct class *lsensor_class;
     int als_gainrange;
-    uint16_t calibration_value;
+    uint16_t lightcalibration_value;
     uint16_t darkcalibration_value;
     uint16_t calibration_reference;
     int als;
@@ -122,9 +122,9 @@ static int sensor_als_read(struct i2c_client *client)
     }
 
     ratio = clearval * 100 / (alsval + 1);
-    if (ratio <= 45) {
+    if (ratio <= 240) {
         cal_factor = 9;
-    } else if (ratio <= 250) {
+    } else if (ratio <= 2000) {
         cal_factor = 7;
     } else {
         cal_factor = 7;
@@ -134,7 +134,6 @@ static int sensor_als_read(struct i2c_client *client)
     luxdata_int = alsval * cal_factor * ALS_WIN_FACTOR / ls_data->als_gainrange;
     ls_data->als = alsval;
     ls_data->ir_code = clearval;
-    printk("%s als_value: %d , clearval_value: %d , luxdata_int = %d\n", __func__, alsval, clearval, luxdata_int);
     return luxdata_int;
 }
 
@@ -172,7 +171,6 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
     int result = 0;
 
-    printk(KERN_INFO "%s,enable = %d\n", __func__, enable);
     if (enable) {
         result = sensor_als_enable(client);
     } else {
@@ -199,7 +197,7 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
         }
     }
     value = sensor_als_read(ls_data->client);
-    result = value * ls_data->calibration_value / 100;
+    result = value * ls_data->lightcalibration_value / 100;
     len += sprintf(_buf, "%d\n", result);
     return len;
 }
@@ -222,8 +220,8 @@ static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr,
         }
     }
     value = sensor_als_read(ls_data->client);
-    result = value * ls_data->calibration_value / 100;
-    printk("ltr578: ----ret:%d alsraw:%d value:%d ir:%d----\n", result, ls_data->als, value, ls_data->ir_code);
+    result = value * ls_data->lightcalibration_value / 100;
+    printk("ltr578: ----ret:%d alsraw:%d value:%d ir:%d cail:%d darkcail:%d lightcailref:%d----\n", result, ls_data->als, value, ls_data->ir_code, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
     len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, ls_data->als, ls_data->ir_code);
     return len;
 }
@@ -250,10 +248,10 @@ static int do_calibration(struct sensor_private_data *sensor, int dark)
 
     if (!dark) {
         adjvalue = (adjvalue / oktimes) ? (adjvalue / oktimes) : ls_data->calibration_reference;
-        ls_data->calibration_value = (ls_data->calibration_reference * 100) / adjvalue;
+        ls_data->lightcalibration_value = (ls_data->calibration_reference * 100) / adjvalue;
 
-        printk("ltr578 calibration value: %d\n", ls_data->calibration_value);
-        ret = light578_calibration_data_write(&ls_data->calibration_value);
+        printk("ltr578 calibration value: %d\n", ls_data->lightcalibration_value);
+        ret = light578_calibration_data_write(&ls_data->lightcalibration_value);
         if (ret) {
             printk(KERN_ERR "%s wirte calibration fail!\n", __func__);
             return ret;
@@ -285,11 +283,11 @@ static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *a
     }
     if (light578_calibration_data_read(&value)) {
         printk(KERN_ERR "read light ltr578 calibration error!\n");
-        return len;
+        value = ls_data->lightcalibration_value;
     }
     if (light578_darkcalibration_data_read(&dvalue)) {
         printk(KERN_ERR "read light ltr578 darkcalibration error!\n");
-        return len;
+        dvalue = ls_data->darkcalibration_value;
     }
     len += sprintf(_buf, "%d  %d\n", dvalue, value);
     return len;
@@ -300,7 +298,7 @@ static ssize_t lux_calibration_store(struct class *class, struct class_attribute
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
     int value = 0, dark = 0;
     int ret = -1, pre_status;
-    uint16_t zero = 0;
+    uint16_t zero = 0, defcali = 100;
 
     if (!ls_data) {
         printk(KERN_ERR "%s ls data is null!\n", __func__);
@@ -313,8 +311,10 @@ static ssize_t lux_calibration_store(struct class *class, struct class_attribute
         return ret;
     }
     if (0 == value) {
-        light578_calibration_data_write(&zero);
+        light578_calibration_data_write(&defcali);
+        ls_data->lightcalibration_value = defcali;
         light578_darkcalibration_data_write(&zero);
+        ls_data->darkcalibration_value = 0;
         return count;
     } else if (1 == value) {
         dark = 0;
@@ -414,12 +414,12 @@ static int sensor_init(struct i2c_client *client)
     }
     sensor->status_cur = SENSOR_OFF;
 
-    ret = light578_calibration_data_read(&ls_data->calibration_value);
+    ret = light578_calibration_data_read(&ls_data->lightcalibration_value);
     if (ret) {
-        ls_data->calibration_value = 100;
-        dev_err(&client->dev, "Fail to get lightltr578 calibration data!use default: %d\n", ls_data->calibration_value);
+        ls_data->lightcalibration_value = 100;
+        dev_err(&client->dev, "Fail to get lightltr578 calibration data!use default: %d\n", ls_data->lightcalibration_value);
     }
-    ret = light578_calibration_data_read(&ls_data->darkcalibration_value);
+    ret = light578_darkcalibration_data_read(&ls_data->darkcalibration_value);
     if (ret) {
         ls_data->darkcalibration_value = 0;
         dev_err(&client->dev, "Fail to get lightltr578 calibration data!use dark default: %d\n", ls_data->darkcalibration_value);
@@ -477,7 +477,7 @@ static int sensor_report_value(struct i2c_client *client)
     }
 
     result = sensor_als_read(client);
-    result = ls_data->calibration_value * result / 100;
+    result = ls_data->lightcalibration_value * result / 100;
     index = light_report_value(sensor->input_dev, result);
 
     printk("%s:%s result=0x%x, index=%d\n", __func__, sensor->ops->name, result, index);
@@ -514,7 +514,7 @@ static int light_ltr578_probe(struct i2c_client *client, const struct i2c_device
         dev_err(&client->dev, "%s: failed to allocate ltr578_data!\n", __func__);
         return -ENOMEM;
     }
-    ls_data->calibration_reference = 1200;
+    ls_data->calibration_reference = 1000;
     ls_data->lsensor_class = class_create(THIS_MODULE, client->name);
     ret = class_create_file(ls_data->lsensor_class, &class_attr_lux_value);
     if (ret) {

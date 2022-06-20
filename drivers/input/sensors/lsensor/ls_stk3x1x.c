@@ -135,18 +135,6 @@
 #define STK_FLAG_PSDR                  (1 << 6)
 #define STK_FLAG_ALSDR                 (1 << 7)
 
-#ifdef STK_ALS_FIR
-#define STK_FIR_LEN                    5
-#define MAX_FIR_LEN                    32
-
-struct data_filter {
-    u16 raw[MAX_FIR_LEN];
-    int sum;
-    int number;
-    int idx;
-};
-#endif
-
 struct stk3x1x_data {
     struct i2c_client *client;
     struct class *lsensor_class;
@@ -162,27 +150,14 @@ struct stk3x1x_data {
     int int_pin;
     uint8_t wait_reg;
     uint8_t int_reg;
-#ifdef CONFIG_HAS_EARLYSUSPEND
-    //struct early_suspend stk_early_suspend;
-#endif
     uint16_t ps_thd_h;
     uint16_t ps_thd_l;
-#ifdef CALI_PS_EVERY_TIME
-    uint16_t ps_high_thd_boot;
-    uint16_t ps_low_thd_boot;
-#endif
     struct mutex io_lock;
     struct input_dev *ps_input_dev;
     int32_t ps_distance_last;
     bool ps_enabled;
     bool re_enable_ps;
     struct wake_lock ps_wakelock;
-#ifdef STK_POLL_PS
-    struct hrtimer ps_timer;
-    struct work_struct stk_ps_work;
-    struct workqueue_struct *stk_ps_wq;
-    struct wake_lock ps_nosuspend_wl;
-#endif
     struct input_dev *als_input_dev;
     int32_t als_lux_last;
     uint32_t als_transmittance;
@@ -196,41 +171,12 @@ struct stk3x1x_data {
     struct workqueue_struct *stk_als_wq;
 #endif
     bool first_boot;
-#ifdef STK_TUNE0
-    uint16_t psa;
-    uint16_t psi;
-    uint16_t psi_set;
-    struct hrtimer ps_tune0_timer;
-    struct workqueue_struct *stk_ps_tune0_wq;
-    struct work_struct stk_ps_tune0_work;
-    ktime_t ps_tune0_delay;
-    bool tune_zero_init_proc;
-    uint32_t ps_stat_data[3];
-    int data_count;
-    int stk_max_min_diff;
-    int stk_lt_n_ct;
-    int stk_ht_n_ct;
-#endif
 #ifdef STK_ALS_FIR
     struct data_filter fir;
     atomic_t firlength;
 #endif
     atomic_t recv_reg;
-
-#ifdef STK_GES
-    struct input_dev *ges_input_dev;
-    int ges_enabled;
-    int re_enable_ges;
-    atomic_t gesture2;
-#endif
-#ifdef STK_IRS
     int als_data_index;
-#endif
-#ifdef STK_QUALCOMM_POWER_CTRL
-    struct regulator *vdd;
-    struct regulator *vio;
-    bool power_enabled;
-#endif
     uint8_t pid;
     uint8_t p_wv_r_bd_with_co;
     uint32_t als_code_last;
@@ -429,82 +375,77 @@ static int32_t stk3x1x_set_irs_it_slp(struct i2c_client *client, uint16_t *slp_t
     }
     irs_alsctrl |= (stk3x1x_pfdata.alsctrl_reg & 0xF0);
     ret = sensor_write_reg(client, STK_ALSCTRL_REG, irs_alsctrl);
-    printk("%s: stk IT=0x%x\n", __func__, irs_alsctrl);
     if (ret < 0) {
         return ret;
     }
     return 0;
 }
 
-static int stk3x1x_get_ir_reading(struct i2c_client *client, int32_t als_it_reduce)
+static uint16_t stk3x1x_get_ir_reading(struct i2c_client *client, int32_t als_it_reduce)
 {
-    int res = 0;
-    int32_t word_data, ret;
+    int ret = 0;
+    uint16_t ir_data = 0;
     int w_reg, retry = 0;
     uint16_t irs_slp_time = 100;
     char buffer[2] = {0};
 
     ret = stk3x1x_set_irs_it_slp(client, &irs_slp_time, als_it_reduce);
-    if (ret < 0) {
+    if (ret) {
         printk(KERN_ERR "%s set irs it slp error!\n", __func__);
-        return ret;
+        return 0;
     }
 
     w_reg = sensor_read_reg(client, STK_STATE_REG);
     if (w_reg <= 0) {
-        printk(KERN_ERR "%s read state error\n", __func__);
-        return ret;
+        printk("stk %s i2c error(%d)\n", __func__, w_reg);
+        return 0;
     }
 
     w_reg |= STK_STATE_EN_IRS_MASK;
-    res = sensor_write_reg(client, STK_STATE_REG, w_reg);
-    if (res < 0) {
-        printk(KERN_ERR "%s write state error!!\n", __func__);
-        return res;
+    ret = sensor_write_reg(client, STK_STATE_REG, w_reg);
+    if (ret) {
+        printk("stk %s en ir error(%d)\n", __func__, w_reg);
+        return 0;
     }
-
     msleep(irs_slp_time);
     do {
-        usleep_range(3000, 4000);
         w_reg = sensor_read_reg(client, STK_FLAG_REG);
-        if (w_reg <= 0) {
-            printk(KERN_ERR "%s read STK_FLAG_REG error!\n", __func__);
-            return w_reg;
+        if (w_reg & STK_FLG_IR_RDY_MASK) {
+            break;
         }
+        usleep_range(3000, 4000);
         retry++;
-    } while (retry < 10 && ((w_reg & STK_FLG_IR_RDY_MASK) == 0));
+    } while (retry < 10);
 
     if (retry == 10) {
         printk(KERN_ERR "%s: ir data is not ready for a long time\n", __func__);
-        return -EINVAL;
-    }
-
-    w_reg &= (~STK_FLG_IR_RDY_MASK);
-    res = sensor_write_reg(client, STK_FLAG_REG, w_reg);
-    if (res < 0) {
-        printk(KERN_ERR "%s write STK_FLAG_REG error!!\n", __func__);
-        return res;
+        return ir_data;
     }
 
     buffer[0] = STK_DATA1_IR_REG;
-    res = sensor_rx_data(client, buffer, 2);
-    if (res) {
+    ret = sensor_rx_data(client, buffer, 2);
+    if (ret) {
         printk(KERN_ERR "%s:line=%d,error\n", __func__, __LINE__);
-        return res;
+        return 0;
     }
-    word_data = ((buffer[0] << 8) | buffer[1]);
-    printk(KERN_INFO "%s: ir=%d\n", __func__, word_data);
+    ir_data = ((buffer[0] << 8) | buffer[1]);
 
-    res = sensor_write_reg(client, STK_ALSCTRL_REG, stk3x1x_pfdata.alsctrl_reg);
-    if (res < 0) {
+    w_reg &= (~STK_FLG_IR_RDY_MASK);
+    ret = sensor_write_reg(client, STK_FLAG_REG, w_reg);
+    if (ret < 0) {
+        printk(KERN_ERR "%s write STK_FLAG_REG error!!\n", __func__);
+        return 0;
+    }
+
+    ret = sensor_write_reg(client, STK_ALSCTRL_REG, stk3x1x_pfdata.alsctrl_reg);
+    if (ret < 0) {
         printk(KERN_ERR "%s write STK_ALSCTRL_REG error!!\n", __func__);
-        return res;
+        return 0;
     }
 
-    return word_data;
+    return ir_data;
 }
 
-#ifdef STK_IRS
 static int stk_als_ir_skip_als(struct i2c_client *client, struct sensor_private_data *sensor)
 {
     int ret;
@@ -527,10 +468,7 @@ static int stk_als_ir_skip_als(struct i2c_client *client, struct sensor_private_
     }
     return 0;
 }
-#endif
 
-
-#ifdef STK_IRS
 static void stk_als_ir_get_corr(int32_t als)
 {
     int32_t als_comperator;
@@ -538,9 +476,7 @@ static void stk_als_ir_get_corr(int32_t als)
 
     if (ls_data->ir_code) {
         ls_data->als_correct_factor = 1000;
-        if (ls_data->ir_code != 0) {
-            ir_ratio = (ls_data->ir_code * 100) / (als + 1);
-        }
+        ir_ratio = (ls_data->ir_code * 100) / (als + 1);
 
         /*
         if (ls_data->ir_code > 32000) {
@@ -550,82 +486,36 @@ static void stk_als_ir_get_corr(int32_t als)
         */
         if (ls_data->ir_code > LIGHT_RATIO_A) {
             ls_data->als_correct_factor = LIGHT_SLOPE_A * (10000 - (ir_ratio * 3 - 5061)) / 10000;
-            printk("%s: stk als_correct_factor_A=%d", __func__, ls_data->als_correct_factor);
-            // printk("stk3x1x_als_compensation: light type = A");
+            printk(KERN_DEBUG "%s: stk als factor A=%d", __func__, ls_data->als_correct_factor);
         } else if (ls_data->ir_code > LIGHT_RATIO_D) {
             ls_data->als_correct_factor = LIGHT_SLOPE_D65 * (10000 - (ir_ratio * 2 - 1355)) / 10000;
-            printk("%s: stk als_correct_factor_D=%d", __func__, ls_data->als_correct_factor);
-            // printk("stk3x1x_als_compensation: light type = D");
+            printk(KERN_DEBUG "%s: stk als factor D=%d", __func__, ls_data->als_correct_factor);
         } else {
             ls_data->als_correct_factor = LIGHT_SLOPE_CWF;
-            printk("%s: stk als_correct_factor_C=%d", __func__, ls_data->als_correct_factor);
-            // printk("stk3x1x_als_compensation: light type = C");
+            printk(KERN_DEBUG "%s: stk als factor C=%d", __func__, ls_data->als_correct_factor);
         }
     }
-    printk("%s: stk als=%d, ir=%d, als_correct_factor=%d", __func__, als, ls_data->ir_code, ls_data->als_correct_factor);
+
     ls_data->ir_code = 0;
-
-    return;
 }
-
-static int stk_als_ir_run(struct i2c_client *client)
-{
-    int ret;
-
-    if (ls_data->als_data_index % 10 == 0) {
-        if (ls_data->ps_distance_last != 0 && ls_data->ir_code == 0) {
-            ret = stk3x1x_get_ir_reading(client, STK_IRS_IT_REDUCE);
-            if (ret > 0) {
-                ls_data->ir_code = ret;
-            }
-        }
-        return ret;
-    }
-    return 0;
-}
-#endif
 
 /****************operate according to sensor chip:start************/
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
     int result = 0;
-#ifdef STK_IRS
-    int ret = 0;
-#endif
-    sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
-#ifndef STK_POLL_ALS
-    if (enable) {
-        stk3x1x_set_als_thd_h(client, 0x0000);
-        stk3x1x_set_als_thd_l(client, 0xFFFF);
-    }
-#ifdef STK_IRS
-    if (enable && !(sensor->ops->ctrl_data & STK_STATE_EN_PS_MASK)) {
-        ret = stk3x1x_get_ir_reading(ls_data, STK_IRS_IT_REDUCE);
-        if (ret > 0) {
-            ls_data->ir_code = ret;
-        }
-    }
-#endif
-#endif
-    sensor->ops->ctrl_data = (uint8_t)((sensor->ops->ctrl_data) & (~(STK_STATE_EN_ALS_MASK)));
 
+    sensor->ops->ctrl_data = 0;
     if (enable) {
-        sensor->ops->ctrl_data |= STK_STATE_EN_ALS_MASK;
-    } else if (sensor->ops->ctrl_data & STK_STATE_EN_PS_MASK) {
-        sensor->ops->ctrl_data |= STK_STATE_EN_WAIT_MASK;
+        sensor->ops->ctrl_data |= (STK_STATE_EN_ALS_MASK);
     }
-    printk("%s:reg=0x%x,reg_ctrl=0x%x,enable=%d\n", __func__, sensor->ops->ctrl_reg, sensor->ops->ctrl_data, enable);
     result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
     if (result) {
         printk(KERN_ERR "%s:fail to active sensor\n", __func__);
     }
 
     if (enable) {
-#ifdef STK_IRS
         ls_data->als_data_index = 0;
-#endif
-        // sensor->ops->report(sensor->client);
     }
     ls_data->als_enabled = enable ? true : false;
     return result;
@@ -635,7 +525,7 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
     int result = 0, value = 0, ircode = 0;
-    ssize_t len = 0;
+    ssize_t len = 0, retry = 0;
     char index = 0;
     char buffer[2] = {0};
 
@@ -650,22 +540,33 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
         return 0;
     }
 
-    usleep_range(100000, 150000);
+    ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
+    ircode = ls_data->ir_code;
+    do {
+        value = sensor_read_reg(ls_data->client, STK_FLAG_REG);
+        if (value < 0) {
+            printk("stk %s read als data flag error, ret=%d\n", __func__, value);
+            return value;
+        }
+        if (value & STK_FLG_ALSDR_MASK) {
+            break;
+        }
+        usleep_range(3000, 4000);
+        retry++;
+    } while (retry < 1000);
+
     buffer[0] = sensor->ops->read_reg;
     result = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
     if (result) {
         printk(KERN_ERR "%s:line=%d,error\n", __func__, __LINE__);
         return 0;
     }
-
     value = ((buffer[0] << 8) | buffer[1]) - ls_data->darkcalibration_value;
     value = (value < 0) ? 0 : value;
-    ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
-    ircode = ls_data->ir_code;
-#ifdef STK_IRS
+
     stk_als_ir_get_corr(value);
     result = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
-#endif
+    sensor_active(ls_data->client, 0, 0);
     len += sprintf(_buf, "%d\n", result);
     return len;
 }
@@ -675,7 +576,7 @@ static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr,
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
     int result = 0, rawvalue = 0, value = 0, ircode = 0;
-    ssize_t len = 0;
+    ssize_t len = 0, retry = 0;
     char index = 0;
     char buffer[2] = {0};
 
@@ -689,24 +590,33 @@ static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr,
         printk(KERN_ERR "%s:lenth is error,len=%d\n", __func__, sensor->ops->read_len);
         return 0;
     }
-
-    usleep_range(100000, 150000);
+    do {
+        value = sensor_read_reg(ls_data->client, STK_FLAG_REG);
+        if (value < 0) {
+            printk("stk %s read als data flag error, ret=%d\n", __func__, value);
+            return value;
+        }
+        if (value & STK_FLG_ALSDR_MASK) {
+            break;
+        }
+        usleep_range(3000, 4000);
+        retry++;
+    } while (retry < 1000);
     buffer[0] = sensor->ops->read_reg;
     result = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
     if (result) {
         printk(KERN_ERR "%s:line=%d,error\n", __func__, __LINE__);
         return 0;
     }
-
     rawvalue = (buffer[0] << 8) | buffer[1];
     value = ((rawvalue - ls_data->darkcalibration_value) < 0) ? 0 : (rawvalue - ls_data->darkcalibration_value);
     ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
     ircode = ls_data->ir_code;
-#ifdef STK_IRS
     stk_als_ir_get_corr(value);
     result = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
-    printk("stk3x1x: ----ret:%d factor:%d value:%d ir:%d----\n", result, ls_data->als_correct_factor, value, ircode);
-#endif
+    sensor_active(ls_data->client, 0, 0);
+
+    printk("stk3x1x: ----ret:%d factor:%d value:%d ir:%d lightcali:%d darkcali:%d lightcaliref:%d----\n", result, ls_data->als_correct_factor, value, ircode, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
     len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, value, ircode);
     return len;
 }
@@ -715,19 +625,30 @@ static CLASS_ATTR_RO(lux_rawdata);
 static int do_calibration(struct sensor_private_data *sensor, int dark)
 {
     int ret = -1, i = 0;
-    int count = 100, adjvalue = 0;
+    int count = 100, adjvalue = 0, retry = 0;
     uint16_t value = 0;
     char buffer[2] = {0}, oktimes = 0;
 
     sensor_active(ls_data->client, 1, 9600);
-
     if (sensor->ops->read_len < 2) {
         dev_err(&ls_data->client->dev, "%s:length is error, len=%d\n", __func__, sensor->ops->read_len);
         return ret;
     }
 
-    usleep_range(100000, 150000);
     for (i = 0; i < count; i++) {
+        usleep_range(8000, 10000);
+        do {
+            value = sensor_read_reg(ls_data->client, STK_FLAG_REG);
+            if (value < 0) {
+                printk("stk %s read als data flag error, ret=%d\n", __func__, value);
+                return value;
+            }
+            if (value & STK_FLG_ALSDR_MASK) {
+                break;
+            }
+            usleep_range(3000, 4000);
+            retry++;
+        } while (retry < 1000);
         buffer[0] = sensor->ops->read_reg;
         ret = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
         if (ret) {
@@ -738,9 +659,7 @@ static int do_calibration(struct sensor_private_data *sensor, int dark)
             printk("----adjvalue: %d, value: %d\n", adjvalue, value);
             value = 0;
             oktimes++;
-            usleep_range(100000, 150000);
         }
-        //stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
     }
 
     if (!oktimes) {
@@ -769,6 +688,7 @@ static int do_calibration(struct sensor_private_data *sensor, int dark)
             return ret;
         }
     }
+    sensor_active(ls_data->client, 0, 0);
 
     return 0;
 }
@@ -785,11 +705,11 @@ static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *a
     }
     if (light3x1x_calibration_data_read(&value)) {
         printk(KERN_ERR "read light stk3x1x calibration error!\n");
-        return len;
+        value = ls_data->lightcalibration_value;
     }
     if (light3x1x_darkcalibration_data_read(&dvalue)) {
         printk(KERN_ERR "read light stk3x1x dark calibration error!\n");
-        return len;
+        dvalue = ls_data->darkcalibration_value;
     }
     len += sprintf(_buf, "%d  %d\n", dvalue, value);
     return len;
@@ -799,7 +719,7 @@ static ssize_t lux_calibration_store(struct class *class, struct class_attribute
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
     int value = 0, dark = 0;
-    uint16_t zero = 0;
+    uint16_t zero = 0, defcali = 100;
     int ret = 1, pre_status;
 
     if (!ls_data) {
@@ -814,8 +734,10 @@ static ssize_t lux_calibration_store(struct class *class, struct class_attribute
     }
 
     if (0 == value) {
-        light3x1x_calibration_data_write(&zero);
+        light3x1x_calibration_data_write(&defcali);
+        ls_data->lightcalibration_value = defcali;
         light3x1x_darkcalibration_data_write(&zero);
+        ls_data->darkcalibration_value = 0;
         return count;
     } else if (1 == value) {
         dark = 0;
@@ -862,7 +784,7 @@ static ssize_t lux_calibration_store(struct class *class, struct class_attribute
     atomic_set(&sensor->is_factory, 0);
     wake_up(&sensor->is_factory_ok);
 
-    return ret ? ret : count;
+    return ret ? -1 : count;
 }
 static CLASS_ATTR_RW(lux_calibration);
 
@@ -961,12 +883,10 @@ static int sensor_report_value(struct i2c_client *client)
         return 0;
     }
 
-#ifdef STK_IRS
     result = stk_als_ir_skip_als(client, sensor);
     if (result == 1) {
         return 0;
     }
-#endif
 
     buffer[0] = sensor->ops->read_reg;
     result = sensor_rx_data(client, buffer, sensor->ops->read_len);
@@ -977,15 +897,9 @@ static int sensor_report_value(struct i2c_client *client)
 
     value = ((buffer[0] << 8) | buffer[1]) - ls_data->darkcalibration_value;
     value = (value < 0) ? 0 : value;
-#ifdef STK_DEBUG_PRINTF
-    printk("%s: value == %d \n", __func__, value);
-#endif
     ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
-#ifdef STK_IRS
     stk_als_ir_get_corr(value);
     value = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
-#endif
-
     index = light_report_abs_value(sensor->input_dev, value);
 
     if (sensor->pdata->irq_enable && sensor->ops->int_status_reg) {
@@ -1000,9 +914,6 @@ static int sensor_report_value(struct i2c_client *client)
         }
     }
 
-#ifdef STK_IRS
-    stk_als_ir_run(client);
-#endif
     return result;
 }
 

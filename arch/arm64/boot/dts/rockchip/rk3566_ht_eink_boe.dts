@@ -668,7 +668,7 @@
         als_threshold_high = <100>;
         als_threshold_low = <10>;
         als_ctrl_gain = <2>; /* 0:x1 1:x4 2:x16 3:x64 */
-        poll_delay_ms = <100>;
+        poll_delay_ms = <150>;
     };
 
     ls_ltr578: light@53 {
