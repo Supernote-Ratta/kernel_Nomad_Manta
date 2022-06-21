@@ -1129,7 +1129,7 @@ int sy7636a_temperature = 25;
 
 int get_pmic_temperature(void)
 {
-#if 1
+#if 0
 	sy7636a_temperature = 25;
 
     if (pmic_id != 0x6518) {

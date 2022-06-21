@@ -363,11 +363,11 @@ static int papyrus_hw_read_temperature(struct pmic_sess *pmsess, int *t)
 extern int sy7636a_temperature;
 static ssize_t sy7636a_temperature_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
-    //struct pmic_sess *psess = (struct pmic_sess *)&pmic_sess_data;
+    struct pmic_sess *psess = (struct pmic_sess *)&pmic_sess_data;
     //temperature = 25;
     ssize_t len = 0;
 
-    //papyrus_hw_read_temperature(psess, &temperature);
+    papyrus_hw_read_temperature(psess, &sy7636a_temperature);
     len += sprintf(_buf, "%d:\n", sy7636a_temperature);
     return len;
 }

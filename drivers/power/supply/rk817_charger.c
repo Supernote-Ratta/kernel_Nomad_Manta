@@ -256,6 +256,11 @@ static enum power_supply_property rk817_usb_props[] = {
 #ifdef CONFIG_TYPEC_TCPM
 extern int cc_type;
 #endif
+extern int charge_enable;
+extern int temperature_disable_charge;
+extern int temperature_charge_reset;
+extern int charge_only_for_power;
+
 static void rk817_charge_set_input_current(struct rk817_charger *charge, int input_current);
 
 static int rk817_charge_ac_get_property(struct power_supply *psy, enum power_supply_property psp, union power_supply_propval *val)
@@ -990,6 +995,10 @@ static void rk817_charger_evt_worker(struct work_struct *work)
     if (charger != USB_TYPE_UNKNOWN_CHARGER) {
         DBG("receive type-c notifier event: %s...\n", event[charger]);
         charge->usb_charger = charger;
+		charge_enable = 1;
+		temperature_disable_charge = 0;
+		charge_only_for_power = 0;
+		temperature_charge_reset = 1;
         rk817_charge_set_chrg_param(charge, charger);
     }
 }

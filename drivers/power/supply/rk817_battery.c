@@ -43,11 +43,16 @@
 extern int get_pmic_temperature(void);
 
 static int dbg_enable = 0;
-static char charge_enable = 1;
-static int temperature_disable_charge = 0;
-static int charge_only_for_power = 0;
+int charge_enable = 1;
+int temperature_disable_charge = 0;
+static int temperature_lowvol_charge = 0;
+static int temperature_charge_current = 0;
+int temperature_charge_reset = 0;
+int charge_only_for_power = 0;
+static int used_time = 0;
 
 module_param_named(dbg_level, dbg_enable, int, 0644);
+module_param_named(used_month, used_time, int, 0644);
 
 #define DBG(args...) \
 	do { \
@@ -181,6 +186,28 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define SIMULATE_CHRG_K			1500
 #define FULL_CHRG_K			400
 
+enum charge_current {
+    CHRG_CUR_1000MA,
+    CHRG_CUR_1500MA,
+    CHRG_CUR_2000MA,
+    CHRG_CUR_2500MA,
+    CHRG_CUR_2750MA,
+    CHRG_CUR_3000MA,
+    CHRG_CUR_3500MA,
+    CHRG_CUR_500MA,
+};
+
+enum charge_voltage {
+    CHRG_VOL_4100MV,
+    CHRG_VOL_4150MV,
+    CHRG_VOL_4200MV,
+    CHRG_VOL_4250MV,
+    CHRG_VOL_4300MV,
+    CHRG_VOL_4350MV,
+    CHRG_VOL_4400MV,
+    CHRG_VOL_4450MV,
+};
+
 enum work_mode {
 	MODE_ZERO = 0,
 	MODE_FINISH,
@@ -275,6 +302,7 @@ enum rk817_battery_fields {
 	BAT_EXS, CHG_STS, BAT_OVP_STS, CHRG_IN_CLAMP,
 	*/
 	REGE9, BAT_EXS, CHG_STS, BAT_OVP_STS, CHRG_IN_CLAMP,
+	CHRG_CUR_SEL, CHRG_VOL_SEL,
 	/* changed end. */
 	CHIP_NAME_H, CHIP_NAME_L,
 	PLUG_IN_STS,
@@ -441,6 +469,8 @@ static const struct reg_field rk817_battery_reg_fields[] = {
 	[VOL_ADC_K0] = REG_FIELD(0xB0, 0, 7),
 	/* changed tower: for battmanager. */
 	[REGE9] = REG_FIELD(0xE9, 0, 7),
+	[CHRG_CUR_SEL] = REG_FIELD(0xE4, 0, 2),
+	[CHRG_VOL_SEL] = REG_FIELD(0xE4, 4, 6),
 	/* changed end. */
 	[BAT_EXS] = REG_FIELD(0xEB, 7, 7),
 	[CHG_STS] = REG_FIELD(0xEB, 4, 6),
@@ -496,6 +526,9 @@ struct battery_platform_data {
 	u32 design_max_voltage;
 	bool extcon;
 	u32 low_pwr_sleep;
+	u32 *tempadc_table;
+	u32 *temp_table;
+	u32 temp_size;
 };
 
 struct rk817_battery_device {
@@ -646,6 +679,9 @@ struct rk817_battery_device {
 	int				open_battery_protect;
 	int				open_battery_maintain;
 	int				battery_factory;
+	int 			used_month;
+	int 			adc_average[5];
+	int 			adc_count;
 	/* changed end. */
 };
 
@@ -787,61 +823,47 @@ static int rk817_bat_get_ioffset(struct rk817_battery_device *battery)
 static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 {
 
-#if 0
+#if 1
 	int  temp_value = 0,temp_value1=0;
-	int adc_to_vol;
+	int adc_to_vol,adc_avg=0;
+	int i;
 
 	temp_value |= rk817_bat_field_read(battery, BAT_TS_H) << 8;
 	temp_value |= rk817_bat_field_read(battery, BAT_TS_L);
 	temp_value1 |= rk817_bat_field_read(battery, REGE9);
 	adc_to_vol = temp_value * 1200 / 65536;
-	printk("rk817_bat_get_temp:adc=%d adcv=%d templimit:0x%2x\n",temp_value,adc_to_vol,temp_value1);
-	//if(battery->current_avg>0){
-	//	adc_to_vol -= 7; //
-	//}
-	//if(battery->current_avg >0){//103充电时adc会比不插充电器小,78插充电器adc会升高
-		
-	//}else{
-	//	adc_to_vol+=10;
-	//}
-    #if 0
-	if(adc_to_vol > battery->pdata->temp_t[0]){ // <0
-		return 0;
+	adc_to_vol -= (29/2) * battery->current_avg / 1000;
+	printk("rk817_bat_get_temp:adc=%d adcv=%d templimit:0x%2x size:%d\n",temp_value,adc_to_vol,temp_value1,battery->pdata->temp_size);
+	if(battery->pdata->temp_size==0){
+		return 250;
 	}
-	if(adc_to_vol > battery->pdata->temp_t[0]-30){ // 0-3
-		return 3;
+	battery->adc_count++;
+	if(battery->adc_count ==5)
+		battery->adc_count = 0;
+	if(	battery->adc_average[0] == 0){ //first filled
+		battery->adc_average[0] = adc_to_vol;
+		battery->adc_average[1] = adc_to_vol;
+		battery->adc_average[2] = adc_to_vol;
+		battery->adc_average[3] = adc_to_vol;
+		battery->adc_average[4] = adc_to_vol;
+		battery->adc_count = 0;
+	}else{
+		battery->adc_average[battery->adc_count] = adc_to_vol;
 	}
-	if(adc_to_vol > battery->pdata->temp_t[1]+10){ // 3-13
-		return 13;
+	for(i=0;i<5;i++){
+		adc_avg = adc_avg + battery->adc_average[i];
 	}
-	if(adc_to_vol > battery->pdata->temp_t[1]){ // 13-15
-		return 15;
+	adc_avg = adc_avg/5;
+	
+	printk("rk817_bat_get_temp:adc_avg=%d\n",adc_avg);
+	for(i=0;i<battery->pdata->temp_size;i++){
+		if(adc_avg > battery->pdata->tempadc_table[i]){
+			return battery->pdata->temp_table[i]*10;
+		}
 	}
-	if(adc_to_vol > battery->pdata->temp_t[1]-10){ // 15-17// adc 55会自动不充电
-		return 17;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[2]+5){ // 17-43
-		return 43;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[2]){ // 43-45
-		return 45;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[2]-5){ // 45-47
-		return 47;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[3]+5){ // 47-55
-		return 55;
-	}
-	if(adc_to_vol > battery->pdata->temp_t[3]){ // 55-60
-		return 59;
-	}
-	else{ //60
-		return 60;
-	}
-    #endif
-//printk("rk817_bat_get_temp:%d \n",temp_value);
-	return 30;//adc_to_vol;
-	#else
+	return 600;
+
+#else
 	int temperature;
 	
 	int  temp_value = 0,temp_value1=0;
@@ -851,11 +873,12 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 	temp_value |= rk817_bat_field_read(battery, BAT_TS_L);
 	temp_value1 |= rk817_bat_field_read(battery, REGE9);
 	adc_to_vol = temp_value * 1200 / 65536;
+	adc_to_vol -= (29/2) * battery->current_avg / 1000;
 	printk("rk817_bat_get_temp:adc=%d adcv=%d templimit:0x%2x\n",temp_value,adc_to_vol,temp_value1);
 	temperature = get_pmic_temperature()*10;
 	printk("rk817_bat_get_temp:%d \n",temperature);
 	return temperature;
-	#endif
+#endif
 }
 
 static void rk817_bat_current_calibration(struct rk817_battery_device *battery)
@@ -1885,6 +1908,13 @@ static void rk817_bat_init_fg(struct rk817_battery_device *battery)
 	battery->dbg_pwr_rsoc = battery->rsoc;
 	battery->dbg_pwr_vol = battery->voltage_avg;
 	battery->temperature = VIRTUAL_TEMPERATURE;
+	battery->adc_average[0] = 0;
+	battery->adc_average[1] = 0;
+	battery->adc_average[2] = 0;
+	battery->adc_average[3] = 0;
+	battery->adc_average[4] = 0;
+	battery->adc_count = 0;
+
 	temperature_disable_charge = 0;
 	charge_only_for_power = 0;
 	charge_enable = 1;
@@ -1947,6 +1977,42 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 					 pdata->ocv_size);
 	if (ret < 0)
 		return ret;
+////////////////////////////////////////
+	if (!of_find_property(np, "tempadc_table", &length)) {
+			dev_err(dev, "tempadc_table not found!\n");
+			battery->pdata->temp_size = 0;
+			//return -EINVAL;
+	}
+
+	pdata->temp_size = length / sizeof(u32);
+	if (pdata->temp_size <= 0) {
+		//dev_err(dev, "invalid ocv table\n");
+		//return -EINVAL;
+	}
+
+	size = sizeof(*pdata->tempadc_table) * pdata->temp_size;
+	pdata->tempadc_table = devm_kzalloc(battery->dev, size, GFP_KERNEL);
+	if (!pdata->tempadc_table){
+		battery->pdata->temp_size = 0;
+		return -ENOMEM;
+	}
+
+	ret = of_property_read_u32_array(np, "tempadc_table", pdata->tempadc_table,
+					 pdata->temp_size);
+	if (ret < 0)
+		battery->pdata->temp_size = 0;
+	//	return ret;
+	pdata->temp_table = devm_kzalloc(battery->dev, size, GFP_KERNEL);
+	if (!pdata->temp_table){
+		battery->pdata->temp_size = 0;
+		return -ENOMEM;
+	}
+
+	ret = of_property_read_u32_array(np, "temp_table", pdata->temp_table,
+					 pdata->temp_size);
+	if (ret < 0)
+		battery->pdata->temp_size = 0;
+/////////////////////////////////////////////
 
 	ret = of_property_read_u32(np, "design_capacity", &out_value);
 	if (ret < 0) {
@@ -2519,8 +2585,9 @@ rk817_bat_update_charging_status(struct rk817_battery_device *battery)
 
 	battery->change = true;
 	battery->is_charging = is_charging;
-	if (is_charging)
-		battery->charge_count++;
+	//tanlq 220618 charge_count for usedmonth
+	//if (is_charging)
+	//	battery->charge_count++;
 }
 
 static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int temp)
@@ -2538,9 +2605,9 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 		dev_err(battery->dev, "register bat power supply fail\n");
 		return 0;
 	}
-	printk("=====rk817_bat_temperature_chrg temp:%d temperature_disable_charge:%d charge_enable:%d charge_only_for_power:%d battery_protect:%d battery_maintain:%d\n",
+	printk("=====rk817_bat_temperature_chrg temp:%d temperature_disable_charge:%d charge_enable:%d charge_only_for_power:%d battery_protect:%d battery_maintain:%d temperature_charge_reset:%d current:%d l:%d\n",
 		temp,temperature_disable_charge,charge_enable,charge_only_for_power,
-		battery->open_battery_protect,battery->open_battery_maintain);
+		battery->open_battery_protect,battery->open_battery_maintain,temperature_charge_reset,battery->current_avg,battery->dsoc);
 
 	if ((temp <= 0)||(temp >= 50)){
 		if(temperature_disable_charge == 0) {
@@ -2550,13 +2617,44 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 			printk("rk817_bat_temperature_chrg:rk817_bat_disable_charge \n");
 		}
 		charge_enable = 0;
+		temperature_charge_reset = 0;
 		return 0;
 	}
-
-	if ((temp > 3) && (temp < 50)) {
+	if(temperature_charge_reset){
 		temperature_disable_charge = 0;
+		if( temp >= 45 ){
+			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_1500MA);
+			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4200MV);
+			printk("=====rk817_bat_temperature_chrg 1.5A,4.2V\n");
+		}else if( temp >= 15 ){
+			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_2000MA);
+			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4400MV);
+			printk("=====rk817_bat_temperature_chrg 2A,4.4V\n");
+		}else{
+			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_500MA);
+			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4400MV);
+			printk("=====rk817_bat_temperature_chrg 0.5A,4.4V\n");
+		}
+	}else{
+		if ((temp > 1) && (temp < 49)) {
+			temperature_disable_charge = 0;
+		}
+		if ((temp > 1) && (temp < 14)) {
+			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_500MA);
+			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4400MV);
+			printk("=====rk817_bat_temperature_chrg 0.5A,4.4V\n");
+		}
+		if ((temp > 15) && (temp < 44)) {
+			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_2000MA);
+			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4400MV);
+			printk("=====rk817_bat_temperature_chrg 2A,4.4V\n");
+		}
+		if ((temp > 45) && (temp < 49)) {
+			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_1500MA);
+			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4200MV);
+			printk("=====rk817_bat_temperature_chrg 1.5A,4.2V\n");
+		}
 	}
-	
 	if (temperature_disable_charge == 0) {
 		if(charge != NULL){
 			/* changed tower: for battmanager. */
@@ -2572,6 +2670,9 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 					DBG("######################## DISABLE CHARGE1, USB SUPPLY\n");
 					//charge_enable = 0;
 					charge_only_for_power = 1;
+					if(temperature_charge_reset){
+						charge_enable = 0;
+					}
 					//rk817_charge_usb_to_sys_enable(charge); //enable usb charge
 					//rk817_bat_disable_battery_charge(battery); //stop battery charge
 				} 
@@ -2636,16 +2737,20 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 		}else{
 			charge_enable = 1;
 		}
+		temperature_charge_reset = 0;
 		if(charge_enable){
 			rk817_charge_usb_to_sys_enable(charge);
 			rk817_bat_enable_battery_charge(battery);//start battery charge
+			printk("=====rk817_bat_temperature_chrg charge_enable\n");
 		}else{
 			if(charge_only_for_power){
 				rk817_charge_usb_to_sys_enable(charge); //enable usb charge
 				rk817_bat_disable_battery_charge(battery);
+				printk("=====rk817_bat_temperature_chrg only for power\n");
 			}else{
 				rk817_charge_usb_to_sys_disable(charge);
 				rk817_bat_disable_battery_charge(battery);
+				printk("=====rk817_bat_temperature_chrg charge_disable\n");
 			}
 		}
 	}
@@ -2720,6 +2825,7 @@ static void rk817_bat_update_info(struct rk817_battery_device *battery)
 	battery->voltage_usb = rk817_bat_get_USB_voltage(battery);
 	battery->chrg_status = get_charge_status(battery);
 	rk817_bat_update_charging_status(battery);
+	battery->charge_count = used_time;
 		//battery->temperature =
 //rk817_bat_enable_charge(battery);
 	DBG("valtage usb: %d\n", battery->voltage_usb);
@@ -3339,6 +3445,7 @@ static irqreturn_t rk809_plug_in_isr(int irq, void *cg)
 	charge_enable = 1;
 	temperature_disable_charge = 0;
 	charge_only_for_power = 0;
+	temperature_charge_reset = 1;
 	power_supply_changed(battery->bat);
 	if (battery->is_register_chg_psy)
 		power_supply_changed(battery->chg_psy);
@@ -3353,9 +3460,10 @@ static irqreturn_t rk809_plug_out_isr(int irq, void *cg)
 	battery = (struct rk817_battery_device *)cg;
 	battery->plugin_trigger = 0;
 	battery->plugout_trigger = 1;
-	charge_enable = 1;
+	charge_enable = 0;
 	temperature_disable_charge = 0;
 	charge_only_for_power = 0;
+	temperature_charge_reset = 1;
 	power_supply_changed(battery->bat);
 	if (battery->is_register_chg_psy)
 		power_supply_changed(battery->chg_psy);

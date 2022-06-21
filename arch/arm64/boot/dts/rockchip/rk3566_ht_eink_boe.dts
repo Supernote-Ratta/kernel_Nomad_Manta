@@ -601,8 +601,16 @@
 			ocv_table = <
                 3400 3660 3683 3712 3739 3761 3780
                 3794 3811 3831 3857 3902 3949 3990
-                4034 4083 4135 4191 4249 4307 4350>;
+                4034 4083 4135 4191 4249 4307 4374>;
 				//4287 4310>; 4307 4374
+			tempadc_table = <
+                273 261 251 240 230 
+				159 153 147 141 136 
+				53 51 49 47 46 44 43 42 40>;
+			temp_table = <
+                0 1 2 3 4 
+				13 14 15 16 17 
+				43 44 45 46 47 48 49 50 51>;
             design_capacity = <3500>;
             design_qmax = <3850>;
             bat_res = <100>;
@@ -616,7 +624,7 @@
             sample_res = <10>;
             virtual_power = <0>;
             low_power_sleep = <1>;
-			max_chrg_voltage = <4450>; //for uboot
+			max_chrg_voltage = <4400>; //for uboot
         };
 
         charger {
@@ -624,9 +632,9 @@
             min_input_voltage = <4500>;
             max_input_current = <2000>;
             max_chrg_current = <2000>;
-            max_chrg_voltage = <4450>;
+            max_chrg_voltage = <4400>;
             chrg_term_mode = <0>;
-            chrg_finish_cur = <300>;
+            chrg_finish_cur = <175>;
             virtual_power = <0>;
             dc_det_adc = <0>;
             extcon = <&usbc0>;
