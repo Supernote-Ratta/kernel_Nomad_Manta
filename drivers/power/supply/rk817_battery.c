@@ -49,10 +49,10 @@ static int temperature_lowvol_charge = 0;
 static int temperature_charge_current = 0;
 int temperature_charge_reset = 0;
 int charge_only_for_power = 0;
-static int used_time = 0;
+//static int used_time = 0;
 
 module_param_named(dbg_level, dbg_enable, int, 0644);
-module_param_named(used_month, used_time, int, 0644);
+//module_param_named(used_month, used_time, int, 0644);
 
 #define DBG(args...) \
 	do { \
@@ -527,8 +527,9 @@ struct battery_platform_data {
 	bool extcon;
 	u32 low_pwr_sleep;
 	u32 *tempadc_table;
-	u32 *temp_table;
+	u32 *tempnadc_table;
 	u32 temp_size;
+	u32 tempn_size;
 };
 
 struct rk817_battery_device {
@@ -834,7 +835,7 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 	adc_to_vol = temp_value * 1200 / 65536;
 	adc_to_vol -= (29/2) * battery->current_avg / 1000;
 	printk("rk817_bat_get_temp:adc=%d adcv=%d templimit:0x%2x size:%d\n",temp_value,adc_to_vol,temp_value1,battery->pdata->temp_size);
-	if(battery->pdata->temp_size==0){
+	if((battery->pdata->temp_size==0)||(battery->pdata->tempn_size==0)){
 		return 250;
 	}
 	battery->adc_count++;
@@ -856,12 +857,20 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 	adc_avg = adc_avg/5;
 	
 	printk("rk817_bat_get_temp:adc_avg=%d\n",adc_avg);
-	for(i=0;i<battery->pdata->temp_size;i++){
-		if(adc_avg > battery->pdata->tempadc_table[i]){
-			return battery->pdata->temp_table[i]*10;
+	if(adc_avg > battery->pdata->tempadc_table[0]){  //temperatrue < 0
+		for(i=0;i<battery->pdata->tempn_size;i++){
+			if(adc_avg < battery->pdata->tempnadc_table[i]){
+				return -i*10;
+			}
+		}
+	}else{
+		for(i=1;i<battery->pdata->temp_size;i++){ //temperatrue > 0
+			if(adc_avg > battery->pdata->tempadc_table[i]){
+				return (i-1)*10;
 		}
 	}
-	return 600;
+			}
+	return 250;
 
 #else
 	int temperature;
@@ -1986,7 +1995,7 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 
 	pdata->temp_size = length / sizeof(u32);
 	if (pdata->temp_size <= 0) {
-		//dev_err(dev, "invalid ocv table\n");
+		dev_err(dev, "invalid tempadc table\n");
 		//return -EINVAL;
 	}
 
@@ -1996,22 +2005,33 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 		battery->pdata->temp_size = 0;
 		return -ENOMEM;
 	}
-
 	ret = of_property_read_u32_array(np, "tempadc_table", pdata->tempadc_table,
-					 pdata->temp_size);
+						 pdata->temp_size);
 	if (ret < 0)
 		battery->pdata->temp_size = 0;
-	//	return ret;
-	pdata->temp_table = devm_kzalloc(battery->dev, size, GFP_KERNEL);
-	if (!pdata->temp_table){
-		battery->pdata->temp_size = 0;
-		return -ENOMEM;
+
+	if (!of_find_property(np, "tempnadc_table", &length)) {
+			dev_err(dev, "tempnadc_table not found!\n");
+			battery->pdata->tempn_size = 0;
+			//return -EINVAL;
 	}
 
-	ret = of_property_read_u32_array(np, "temp_table", pdata->temp_table,
-					 pdata->temp_size);
+	pdata->tempn_size = length / sizeof(u32);
+	if (pdata->tempn_size <= 0) {
+		dev_err(dev, "invalid tempnadc table\n");
+		//return -EINVAL;
+	}
+
+	size = sizeof(*pdata->tempnadc_table) * pdata->tempn_size;
+	pdata->tempnadc_table = devm_kzalloc(battery->dev, size, GFP_KERNEL);
+	if (!pdata->tempnadc_table){
+		battery->pdata->tempn_size = 0;
+		return -ENOMEM;
+	}
+	ret = of_property_read_u32_array(np, "tempnadc_table", pdata->tempnadc_table,
+						 pdata->tempn_size);
 	if (ret < 0)
-		battery->pdata->temp_size = 0;
+		battery->pdata->tempn_size = 0;
 /////////////////////////////////////////////
 
 	ret = of_property_read_u32(np, "design_capacity", &out_value);
@@ -2585,9 +2605,8 @@ rk817_bat_update_charging_status(struct rk817_battery_device *battery)
 
 	battery->change = true;
 	battery->is_charging = is_charging;
-	//tanlq 220618 charge_count for usedmonth
-	//if (is_charging)
-	//	battery->charge_count++;
+	if (is_charging)
+		battery->charge_count++;
 }
 
 static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int temp)
@@ -2722,6 +2741,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 						}
 						break;
 					default:
+						charge_enable = 1;
 						break;
 				}
 			} else if (!battery->open_battery_maintain && !battery->open_battery_protect) {
@@ -2825,7 +2845,7 @@ static void rk817_bat_update_info(struct rk817_battery_device *battery)
 	battery->voltage_usb = rk817_bat_get_USB_voltage(battery);
 	battery->chrg_status = get_charge_status(battery);
 	rk817_bat_update_charging_status(battery);
-	battery->charge_count = used_time;
+	//battery->charge_count = used_time;
 		//battery->temperature =
 //rk817_bat_enable_charge(battery);
 	DBG("valtage usb: %d\n", battery->voltage_usb);
