@@ -114,8 +114,8 @@
 #define STK_ALS_READ_IRS_IT_REDUCE     5
 #define STK_ALS_THRESHOLD              30
 
-#define LIGHT_SLOPE_CWF                1000
-#define LIGHT_SLOPE_D65                860
+#define LIGHT_SLOPE_CWF                1130
+#define LIGHT_SLOPE_D65                830
 #define LIGHT_SLOPE_A                  540
 #define LIGHT_RATIO_D                  350
 #define LIGHT_RATIO_A                  24800
@@ -485,10 +485,10 @@ static void stk_als_ir_get_corr(int32_t als)
         }
         */
         if (ls_data->ir_code > LIGHT_RATIO_A) {
-            ls_data->als_correct_factor = LIGHT_SLOPE_A * (10000 - (ir_ratio * 3 - 5061)) / 10000;
+            ls_data->als_correct_factor = LIGHT_SLOPE_A * (10000 - (ir_ratio * 3 - 5149)) / 10000;
             printk(KERN_DEBUG "%s: stk als factor A=%d", __func__, ls_data->als_correct_factor);
         } else if (ls_data->ir_code > LIGHT_RATIO_D) {
-            ls_data->als_correct_factor = LIGHT_SLOPE_D65 * (10000 - (ir_ratio * 2 - 1355)) / 10000;
+            ls_data->als_correct_factor = LIGHT_SLOPE_D65 * (10000 - (ir_ratio * 2 - 1878)) / 10000;
             printk(KERN_DEBUG "%s: stk als factor D=%d", __func__, ls_data->als_correct_factor);
         } else {
             ls_data->als_correct_factor = LIGHT_SLOPE_CWF;
@@ -524,7 +524,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
-    int result = 0, value = 0, ircode = 0;
+    int result = 0, value = 0, rawvalue = 0, ircode = 0;
     ssize_t len = 0, retry = 0;
     char index = 0;
     char buffer[2] = {0};
@@ -539,9 +539,6 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
         printk(KERN_ERR "%s:lenth is error,len=%d\n", __func__, sensor->ops->read_len);
         return 0;
     }
-
-    ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
-    ircode = ls_data->ir_code;
     do {
         value = sensor_read_reg(ls_data->client, STK_FLAG_REG);
         if (value < 0) {
@@ -554,16 +551,16 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
         usleep_range(3000, 4000);
         retry++;
     } while (retry < 1000);
-
     buffer[0] = sensor->ops->read_reg;
     result = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
     if (result) {
         printk(KERN_ERR "%s:line=%d,error\n", __func__, __LINE__);
         return 0;
     }
-    value = ((buffer[0] << 8) | buffer[1]) - ls_data->darkcalibration_value;
-    value = (value < 0) ? 0 : value;
-
+    rawvalue = (buffer[0] << 8) | buffer[1];
+    value = ((rawvalue - ls_data->darkcalibration_value) < 0) ? 0 : (rawvalue - ls_data->darkcalibration_value);
+    ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
+    ircode = ls_data->ir_code;
     stk_als_ir_get_corr(value);
     result = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
     sensor_active(ls_data->client, 0, 0);
