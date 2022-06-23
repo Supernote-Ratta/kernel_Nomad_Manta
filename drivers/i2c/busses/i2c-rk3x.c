@@ -319,6 +319,13 @@ static void rk3x_i2c_stop(struct rk3x_i2c *i2c, int error)
 	i2c->msg = NULL;
 	i2c->error = error;
 
+	if(error) { // 20191005,hsl add.
+	    u32 waddr = i2c_readl(i2c, REG_MRXADDR) & 0xff;
+	    u32 raddr = i2c_readl(i2c, REG_MRXRADDR) & 0xff;
+		dev_err(i2c->dev, "rk3x_i2c_stop with Error: %d(NAKRCV=-6),waddr=0x%02x,raddr=0x%02x\n", 
+		    error, waddr, raddr);
+	}
+
 	if (i2c->is_last_msg) {
 		/* Enable stop interrupt */
 		i2c_writel(i2c, REG_INT_STOP, REG_IEN);

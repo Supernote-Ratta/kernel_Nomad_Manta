@@ -15,6 +15,9 @@
 #include "rk3568-android.dtsi"
 #include "rk3566-eink.dtsi"
 
+#define EINK10S 
+//#define EINKXK
+
 / {
     model = "Rockchip RK3566 EINK KloudNote2 10.3 Board";
     compatible = "rockchip,rk3566-rk817-eink", "rockchip,rk3566";
@@ -176,7 +179,11 @@
 &ebc {
     /* clock rate 1000M/n, (n=1~32) */
     assigned-clocks = <&cru CPLL_333M>, <&cru DCLK_EBC>;
+	#ifdef EINKXK
     assigned-clock-rates = <34000000>, <34000000>;
+	#else
+	assigned-clock-rates = <34000000>, <34000000>;
+	#endif 
     status = "okay";
 };
 
@@ -184,7 +191,9 @@
     pmic = <&tps65185 &sy7636a>;
     //backlight = <&backlight>;
     status = "okay";
+	
     /* ES103TC1 */
+#ifdef EINK10S	
     panel,width = <1872>;
     panel,height = <1404>;
     panel,vir_width = <1872>;
@@ -207,12 +216,43 @@
     panel,height-mm = <157>;
     panel,dpi = <220>;
     panel,vcom-mv = <1670>;
+#elif defined(EINKXK)	
+	panel,width = <2480>;
+    panel,height = <1860>;
+    panel,vir_width = <2480>;
+    panel,vir_height = <1860>;
+    panel,sdck = <34000000>; // 20220627: the real clk is 63M HZ.
+    panel,lsl = <14>;
+    panel,lbl = <8>;
+    panel,ldl = <310>;
+    panel,lel = <51>;
+    panel,gdck-sta = <34>;
+    panel,lgonl = <192>;
+    panel,fsl = <2>;
+    panel,fbl = <4>;
+    panel,fdl = <1860>;
+    panel,fel = <4>;
+    panel,mirror = <0>;
+    panel,panel_16bit = <1>;
+    panel,panel_color = <0>;
+    panel,width-mm = <210>;
+    panel,height-mm = <157>;
+    panel,dpi = <300>;
+    panel,vcom-mv = <1670>;
+#else
+	"Error:No EINK-PANEL defined!!"
+#endif 
 };
 
 // 20220523,hsl fix: 6*fb_size + 2*lcd_size + 512K 
 // 10.3: 6*2628288 + 2*657088 + 512*1024= 17608192 = 0X10CAE00
+// EINKX: 4612800*6 + 2*1153216 + 512*1024 = 27676800 + 2306432 + 524288 = 30507520 = 1D18200
 &display_reserved {
+	#ifdef EINKXK
+	reg = <0x0 0x10900000 0x0 0x1D1A000>;
+	#else 
 	reg = <0x0 0x10900000 0x0 0x10d0000>;
+	#endif 
 };
 		
 &cpu0 {
