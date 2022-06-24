@@ -198,6 +198,7 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
     }
     value = sensor_als_read(ls_data->client);
     result = value * ls_data->lightcalibration_value / 100;
+    printk("ltr578 value: ----ret:%d alsraw:%d value:%d ir:%d cail:%d darkcail:%d lightcailref:%d----\n", result, ls_data->als, value, ls_data->ir_code, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
     len += sprintf(_buf, "%d\n", result);
     return len;
 }

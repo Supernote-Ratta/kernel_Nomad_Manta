@@ -17,7 +17,7 @@
 #include "rk3566-eink.dtsi"
 
 / {
-    model = "Rockchip RK3566 EINK Boe 10.3 Board";
+    model = "Rockchip RK3566 EINK Boe 10.3 Board II";
     compatible = "rockchip,rk3566-rk817-eink", "rockchip,rk3566";
 
     ramoops_mem: ramoops_mem {
@@ -74,7 +74,7 @@
             label = "GPIO Key Back";
             debounce-interval = <10>;
             interrupt-parent = <&gpio0>;
-            interrupts = <16 IRQ_TYPE_LEVEL_LOW>;//gpio0_c0
+            interrupts = <18 IRQ_TYPE_LEVEL_HIGH>;//gpio0_c2
             linux,input-type = <EV_KEY>;
             linux,code = <KEY_BACK>;
         };
@@ -212,7 +212,7 @@
             9300  9400  9500  9600  9700  9800  9900  10000
             10100 10200 10300 10400 10500 10600
         >;
-        default-brightness-level = <100>;
+        default-brightness-level = <0>;
     };
 
      backlight_cold: backlight-cold {
@@ -235,7 +235,7 @@
             9300  9400  9500  9600  9700  9800  9900  10000
             10100 10200 10300 10400 10500 10600
         >;
-        default-brightness-level = <100>;
+        default-brightness-level = <0>;
     };
 };
 
@@ -783,7 +783,7 @@
         pinctrl-names = "default";
         pinctrl-0 = <&emr_gpio>;
         gpio_intr = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
-        gpio_rst = <&gpio0 RK_PC0 GPIO_ACTIVE_LOW>;
+        gpio_rst = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
         revert_x = <0>;
         revert_y = <1>;
         xy_exchange = <0>;
@@ -974,14 +974,14 @@
             rockchip,pins =
                 <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>,
                 <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>,
-                <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>;
+                <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
         };
     };
 
     goodix {
         tp_gpio: tp-gpio {
             rockchip,pins =
-                <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>,
+                <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>,
                 <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
         };
     };
@@ -1010,8 +1010,6 @@
 
 &pwm1 {
     status = "okay";
-    pinctrl-names = "active";
-    pinctrl-0 = <&pwm1m0_pins>;
 };
 
 &rk_rga {

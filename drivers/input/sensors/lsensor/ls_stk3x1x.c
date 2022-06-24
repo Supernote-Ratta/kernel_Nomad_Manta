@@ -114,8 +114,8 @@
 #define STK_ALS_READ_IRS_IT_REDUCE     5
 #define STK_ALS_THRESHOLD              30
 
-#define LIGHT_SLOPE_CWF                1130
-#define LIGHT_SLOPE_D65                830
+#define LIGHT_SLOPE_CWF                1000
+#define LIGHT_SLOPE_D65                860
 #define LIGHT_SLOPE_A                  540
 #define LIGHT_RATIO_D                  350
 #define LIGHT_RATIO_A                  24800
@@ -485,10 +485,10 @@ static void stk_als_ir_get_corr(int32_t als)
         }
         */
         if (ls_data->ir_code > LIGHT_RATIO_A) {
-            ls_data->als_correct_factor = LIGHT_SLOPE_A * (10000 - (ir_ratio * 3 - 5149)) / 10000;
+            ls_data->als_correct_factor = LIGHT_SLOPE_A * (10000 - (ir_ratio * 3 - 5061)) / 10000;
             printk(KERN_DEBUG "%s: stk als factor A=%d", __func__, ls_data->als_correct_factor);
         } else if (ls_data->ir_code > LIGHT_RATIO_D) {
-            ls_data->als_correct_factor = LIGHT_SLOPE_D65 * (10000 - (ir_ratio * 2 - 1878)) / 10000;
+            ls_data->als_correct_factor = LIGHT_SLOPE_D65 * (10000 - (ir_ratio * 2 - 1355)) / 10000;
             printk(KERN_DEBUG "%s: stk als factor D=%d", __func__, ls_data->als_correct_factor);
         } else {
             ls_data->als_correct_factor = LIGHT_SLOPE_CWF;
@@ -564,6 +564,7 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
     stk_als_ir_get_corr(value);
     result = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
     sensor_active(ls_data->client, 0, 0);
+    printk("stk3x1x value: ----ret:%d factor:%d value:%d ir:%d lightcali:%d darkcali:%d lightcaliref:%d----\n", result, ls_data->als_correct_factor, value, ircode, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
     len += sprintf(_buf, "%d\n", result);
     return len;
 }
@@ -862,7 +863,8 @@ EXIT_ERR:
 static int sensor_report_value(struct i2c_client *client)
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
-    int result = 0;
+    int result = 0, rawvalue = 0, ircode = 0;
+    ssize_t retry = 0;
     uint32_t value = 0;
     unsigned char buffer[2] = {0};
     char index = 0;
@@ -871,33 +873,32 @@ static int sensor_report_value(struct i2c_client *client)
         printk(KERN_ERR "%s:lenth is error,len=%d\n", __func__, sensor->ops->read_len);
         return -1;
     }
-    value = sensor_read_reg(client, STK_FLAG_REG);
-    if (value < 0) {
-        printk(KERN_ERR "stk %s read STK_FLAG_REG, ret=%d\n", __func__, value);
-        return value;
-    }
-    if (!(value & STK_FLG_ALSDR_MASK)) {
-        return 0;
-    }
 
-    result = stk_als_ir_skip_als(client, sensor);
-    if (result == 1) {
-        return 0;
-    }
-
+    do {
+        value = sensor_read_reg(ls_data->client, STK_FLAG_REG);
+        if (value < 0) {
+            printk("stk %s read als data flag error, ret=%d\n", __func__, value);
+            return value;
+        }
+        if (value & STK_FLG_ALSDR_MASK) {
+            break;
+        }
+        usleep_range(3000, 4000);
+        retry++;
+    } while (retry < 1000);
     buffer[0] = sensor->ops->read_reg;
-    result = sensor_rx_data(client, buffer, sensor->ops->read_len);
+    result = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
     if (result) {
         printk(KERN_ERR "%s:line=%d,error\n", __func__, __LINE__);
-        return result;
+        return 0;
     }
-
-    value = ((buffer[0] << 8) | buffer[1]) - ls_data->darkcalibration_value;
-    value = (value < 0) ? 0 : value;
+    rawvalue = (buffer[0] << 8) | buffer[1];
+    value = ((rawvalue - ls_data->darkcalibration_value) < 0) ? 0 : (rawvalue - ls_data->darkcalibration_value);
     ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
+    ircode = ls_data->ir_code;
     stk_als_ir_get_corr(value);
-    value = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
-    index = light_report_abs_value(sensor->input_dev, value);
+    result = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
+    index = light_report_abs_value(sensor->input_dev, result);
 
     if (sensor->pdata->irq_enable && sensor->ops->int_status_reg) {
         value = sensor_read_reg(client, sensor->ops->int_status_reg);
