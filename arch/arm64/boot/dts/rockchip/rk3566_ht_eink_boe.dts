@@ -66,7 +66,7 @@
     };
 
     gpio_keys: gpio-keys {
-        status = "disabled";
+        status = "okay";
         compatible = "gpio-keys";
         autorepeat;
 
@@ -74,7 +74,7 @@
             label = "GPIO Key Back";
             debounce-interval = <10>;
             interrupt-parent = <&gpio0>;
-            interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+            interrupts = <16 IRQ_TYPE_LEVEL_LOW>;//gpio0_c0
             linux,input-type = <EV_KEY>;
             linux,code = <KEY_BACK>;
         };
@@ -84,14 +84,14 @@
         status = "okay";
         compatible = "gpio-leds";
         led@1 {
-            gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_HIGH>;
+            gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-charging";
             label = "led_r";
             retain-state-suspended;
         };
 
         led@2 {
-            gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
+            gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-charging-or-full";
             label = "led_g";
             default-state = "off";
@@ -198,19 +198,19 @@
         pwms = <&pwm1 0 25000 0>;
         brightness-levels = <
             0     18  100   200  300 400
-            500   600   700   800   900   1000  1100  1200  
-            1300  1400  1500  1600  1700  1800  1900  2000  
-            2100  2200  2300  2400  2500  2600  2700  2800  
-            2900  3000  3100  3200  3300  3400  3500  3600  
+            500   600   700   800   900   1000  1100  1200
+            1300  1400  1500  1600  1700  1800  1900  2000
+            2100  2200  2300  2400  2500  2600  2700  2800
+            2900  3000  3100  3200  3300  3400  3500  3600
             3900  4000  4100  4200  4300  4400  4500  4600
-            3700  3800  4700  4800  4900  5000  5100  5200  
-            5300  5400  5500  5600  5700  5800  5900  6000  
+            3700  3800  4700  4800  4900  5000  5100  5200
+            5300  5400  5500  5600  5700  5800  5900  6000
             6300  6400  6500  6600  6700  6800  6900  7000
-            6100  6200  7100  7200  7300  7400  7500  7600  
-            7700  7800  7900  8000  8100  8200  8300  8400  
-            8500  8600  8700  8800  8900  9000  9100  9200  
+            6100  6200  7100  7200  7300  7400  7500  7600
+            7700  7800  7900  8000  8100  8200  8300  8400
+            8500  8600  8700  8800  8900  9000  9100  9200
             9300  9400  9500  9600  9700  9800  9900  10000
-			10100 10200 10300 10400 10500 10600 
+            10100 10200 10300 10400 10500 10600
         >;
         default-brightness-level = <100>;
     };
@@ -221,19 +221,19 @@
         pwms = <&pwm0 0 25000 0>;
         brightness-levels = <
             0     18  100   200  300 400
-            500   600   700   800   900   1000  1100  1200  
-            1300  1400  1500  1600  1700  1800  1900  2000  
-            2100  2200  2300  2400  2500  2600  2700  2800  
-            2900  3000  3100  3200  3300  3400  3500  3600  
+            500   600   700   800   900   1000  1100  1200
+            1300  1400  1500  1600  1700  1800  1900  2000
+            2100  2200  2300  2400  2500  2600  2700  2800
+            2900  3000  3100  3200  3300  3400  3500  3600
             3900  4000  4100  4200  4300  4400  4500  4600
-            3700  3800  4700  4800  4900  5000  5100  5200  
-            5300  5400  5500  5600  5700  5800  5900  6000  
+            3700  3800  4700  4800  4900  5000  5100  5200
+            5300  5400  5500  5600  5700  5800  5900  6000
             6300  6400  6500  6600  6700  6800  6900  7000
-            6100  6200  7100  7200  7300  7400  7500  7600  
-            7700  7800  7900  8000  8100  8200  8300  8400  
-            8500  8600  8700  8800  8900  9000  9100  9200  
+            6100  6200  7100  7200  7300  7400  7500  7600
+            7700  7800  7900  8000  8100  8200  8300  8400
+            8500  8600  8700  8800  8900  9000  9100  9200
             9300  9400  9500  9600  9700  9800  9900  10000
-			10100 10200 10300 10400 10500 10600 
+            10100 10200 10300 10400 10500 10600
         >;
         default-brightness-level = <100>;
     };
@@ -606,21 +606,25 @@
 
         battery {
             compatible = "rk817,battery";
-			#if 0
+#if 0
             ocv_table = <
                 3400 3513 3578 3687 3734 3752 3763
                 3766 3771 3784 3804 3836 3885 3925
                 3962 4005 4063 4114 4169 4227 4303>;
-				#endif
-			ocv_table = <
+#endif
+            ocv_table = <
                 3400 3660 3683 3712 3739 3761 3780
                 3794 3811 3831 3857 3902 3949 3990
                 4034 4083 4135 4191 4249 4307 4374>;
-				//4287 4310>; 4307 4374
-			tempadc_table = <
-                272 261 250 240 230 220 211 203 194 187 179 172 165 159 152 147 141 135 130 125 120 116 112 107 103 100 96 92 89 86 83 80 77 74 71 69 67 64 62 60 58 56 54 52 50 49 47 45 44 42 41 40 38 37 36 35 34 33 32 31 30 29 28 27 26 25 >;
-			tempnadc_table = <
-                284 297 310 324 339 354 370 387 405 424 444 465 487 510 534 560 587 616 646 677 711 746 784 823 865 909 956 1006 1058 1113 1172 1234 1300 1369 1443 1521 1604 1692 1786 1885>;
+                //4287 4310>; 4307 4374
+            tempadc_table = <
+                273 261 251 240 230
+                159 153 147 141 136
+                53 51 49 47 46 44 43 42 40>;
+            temp_table = <
+                0 1 2 3 4
+                13 14 15 16 17
+                43 44 45 46 47 48 49 50 51>;
             design_capacity = <3500>;
             design_qmax = <3850>;
             bat_res = <100>;
@@ -634,7 +638,7 @@
             sample_res = <10>;
             virtual_power = <0>;
             low_power_sleep = <1>;
-			max_chrg_voltage = <4400>; //for uboot
+            max_chrg_voltage = <4400>; //for uboot
         };
 
         charger {
@@ -736,22 +740,17 @@
          compatible = "goodix,gt9886";
          reg = <0x5d>;
          status = "okay";
-		 pinctrl-names = "default";
-		 pinctrl-0 = <&tp_gpio>;
-         goodix,reset-gpio = <&gpio0 RK_PC2 GPIO_ACTIVE_LOW>;
+         pinctrl-names = "default";
+         pinctrl-0 = <&tp_gpio>;
+         goodix,reset-gpio = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
          goodix,irq-gpio = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
          goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
          goodix,panel-max-x = <1440>;
          goodix,panel-max-y = <1872>;
          goodix,panel-max-w = <255>;
-		 #if 1
          //goodix,swap-axis;
          goodix,x2x;
-		 #else
-		 goodix,swap-axis;
-		 goodix,x2x;
-		 #endif
-		 tp-support-wakeup;
+         tp-support-wakeup;
     };
 };
 
@@ -770,7 +769,7 @@
         pinctrl-0 = <&emr_gpio>;
         gpio_detect = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
         gpio_intr = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
-        gpio_rst = <&gpio0 RK_PC0 GPIO_ACTIVE_LOW>;
+        gpio_rst = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
         revert_x = <1>;
         revert_y = <1>;
         xy_exchange = <0>;
@@ -978,8 +977,8 @@
                 <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>;
         };
     };
-	
-	goodix {
+
+    goodix {
         tp_gpio: tp-gpio {
             rockchip,pins =
                 <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>,
@@ -1012,7 +1011,7 @@
 &pwm1 {
     status = "okay";
     pinctrl-names = "active";
-    pinctrl-0 = <&pwm1m1_pins>;
+    pinctrl-0 = <&pwm1m0_pins>;
 };
 
 &rk_rga {
@@ -1136,7 +1135,7 @@
     rockchip,path-map = <1 0 2 3>;
     #sound-dai-cells = <0>;
     pinctrl-names = "default";
-    pinctrl-0 = <&pdmm0_clk1 &pdmm0_sdi1>;
+    pinctrl-0 = <&pdmm0_clk1 &pdmm0_sdi0 &pdmm0_sdi1>;
 };
 
 &u2phy0_otg {
