@@ -34,7 +34,7 @@
         memory-region = <&ramoops_mem>;
     };
 
-    charge-animation {
+    charge_animation: charge-animation {
         status = "okay";
         compatible = "rockchip,uboot-charge";
         rockchip,uboot-charge-on = <1>;
