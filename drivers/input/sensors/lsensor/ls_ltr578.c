@@ -290,7 +290,7 @@ static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *a
         printk(KERN_ERR "read light ltr578 darkcalibration error!\n");
         dvalue = ls_data->darkcalibration_value;
     }
-    len += sprintf(_buf, "%d  %d\n", dvalue, value);
+    len += sprintf(_buf, "%d %d\n", dvalue, value);
     return len;
 }
 
@@ -515,7 +515,7 @@ static int light_ltr578_probe(struct i2c_client *client, const struct i2c_device
         dev_err(&client->dev, "%s: failed to allocate ltr578_data!\n", __func__);
         return -ENOMEM;
     }
-    ls_data->calibration_reference = 1000;
+    ls_data->calibration_reference = 2350;
     ls_data->lsensor_class = class_create(THIS_MODULE, client->name);
     ret = class_create_file(ls_data->lsensor_class, &class_attr_lux_value);
     if (ret) {

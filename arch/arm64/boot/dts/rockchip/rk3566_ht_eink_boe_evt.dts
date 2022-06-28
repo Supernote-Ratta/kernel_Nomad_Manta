@@ -34,7 +34,7 @@
         memory-region = <&ramoops_mem>;
     };
 
-    charge-animation {
+    charge_animation: charge-animation {
         status = "okay";
         compatible = "rockchip,uboot-charge";
         rockchip,uboot-charge-on = <1>;
@@ -643,25 +643,21 @@
 
         battery {
             compatible = "rk817,battery";
-			#if 0
+#if 0
             ocv_table = <
                 3400 3513 3578 3687 3734 3752 3763
                 3766 3771 3784 3804 3836 3885 3925
                 3962 4005 4063 4114 4169 4227 4303>;
-				#endif
-			ocv_table = <
+#endif
+            ocv_table = <
                 3400 3660 3683 3712 3739 3761 3780
                 3794 3811 3831 3857 3902 3949 3990
                 4034 4083 4135 4191 4249 4307 4374>;
-				//4287 4310>; 4307 4374
-			tempadc_table = <
-                273 261 251 240 230 
-				159 153 147 141 136 
-				53 51 49 47 46 44 43 42 40>;
-			temp_table = <
-                0 1 2 3 4 
-				13 14 15 16 17 
-				43 44 45 46 47 48 49 50 51>;
+                //4287 4310>; 4307 4374
+            tempadc_table = <
+                273 261 251 240 230 159 153 147 141
+                136 53 51 49 47 46 44 43 42 40>;
+            temp_table = <0 1 2 3 4 13 14 15 16 17 43 44 45 46 47 48 49 50 51>;
             design_capacity = <3500>;
             design_qmax = <3850>;
             bat_res = <100>;
@@ -777,8 +773,8 @@
          compatible = "goodix,gt9886";
          reg = <0x5d>;
          status = "okay";
-		 pinctrl-names = "default";
-		 pinctrl-0 = <&tp_gpio>;
+         pinctrl-names = "default";
+         pinctrl-0 = <&tp_gpio>;
          goodix,reset-gpio = <&gpio0 RK_PC2 GPIO_ACTIVE_LOW>;
          goodix,irq-gpio = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
          goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
@@ -787,7 +783,7 @@
          goodix,panel-max-w = <255>;
          //goodix,swap-axis;
          goodix,x2x;
-		 tp-support-wakeup;
+         tp-support-wakeup;
     };
 };
 
@@ -1014,8 +1010,8 @@
                 <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>;
         };
     };
-	
-	goodix {
+
+    goodix {
         tp_gpio: tp-gpio {
             rockchip,pins =
                 <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>,

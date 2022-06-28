@@ -124,7 +124,7 @@
         simple-audio-card,mclk-fs = <256>;
 
         simple-audio-card,cpu {
-            sound-dai = <&i2s1_8ch>;
+            sound-dai = <&i2s0_8ch>;
         };
         simple-audio-card,codec {
             sound-dai = <&rk817_codec>;
@@ -653,15 +653,10 @@
                 3400 3660 3683 3712 3739 3761 3780
                 3794 3811 3831 3857 3902 3949 3990
                 4034 4083 4135 4191 4249 4307 4374>;
-                //4287 4310>; 4307 4374
             tempadc_table = <
-                273 261 251 240 230
-                159 153 147 141 136
-                53 51 49 47 46 44 43 42 40>;
-            temp_table = <
-                0 1 2 3 4
-                13 14 15 16 17
-                43 44 45 46 47 48 49 50 51>;
+                273 261 251 240 230 159 153 147 141
+                136 53 51 49 47 46 44 43 42 40>;
+            temp_table = <0 1 2 3 4 13 14 15 16 17 43 44 45 46 47 48 49 50 51>;
             design_capacity = <3500>;
             design_qmax = <3850>;
             bat_res = <100>;
@@ -879,11 +874,11 @@
 };
 
 &i2s0_8ch {
-    status = "disabled";
+    status = "okay";
 };
 
 &i2s1_8ch {
-    status = "okay";
+    status = "disabled";
     rockchip,clk-trcm = <1>;
     pinctrl-names = "default";
     pinctrl-0 = <&i2s1m0_sclktx &i2s1m0_lrcktx &i2s1m0_sdi0 &i2s1m0_sdo0>;

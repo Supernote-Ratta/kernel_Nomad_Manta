@@ -429,7 +429,7 @@ static uint16_t stk3x1x_get_ir_reading(struct i2c_client *client, int32_t als_it
         return 0;
     }
     ir_data = ((buffer[0] << 8) | buffer[1]);
-
+    printk("---------xxx--state: %d\n", sensor_read_reg(client, STK_STATE_REG));
     w_reg &= (~STK_FLG_IR_RDY_MASK);
     ret = sensor_write_reg(client, STK_FLAG_REG, w_reg);
     if (ret < 0) {
@@ -478,12 +478,6 @@ static void stk_als_ir_get_corr(int32_t als)
         ls_data->als_correct_factor = 1000;
         ir_ratio = (ls_data->ir_code * 100) / (als + 1);
 
-        /*
-        if (ls_data->ir_code > 32000) {
-            ls_data->als_correct_factor = LIGHT_SLOPE_A;
-            printk("stk3x1x_als_compensation: light type = A");
-        }
-        */
         if (ls_data->ir_code > LIGHT_RATIO_A) {
             ls_data->als_correct_factor = LIGHT_SLOPE_A * (10000 - (ir_ratio * 3 - 5061)) / 10000;
             printk(KERN_DEBUG "%s: stk als factor A=%d", __func__, ls_data->als_correct_factor);
@@ -494,6 +488,9 @@ static void stk_als_ir_get_corr(int32_t als)
             ls_data->als_correct_factor = LIGHT_SLOPE_CWF;
             printk(KERN_DEBUG "%s: stk als factor C=%d", __func__, ls_data->als_correct_factor);
         }
+    } else {
+        ls_data->als_correct_factor = LIGHT_SLOPE_CWF;
+        printk(KERN_DEBUG "%s: stk als factor C=%d", __func__, ls_data->als_correct_factor);
     }
 
     ls_data->ir_code = 0;
@@ -541,6 +538,7 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
     }
     do {
         value = sensor_read_reg(ls_data->client, STK_FLAG_REG);
+        printk("-----STK FLAG REG------- :0x%x\n", value);
         if (value < 0) {
             printk("stk %s read als data flag error, ret=%d\n", __func__, value);
             return value;
@@ -550,7 +548,7 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
         }
         usleep_range(3000, 4000);
         retry++;
-    } while (retry < 1000);
+    } while (retry < 100);
     buffer[0] = sensor->ops->read_reg;
     result = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
     if (result) {
@@ -599,7 +597,7 @@ static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr,
         }
         usleep_range(3000, 4000);
         retry++;
-    } while (retry < 1000);
+    } while (retry < 100);
     buffer[0] = sensor->ops->read_reg;
     result = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
     if (result) {
@@ -646,7 +644,7 @@ static int do_calibration(struct sensor_private_data *sensor, int dark)
             }
             usleep_range(3000, 4000);
             retry++;
-        } while (retry < 1000);
+        } while (retry < 100);
         buffer[0] = sensor->ops->read_reg;
         ret = sensor_rx_data(ls_data->client, buffer, sensor->ops->read_len);
         if (ret) {
@@ -944,7 +942,7 @@ static int light_stk3x1x_probe(struct i2c_client *client, const struct i2c_devic
         printk(KERN_ERR "%s: failed to allocate stk3x1x_data\n", __func__);
         return -ENOMEM;
     }
-    ls_data->calibration_reference = 500;
+    ls_data->calibration_reference = 1100;
     ls_data->lsensor_class = class_create(THIS_MODULE, client->name);
     ret = class_create_file(ls_data->lsensor_class, &class_attr_lux_value);
     if (ret) {
