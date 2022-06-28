@@ -211,7 +211,7 @@
  			4050 4200 4490 4780	5070 5363 5656 5950 6300 6650 
  			7000 7473 7946 8420 9146 9872 10600
          >;
-         default-brightness-level = <10>;
+         default-brightness-level = <0>;
      };
  
       backlight_cold: backlight-cold {
