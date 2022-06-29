@@ -195,6 +195,8 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
         if (sensor->ops->int_status_reg) {
             value = sensor_read_reg(ls_data->client, sensor->ops->int_status_reg);
         }
+    } else {
+        msleep(80);
     }
     value = sensor_als_read(ls_data->client);
     result = value * ls_data->lightcalibration_value / 100;
@@ -219,10 +221,12 @@ static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr,
         if (sensor->ops->int_status_reg) {
             value = sensor_read_reg(ls_data->client, sensor->ops->int_status_reg);
         }
+    } else {
+        msleep(80);
     }
     value = sensor_als_read(ls_data->client);
     result = value * ls_data->lightcalibration_value / 100;
-    printk("ltr578: ----ret:%d alsraw:%d value:%d ir:%d cail:%d darkcail:%d lightcailref:%d----\n", result, ls_data->als, value, ls_data->ir_code, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
+    printk("ltr578 raw: ----ret:%d alsraw:%d value:%d ir:%d cail:%d darkcail:%d lightcailref:%d----\n", result, ls_data->als, value, ls_data->ir_code, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
     len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, ls_data->als, ls_data->ir_code);
     return len;
 }
@@ -231,8 +235,7 @@ static CLASS_ATTR_RO(lux_rawdata);
 static int do_calibration(struct sensor_private_data *sensor, int dark)
 {
     int ret = -1, i = 0;
-    int count = 100, adjvalue = 0;
-    char oktimes = 0;
+    int count = 10, adjvalue = 0;
 
     sensor_active(ls_data->client, 1, 9600);
 
@@ -242,26 +245,25 @@ static int do_calibration(struct sensor_private_data *sensor, int dark)
     }
 
     for (i = 0; i < count; i++) {
+        msleep(80);
         sensor_als_read(ls_data->client);
         adjvalue += ls_data->als;
-        oktimes++;
+        printk("ltr578 cal: ----cout %d adjvalue: %d, value: %d\n", i, adjvalue, ls_data->als);
     }
 
     if (!dark) {
-        adjvalue = (adjvalue / oktimes) ? (adjvalue / oktimes) : ls_data->calibration_reference;
+        adjvalue = (adjvalue / i) ? (adjvalue / i) : ls_data->calibration_reference;
         ls_data->lightcalibration_value = (ls_data->calibration_reference * 100) / adjvalue;
-
-        printk("ltr578 calibration value: %d\n", ls_data->lightcalibration_value);
+        printk("ltr578 cal: ----light calibration count: %d value: %d\n", i, ls_data->lightcalibration_value);
         ret = light578_calibration_data_write(&ls_data->lightcalibration_value);
         if (ret) {
             printk(KERN_ERR "%s wirte calibration fail!\n", __func__);
             return ret;
         }
     } else {
-        adjvalue = adjvalue / oktimes;
+        adjvalue = adjvalue / i;
         ls_data->darkcalibration_value = adjvalue;
-        printk("ltr578 times: %d, adjvalue: %d, darkcalibration value: %d\n", oktimes, adjvalue, ls_data->darkcalibration_value);
-
+        printk("ltr578 cal: ----dark calibration count: %d, value: %d\n", i, ls_data->darkcalibration_value);
         ret = light578_darkcalibration_data_write(&ls_data->darkcalibration_value);
         if (ret) {
             printk(KERN_ERR "%s wirte dark calibration fail!\n", __func__);
