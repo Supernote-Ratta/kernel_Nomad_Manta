@@ -193,6 +193,9 @@ struct sensor_private_data {
 	struct sensor_operate *ops;
 	struct file_operations fops;
 	struct miscdevice miscdev;
+
+    // 20220627,hsl add.
+	struct sensor_private_data *brother;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif

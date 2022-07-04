@@ -489,6 +489,7 @@ error:
 static int sensor_reset_rate(struct i2c_client *client, int rate)
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
+    struct sensor_private_data *sensor1;
     int result = 0;
 
     if (rate < 5) {
@@ -517,6 +518,13 @@ static int sensor_reset_rate(struct i2c_client *client, int rate)
             sensor->stop_work = 0;
             schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
         }
+
+        // 20220627: 针对2个光感做处理.两个光感只需要一个 delaywork.不能两个都调用。
+        sensor1 = sensor->brother;
+        if(sensor1 != NULL){
+            sensor->ops->active(client, SENSOR_OFF, rate);
+            sensor->ops->active(client, SENSOR_ON, rate);
+        }
     }
 
     return result;
@@ -533,6 +541,27 @@ static void  sensor_delaywork_func(struct work_struct *work)
     result = sensor->ops->report(client);
     if (result < 0) {
         dev_err(&client->dev, "%s: Get data failed\n", __func__);
+    } else {
+        // 20220627: 针对两个光感做特殊处理。
+        if(sensor->type == SENSOR_TYPE_LIGHT){
+            struct sensor_private_data *sensor1 = sensor->brother;
+            if(sensor1 != NULL){
+                int result1 = sensor1->ops->report(sensor1->client);
+
+                // 20220627：light_stk3x1x 1-0048: sensor_delaywork_func: light-sensor,result=203,result1=93,irq0=0,irq1=0
+                dev_info(&client->dev, "%s: light-sensor,result=%d,result1=%d\n", __func__, result, result1);
+
+                // 20220627: 最终亮度取两个光感的最大值。
+                if(result1 > result) {
+                    result = result1;
+                }
+            }
+
+            // 02220627:改为直接上报 亮度，而不是上报 等级.此处应该优化变化超出了一定范围再上报。或者划分为等级
+            // 上报。
+            input_report_abs(sensor->input_dev, ABS_MISC, result);
+            input_sync(sensor->input_dev);
+        }
     }
     mutex_unlock(&sensor->sensor_mutex);
 
@@ -1237,6 +1266,10 @@ static long light_dev_ioctl(struct file *file, unsigned int cmd, unsigned long a
 {
     struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_LIGHT];
     struct i2c_client *client = sensor->client;
+
+    // 20220627,hsl add for light2.
+    struct sensor_private_data *sensor1 = sensor->brother;
+    
     void __user *argp = (void __user *)arg;
     int result = 0;
     short rate;
@@ -1273,10 +1306,22 @@ static long light_dev_ioctl(struct file *file, unsigned int cmd, unsigned long a
             if (result) {
                 if (sensor->status_cur == SENSOR_OFF) {
                     sensor_enable(sensor, SENSOR_ON);
+
+                    if(sensor1 != NULL){
+                        sensor_enable(sensor1, SENSOR_ON);
+
+                        // 20220627：我们只需要一个 lsensor 的 delaywork 就可以了。为了不修改 sensor_enable
+                        // 里面的代码，我们在此处做处理。
+                        cancel_delayed_work_sync(&sensor1->delaywork);
+                    }
                 }
             } else {
                 if (sensor->status_cur == SENSOR_ON) {
                     sensor_enable(sensor, SENSOR_OFF);
+
+                    if(sensor1 != NULL){
+                        sensor_enable(sensor1, SENSOR_OFF);
+                    }
                 }
             }
             mutex_unlock(&sensor->operation_mutex);
@@ -1612,7 +1657,6 @@ static int sensor_misc_device_register(struct sensor_private_data *sensor, int t
                 memcpy(&sensor->miscdev, sensor->ops->misc_dev, sizeof(*sensor->ops->misc_dev));
             }
             break;
-
         default:
             dev_err(&sensor->client->dev, "%s:unknow sensor type=%d\n", __func__, type);
             result = -1;
@@ -1641,6 +1685,7 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
     int result = 0;
     int type = 0;
     int reprobe_en = 0;
+    int brother = 0;
 
     dev_info(&client->adapter->dev, "%s: %s,%p\n", __func__, devid->name, client);
 
@@ -1867,7 +1912,17 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
         goto out_free_memory;
     }
 
-    sensor->input_dev = devm_input_allocate_device(&client->dev);
+    if(SENSOR_TYPE_LIGHT == type){
+        if(g_sensor[type] == NULL) {
+            sensor->input_dev = devm_input_allocate_device(&client->dev);
+        } else {
+            sensor->input_dev = g_sensor[type]->input_dev;
+            g_sensor[type]->brother = sensor;
+            brother = true;
+        }
+    } else {
+        sensor->input_dev = devm_input_allocate_device(&client->dev);
+    }
     if (!sensor->input_dev) {
         result = -ENOMEM;
         dev_err(&client->dev, "Failed to allocate input device\n");
@@ -1935,17 +1990,21 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
             input_set_abs_params(sensor->input_dev, ABS_RZ, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
             break;
         case SENSOR_TYPE_LIGHT:
-            sensor->input_dev->name = "lightsensor-level";
-            if (strcmp("ls_ltr578", sensor->i2c_id->name) == 0) {
-                sensor->input_dev->name = "lightsensor-level-1";
-            } else if (strcmp("ls_stk3410", sensor->i2c_id->name) == 0) {
+            if(!brother){
                 sensor->input_dev->name = "lightsensor-level";
-            } else {
-                sensor->input_dev->name = "lightsensor-level";
+                /* //20220627,hsl fix for two lights.ous one input_dev.
+                if (strcmp("ls_ltr578", sensor->i2c_id->name) == 0) {
+                    sensor->input_dev->name = "lightsensor-level-1";
+                } else if (strcmp("ls_stk3410", sensor->i2c_id->name) == 0) {
+                    sensor->input_dev->name = "lightsensor-level";
+                } else {
+                    sensor->input_dev->name = "lightsensor-level";
+                }
+                */
+                set_bit(EV_ABS, sensor->input_dev->evbit);
+                input_set_abs_params(sensor->input_dev, ABS_MISC, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
+                input_set_abs_params(sensor->input_dev, ABS_TOOL_WIDTH,  sensor->ops->brightness[0], sensor->ops->brightness[1], 0, 0);
             }
-            set_bit(EV_ABS, sensor->input_dev->evbit);
-            input_set_abs_params(sensor->input_dev, ABS_MISC, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
-            input_set_abs_params(sensor->input_dev, ABS_TOOL_WIDTH,  sensor->ops->brightness[0], sensor->ops->brightness[1], 0, 0);
             break;
         case SENSOR_TYPE_PROXIMITY:
             sensor->input_dev->name = "proximity";
@@ -1966,13 +2025,16 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
             dev_err(&client->dev, "%s:unknow sensor type=%d\n", __func__, type);
             break;
     }
-    printk("===>sensor name: %s\n", sensor->input_dev->name);
-    sensor->input_dev->dev.parent = &client->dev;
+    printk("===>sensor name: %s/%s\n", sensor->input_dev->name, sensor->i2c_id->name);
 
-    result = input_register_device(sensor->input_dev);
-    if (result) {
-        dev_err(&client->dev, "Unable to register input device %s\n", sensor->input_dev->name);
-        goto out_input_register_device_failed;
+    if(!brother) {
+        sensor->input_dev->dev.parent = &client->dev;
+
+        result = input_register_device(sensor->input_dev);
+        if (result) {
+            dev_err(&client->dev, "Unable to register input device %s\n", sensor->input_dev->name);
+            goto out_input_register_device_failed;
+        }
     }
 
     result = sensor_irq_init(sensor->client);
@@ -1988,7 +2050,7 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
         goto out_misc_device_register_device_failed;
     }
 
-    g_sensor[type] = sensor;
+    if(!brother) g_sensor[type] = sensor;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
     if ((sensor->ops->suspend) && (sensor->ops->resume)) {
@@ -2005,6 +2067,7 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
 
 out_misc_device_register_device_failed:
 out_input_register_device_failed:
+    input_unregister_device(sensor->input_dev);
 out_free_memory:
 out_no_free:
     dev_err(&client->adapter->dev, "%s failed %d\n\n", __func__, result);

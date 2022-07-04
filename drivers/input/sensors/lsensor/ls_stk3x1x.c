@@ -290,7 +290,7 @@ static int32_t stk3x1x_set_als_thd_h(struct i2c_client *client, uint16_t thd_h)
 static int32_t stk3x1x_check_pid(struct i2c_client *client)
 {
     char value = 0;
-    int result;
+    //int result;
 
     ls_data->p_wv_r_bd_with_co = 0;
     value = sensor_read_reg(client, STK_PDT_ID_REG);
@@ -662,7 +662,7 @@ static int do_calibration(struct sensor_private_data *sensor, int dark)
 
 static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
-    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    //struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
     uint16_t value = 0, dvalue = 0;
     int len = 0;
 
@@ -836,7 +836,7 @@ static int sensor_report_value(struct i2c_client *client)
     ssize_t retry = 0;
     uint32_t value = 0;
     unsigned char buffer[2] = {0};
-    char index = 0;
+    //char index = 0;
 
     if (sensor->ops->read_len < 2) {
         printk(KERN_ERR "%s:lenth is error,len=%d\n", __func__, sensor->ops->read_len);
@@ -867,7 +867,10 @@ static int sensor_report_value(struct i2c_client *client)
     ircode = ls_data->ir_code;
     stk_als_ir_get_corr(value);
     result = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
-    index = light_report_abs_value(sensor->input_dev, result);
+
+    // 20220627: do this at sensor-dev.c for two lsensor.
+    //index = light_report_abs_value(sensor->input_dev, result);
+    //printk("%s:%s result=0x%x\n", __func__, sensor->ops->name, result);
 
     if (sensor->pdata->irq_enable && sensor->ops->int_status_reg) {
         value = sensor_read_reg(client, sensor->ops->int_status_reg);
@@ -895,8 +898,8 @@ struct sensor_operate light_stk3x1x_ops = {
     .precision          = 16,                   //16 bits
     .ctrl_reg           = STK_STATE_REG,        //enable or disable
     .int_status_reg     = SENSOR_UNKNOW_DATA,   //intterupt status register
-    .range              = {100, 65535},         //range
-    .brightness         = {10, 255},            //brightness
+    .range              = {0, 65535},//{100, 65535},         //range  -- ABS_MISC
+    .brightness         = {0, 255}, //{10, 255},            //brightness
     .trig               = IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_SHARED,
     .active             = sensor_active,
     .init               = sensor_init,

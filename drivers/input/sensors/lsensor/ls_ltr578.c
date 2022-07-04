@@ -433,6 +433,7 @@ static int sensor_init(struct i2c_client *client)
     return ret;
 }
 
+/*
 static int light_report_value(struct input_dev *input, int data)
 {
     unsigned char index = 0;
@@ -465,13 +466,14 @@ report:
     input_sync(input);
     return index;
 }
+*/
 
 static int sensor_report_value(struct i2c_client *client)
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
     int result = 0;
     char value = 0;
-    char index = 0;
+    //char index = 0;
 
     if (sensor->pdata->irq_enable) {
         if (sensor->ops->int_status_reg) {
@@ -481,10 +483,11 @@ static int sensor_report_value(struct i2c_client *client)
 
     result = sensor_als_read(client);
     result = ls_data->lightcalibration_value * result / 100;
-    index = light_report_value(sensor->input_dev, result);
 
-    printk("%s:%s result=0x%x, index=%d\n", __func__, sensor->ops->name, result, index);
+    // 20220627: do this at sensor-dev.c for two lsensor.
+    //index = light_report_value(sensor->input_dev, result);
 
+    //printk("%s:%s result=0x%x\n", __func__, sensor->ops->name, result);
     return result;
 }
 
@@ -499,8 +502,8 @@ struct sensor_operate light_ltr578_ops = {
     .precision          = 18,                   //18 bits
     .ctrl_reg           = APS_RW_MAIN_CTRL,     //enable or disable
     .int_status_reg     = APS_RO_MAIN_STATUS,   //intterupt status register
-    .range              = {100, 65535},         //range
-    .brightness         = {10, 255},            // brightness
+    .range              = {0, 65535},         //range -- ABS_MISC  {0, 10}, //
+    .brightness         = {0, 255},            // brightness -- ABS_TOOL_WIDTH
     .trig               = IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_SHARED,
     .active             = sensor_active,
     .init               = sensor_init,
