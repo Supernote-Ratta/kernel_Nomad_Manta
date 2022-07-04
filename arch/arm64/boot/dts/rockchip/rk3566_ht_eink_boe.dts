@@ -295,7 +295,9 @@
     panel,lsl = <18>;
     panel,lbl = <17>;
     panel,ldl = <234>;
-    panel,lel = <15>;  // 470ns
+	
+    // 15：CKV = 117.7K, EMR NOISE 达到最佳效果。 or 14??
+    panel,lel = <14>;  // 470ns
     panel,gdck-sta = <34>;
     panel,lgonl = <192>;
     panel,fsl = <1>;

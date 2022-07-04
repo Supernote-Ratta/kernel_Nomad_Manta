@@ -295,7 +295,16 @@
     panel,lsl = <18>;
     panel,lbl = <17>;
     panel,ldl = <234>;
-    panel,lel = <15>;  // 470ns
+	
+	// 16: CKV = 117.1K, EMR NOISE 比较OK。
+	// 15：CKV = 117.7K, EMR NOISE 比 117.1 好。
+	// 14：CKV = 117.9K, EMR NOISE 很差。
+	// 17：CKV = 116.6K.
+	// lel 12- lbl 15： 119.6K.
+	// lel 11/lbl 15/ lsl 17:  120.5K.
+	// lel 10/lbl 14/ lsl 17:  121.4K 比较差。
+	// lel 11/lbl 15/ lsl 18:   和 117.4 一样，不是最好。
+    panel,lel = <14>;  // 470ns 
     panel,gdck-sta = <34>;
     panel,lgonl = <192>;
     panel,fsl = <1>;
