@@ -276,7 +276,7 @@ static int goodix_ts_dev_confirm(struct goodix_ts_device *ts_dev)
 
 	for (retry = 0; retry < DEV_CONFIRM_RETRY; retry++) {
 		gpio_direction_output(ts_dev->board_data.reset_gpio, 0);
-		udelay(2000);
+		udelay(5000);
 		gpio_direction_output(ts_dev->board_data.reset_gpio, 1);
 		mdelay(5);
 		if (!goodix_i2c_test(ts_dev)) {
@@ -1216,7 +1216,7 @@ int goodix_hw_reset(struct goodix_ts_device *dev)
 	ts_info("HW reset");
 
 	gpio_direction_output(dev->board_data.reset_gpio, 0);
-	udelay(2000);
+	udelay(5000);
 	gpio_direction_output(dev->board_data.reset_gpio, 1);
 	msleep(100);
 

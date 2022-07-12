@@ -125,10 +125,10 @@ static int wacom_chip_power(struct i2c_client *client)
         dev_err(&client->dev, "gpio_rst pin available\n");
         return -ENODEV;
     }
-    gpio_direction_output(wpen->reset_gpio, wpen->reset_level);
-    msleep(100);
+    //gpio_direction_output(wpen->reset_gpio, wpen->reset_level);
+    //msleep(100);
     gpio_direction_output(wpen->reset_gpio, !wpen->reset_level);
-    msleep(100);
+    //msleep(100);
 
     return 0;
 }
