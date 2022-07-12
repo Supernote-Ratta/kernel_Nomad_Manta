@@ -17,7 +17,7 @@
 #include "rk3566-eink.dtsi"
 
 / {
-    model = "Rockchip RK3566 EINK Boe 10.3 Board II";
+    model = "Rockchip RK3566 EINK Boe 10.3 DVT1 Board II";
     compatible = "rockchip,rk3566-rk817-eink", "rockchip,rk3566";
 
     ramoops_mem: ramoops_mem {
@@ -296,8 +296,9 @@
     panel,lsl = <18>;
     panel,lbl = <17>;
     panel,ldl = <234>;
-    // 15：CKV = 117.7K, EMR NOISE 达到最佳效果。 or 14??
-    panel,lel = <14>;  // 470ns
+	
+    // 15：CKV = 117.7K, EMR NOISE 达到最佳效果。20220712:确认15是最佳效果。
+    panel,lel = <15>;  // 470ns
     panel,gdck-sta = <34>;
     panel,lgonl = <192>;
     panel,fsl = <1>;

@@ -17,7 +17,7 @@
 #include "rk3566-eink.dtsi"
 
 / {
-    model = "Rockchip RK3566 EINK Boe 10.3 Board";
+    model = "Rockchip RK3566 EINK Boe EVT 10.3 Board";
     compatible = "rockchip,rk3566-rk817-eink", "rockchip,rk3566";
 
     ramoops_mem: ramoops_mem {
@@ -304,7 +304,7 @@
 	// lel 11/lbl 15/ lsl 17:  120.5K.
 	// lel 10/lbl 14/ lsl 17:  121.4K 比较差。
 	// lel 11/lbl 15/ lsl 18:   和 117.4 一样，不是最好。
-    panel,lel = <14>;  // 470ns 
+    panel,lel = <15>;  // 470ns 
     panel,gdck-sta = <34>;
     panel,lgonl = <192>;
     panel,fsl = <1>;
