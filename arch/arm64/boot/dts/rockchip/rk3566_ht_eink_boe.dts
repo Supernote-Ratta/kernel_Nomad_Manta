@@ -686,7 +686,7 @@
             chrg_finish_cur = <175>;
             virtual_power = <0>;
             dc_det_adc = <0>;
-            extcon = <&usbc0>;
+            extcon = <&usb2phy0>;
             gate_function_disable = <1>;
         };
 
@@ -753,7 +753,7 @@
     };
 
     usbc0: et7303@4e {
-        status = "okay";
+        status = "disabled";
         compatible = "etek,et7303";
         reg = <0x4e>;
         interrupt-parent = <&gpio0>;
@@ -1177,12 +1177,12 @@
 
 &usb2phy0 {
     status = "okay";
-    extcon = <&usbc0>;
+    //extcon = <&usbc0>;
 };
 
 &usbdrd_dwc3 {
     status = "okay";
-    extcon = <&usbc0>;
+    //extcon = <&usbc0>;
 };
 
 &usbdrd30 {
