@@ -8,6 +8,7 @@ menuconfig INPUT_FINGERPRINT
 if INPUT_FINGERPRINT
 
 source "drivers/input/fingerprint/ft9366/Kconfig"
+source "drivers/input/fingerprint/gf3956/Kconfig"
 endif
 
 
