@@ -410,6 +410,7 @@ enum power_supply_property {
 	/* changed tower: for battmanager. */
 	POWER_SUPPLY_PROP_BATTERY_PROTECT,
 	POWER_SUPPLY_PROP_BATTERY_MAINTAIN,
+	POWER_SUPPLY_PROP_BATTERY_VRTEMP,
 	/* changed end. */
 };
 

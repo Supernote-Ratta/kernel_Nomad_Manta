@@ -545,6 +545,7 @@ static struct device_attribute power_supply_attrs[] = {
 	/* changed tower: for battmanager. */
 	POWER_SUPPLY_ATTR_W(batt_protect),
 	POWER_SUPPLY_ATTR_W(batt_maintain),
+	POWER_SUPPLY_ATTR_W(batt_vrtemp),
 	/* changed end. */
 };
 

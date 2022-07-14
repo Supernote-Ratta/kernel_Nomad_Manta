@@ -48,7 +48,7 @@ int temperature_disable_charge = 0;
 static int temperature_lowvol_charge = 0;
 static int temperature_charge_current = 0;
 int temperature_charge_reset = 0;
-int charge_only_for_power = 0;
+int charge_supply_power = 1;
 //static int used_time = 0;
 
 module_param_named(dbg_level, dbg_enable, int, 0644);
@@ -683,6 +683,7 @@ struct rk817_battery_device {
 	int 			used_month;
 	int 			adc_average[5];
 	int 			adc_count;
+	int				vrtemperature;
 	/* changed end. */
 };
 
@@ -1925,7 +1926,7 @@ static void rk817_bat_init_fg(struct rk817_battery_device *battery)
 	battery->adc_count = 0;
 
 	temperature_disable_charge = 0;
-	charge_only_for_power = 0;
+	charge_supply_power = 1;
 	charge_enable = 1;
 
 	DBG("probe init: battery->dsoc = %d, rsoc = %d\n"
@@ -2190,6 +2191,7 @@ static enum power_supply_property rk817_bat_props[] = {
 	/* changed tower: for battmanager. */
 	POWER_SUPPLY_PROP_BATTERY_PROTECT,
 	POWER_SUPPLY_PROP_BATTERY_MAINTAIN,
+	POWER_SUPPLY_PROP_BATTERY_VRTEMP,
 	/* changed end. */
 };
 
@@ -2332,6 +2334,9 @@ static int rk817_battery_get_property(struct power_supply *psy,
 		val->intval = battery->temperature;
 		if (battery->pdata->bat_mode == MODE_VIRTUAL)
 			val->intval = VIRTUAL_TEMPERATURE;
+		if(dbg_enable){
+			val->intval = battery->vrtemperature;
+		}
 		break;
 	case POWER_SUPPLY_PROP_STATUS:
 		if (battery->pdata->bat_mode == MODE_VIRTUAL)
@@ -2371,6 +2376,9 @@ static int rk817_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_BATTERY_MAINTAIN:
 		val->intval = battery->open_battery_maintain;
+		break;
+	case POWER_SUPPLY_PROP_BATTERY_VRTEMP:
+		val->intval = battery->vrtemperature;
 		break;
 	/* changed end. */
 	default:
@@ -2420,6 +2428,9 @@ static int rk817_battery_set_property(struct power_supply *psy, enum power_suppl
 			break;
 		//case POWER_SUPPLY_PROP_BATTERY_FACTORY:
 		//	battery->battery_factory = val->intval;
+		case POWER_SUPPLY_PROP_BATTERY_VRTEMP:
+			battery->vrtemperature = val->intval;
+			break;
 		case POWER_SUPPLY_PROP_STATUS:
 			charge = rk817_charge_get_charger();
 			printk("##fan## %s set battery status val=%d, i2c_addr=0x%x\n",__func__,val->intval,charge->client->addr);
@@ -2446,6 +2457,7 @@ static int rk817_battery_writable_property(struct power_supply *psy, enum power_
 	switch (psp) {
 		case POWER_SUPPLY_PROP_BATTERY_PROTECT:
 		case POWER_SUPPLY_PROP_BATTERY_MAINTAIN:
+		case POWER_SUPPLY_PROP_BATTERY_VRTEMP:
 			return 1;
 		default:
 			return 0;
@@ -2624,8 +2636,8 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 		dev_err(battery->dev, "register bat power supply fail\n");
 		return 0;
 	}
-	printk("=====rk817_bat_temperature_chrg temp:%d temperature_disable_charge:%d charge_enable:%d charge_only_for_power:%d battery_protect:%d battery_maintain:%d temperature_charge_reset:%d current:%d l:%d\n",
-		temp,temperature_disable_charge,charge_enable,charge_only_for_power,
+	printk("=====rk817_bat_temperature_chrg temp:%d temperature_disable_charge:%d charge_enable:%d charge_supply_power:%d battery_protect:%d battery_maintain:%d temperature_charge_reset:%d current:%d l:%d\n",
+		temp,temperature_disable_charge,charge_enable,charge_supply_power,
 		battery->open_battery_protect,battery->open_battery_maintain,temperature_charge_reset,battery->current_avg,battery->dsoc);
 
 	if ((temp <= 0)||(temp >= 50)){
@@ -2683,14 +2695,14 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 				if (battery->dsoc / 1000 > 60) {//stop charge, battery supply
 					DBG("######################### DISABLE CHARGE1, BATTERY SUPPLY\n");
 					charge_enable = 0;
-					charge_only_for_power = 0;
+					charge_supply_power = 0;
 					//rk817_charge_usb_to_sys_disable(charge);
 				} else if (battery->dsoc / 1000 > 40) { //switch to usb supply
 					DBG("######################## DISABLE CHARGE1, USB SUPPLY\n");
 					//charge_enable = 0;
-					charge_only_for_power = 1;
+					charge_supply_power = 1;
 					if(temperature_charge_reset){
-						charge_enable = 0;
+						charge_enable = 1;
 					}
 					//rk817_charge_usb_to_sys_enable(charge); //enable usb charge
 					//rk817_bat_disable_battery_charge(battery); //stop battery charge
@@ -2698,7 +2710,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 					else if (battery->dsoc /1000 <= 40) { //restart charge
 					DBG("####################### fan 0 ENABLE CHARGE\n");
 					charge_enable = 1;
-					charge_only_for_power = 0;
+					charge_supply_power = 1;
 					//if (charge_enable) {
 					//	rk817_charge_usb_to_sys_enable(charge); //enable usb charge
 					//	rk817_bat_enable_battery_charge(battery); //start battery charge
@@ -2757,13 +2769,12 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 		}else{
 			charge_enable = 1;
 		}
-		temperature_charge_reset = 0;
 		if(charge_enable){
 			rk817_charge_usb_to_sys_enable(charge);
 			rk817_bat_enable_battery_charge(battery);//start battery charge
 			printk("=====rk817_bat_temperature_chrg charge_enable\n");
 		}else{
-			if(charge_only_for_power){
+			if(charge_supply_power){
 				rk817_charge_usb_to_sys_enable(charge); //enable usb charge
 				rk817_bat_disable_battery_charge(battery);
 				printk("=====rk817_bat_temperature_chrg only for power\n");
@@ -2774,6 +2785,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 			}
 		}
 	}
+	temperature_charge_reset = 0;
 	/* changed end. */
 #if 0
 	if ((temp <= 13)||(temp >= 47)){
@@ -3426,6 +3438,9 @@ static void rk817_bat_output_info(struct rk817_battery_device *battery)
 static int rk817_bat_update_temperature(struct rk817_battery_device *battery)
 {
 	battery->temperature = rk817_bat_get_temp(battery);
+	if(dbg_enable){
+		battery->temperature = battery->vrtemperature;
+	}
 	rk817_bat_temperature_chrg(battery,battery->temperature/10);
 	return 0;
 }
@@ -3464,7 +3479,7 @@ static irqreturn_t rk809_plug_in_isr(int irq, void *cg)
 	battery->plugout_trigger = 0;
 	charge_enable = 1;
 	temperature_disable_charge = 0;
-	charge_only_for_power = 0;
+	charge_supply_power = 1;
 	temperature_charge_reset = 1;
 	power_supply_changed(battery->bat);
 	if (battery->is_register_chg_psy)
@@ -3482,7 +3497,7 @@ static irqreturn_t rk809_plug_out_isr(int irq, void *cg)
 	battery->plugout_trigger = 1;
 	charge_enable = 0;
 	temperature_disable_charge = 0;
-	charge_only_for_power = 0;
+	charge_supply_power = 0;
 	temperature_charge_reset = 1;
 	power_supply_changed(battery->bat);
 	if (battery->is_register_chg_psy)

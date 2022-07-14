@@ -259,7 +259,7 @@ extern int cc_type;
 extern int charge_enable;
 extern int temperature_disable_charge;
 extern int temperature_charge_reset;
-extern int charge_only_for_power;
+extern int charge_supply_power;
 
 static void rk817_charge_set_input_current(struct rk817_charger *charge, int input_current);
 
@@ -997,7 +997,7 @@ static void rk817_charger_evt_worker(struct work_struct *work)
         charge->usb_charger = charger;
 		charge_enable = 1;
 		temperature_disable_charge = 0;
-		charge_only_for_power = 0;
+		charge_supply_power = 1;
 		temperature_charge_reset = 1;
         rk817_charge_set_chrg_param(charge, charger);
     }
