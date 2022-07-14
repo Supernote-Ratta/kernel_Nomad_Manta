@@ -2260,6 +2260,14 @@ static int rk3568_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 		reg |= (0x06 << 4);
 		writel(reg, rphy->phy_base + 0x30);
 
+		/* changed tower: for hs eye optimize. */
+		/* Set otg port HS eye HS ODT 25 */
+		reg = readl(rphy->phy_base + 0x0018);
+		reg &= ~(0x1f << 3);
+		reg |= (0x19 << 3);
+		writel(reg, rphy->phy_base + 0x0018);
+		/* changed end. */
+
 		/*
 		 * Set the bvalid filter time to 10ms
 		 * based on the usb2 phy grf pclk 100MHz.
