@@ -834,7 +834,7 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 	temp_value |= rk817_bat_field_read(battery, BAT_TS_L);
 	temp_value1 |= rk817_bat_field_read(battery, REGE9);
 	adc_to_vol = temp_value * 1200 / 65536;
-	adc_to_vol -= (29/2) * battery->current_avg / 1000;
+	adc_to_vol -= (31/2) * battery->current_avg / 1000;
 	printk("rk817_bat_get_temp:adc=%d adcv=%d templimit:0x%2x size:%d\n",temp_value,adc_to_vol,temp_value1,battery->pdata->temp_size);
 	if((battery->pdata->temp_size==0)||(battery->pdata->tempn_size==0)){
 		return 250;
