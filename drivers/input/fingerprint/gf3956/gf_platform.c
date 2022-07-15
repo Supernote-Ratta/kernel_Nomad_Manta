@@ -95,11 +95,13 @@ void gf_hw_reset(struct gf_device *gf_dev, u8 delay)
 		gf_debug(ERR_LOG, "%s, Input buff is NULL.\n", __func__);
 		return;
 	}
-	gpio_direction_output(gf_dev->reset_gpio, 1);
-	gpio_set_value(gf_dev->reset_gpio, 0);
-	mdelay(3);
-	gpio_set_value(gf_dev->reset_gpio, 1);
-	mdelay(delay);
+	if (gpio_is_valid(gf_dev->reset_gpio)) {
+		gpio_direction_output(gf_dev->reset_gpio, 1);
+		gpio_set_value(gf_dev->reset_gpio, 0);
+		mdelay(3);
+		gpio_set_value(gf_dev->reset_gpio, 1);
+		mdelay(delay);
+	}
 }
 
 void gf_irq_gpio_cfg(struct gf_device *gf_dev)
