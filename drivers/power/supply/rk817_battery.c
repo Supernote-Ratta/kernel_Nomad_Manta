@@ -2701,9 +2701,9 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 					DBG("######################## DISABLE CHARGE1, USB SUPPLY\n");
 					//charge_enable = 0;
 					charge_supply_power = 1;
-					if(temperature_charge_reset){
-						charge_enable = 1;
-					}
+					//if(temperature_charge_reset){
+					//	charge_enable = 1;
+					//}
 					//rk817_charge_usb_to_sys_enable(charge); //enable usb charge
 					//rk817_bat_disable_battery_charge(battery); //stop battery charge
 				} 
