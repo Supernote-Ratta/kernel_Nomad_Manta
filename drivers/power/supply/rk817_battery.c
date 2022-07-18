@@ -2392,21 +2392,25 @@ static int rk817_battery_get_property(struct power_supply *psy,
 static void rk817_bat_enable_battery_protect(struct rk817_battery_device *battery)
 {
 	battery->open_battery_protect = 1;
+	temperature_charge_reset = 1;
 }
 
 static void rk817_bat_disable_battery_protect(struct rk817_battery_device *battery)
 {
 	battery->open_battery_protect = 0;
+	temperature_charge_reset = 1;
 }
 
 static void __maybe_unused rk817_bat_enable_battery_maintain(struct rk817_battery_device *battery)
 {
 	battery->open_battery_maintain = 1;
+	temperature_charge_reset = 1;
 }
 
 static void __maybe_unused rk817_bat_disable_battery_maintain(struct rk817_battery_device *battery)
 {
 	battery->open_battery_maintain = 0;
+	temperature_charge_reset = 1;
 }
 
 static int rk817_battery_set_property(struct power_supply *psy, enum power_supply_property psp, const union power_supply_propval *val)
@@ -2701,9 +2705,9 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 					DBG("######################## DISABLE CHARGE1, USB SUPPLY\n");
 					//charge_enable = 0;
 					charge_supply_power = 1;
-					//if(temperature_charge_reset){
-					//	charge_enable = 1;
-					//}
+					if(temperature_charge_reset){
+						charge_enable = 0;
+					}
 					//rk817_charge_usb_to_sys_enable(charge); //enable usb charge
 					//rk817_bat_disable_battery_charge(battery); //stop battery charge
 				} 
