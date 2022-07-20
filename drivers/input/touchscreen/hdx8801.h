@@ -27,9 +27,9 @@
 	/******* Include File section************/
 	
 	/******* Macro Define Section************/
-	#define REPORT_MAX_X		0x37FF//0x4200//0x37FF
-	#define REPORT_MAX_Y		0x1FFF//0x3200//0x1FFF
-	#define DIG_MAX_P			0x03FF
+	#define REPORT_MAX_X		0x4200//0x37FF//0x4200//0x37FF
+	#define REPORT_MAX_Y		0x4200//0x1FFF//0x3200//0x1FFF
+	#define DIG_MAX_P			0x0FFF//0x0x03FF
 	#define RD_COMMAND_BIT	8
 	#define COMMAND_COUSE		10
 	#define COMMAND_BYTE		5

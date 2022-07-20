@@ -39,6 +39,9 @@ int gf_get_gpio_dts_info(struct gf_device *gf_dev)
 		if (rc) {
 			gf_debug(ERR_LOG, "%s, Failed to request RESET GPIO. rc = %d\n", __func__, rc);
 			//return -1;
+		}else{
+			gpio_direction_output(gf_dev->reset_gpio, 0);
+			gf_hw_reset(gf_dev,0);
 		}
 	}
 	//gpio_direction_output(gf_dev->reset_gpio, 1);

@@ -69,7 +69,7 @@
         status = "okay";
         compatible = "gpio-keys";
         autorepeat;
-
+#if 0
         BACK {
             label = "GPIO Key Back";
             debounce-interval = <10>;
@@ -78,6 +78,7 @@
             linux,input-type = <EV_KEY>;
             linux,code = <KEY_BACK>;
         };
+		#endif
     };
 
     leds: gpio-leds {
@@ -89,14 +90,14 @@
             label = "led_r";
             retain-state-suspended;
         };
-
+#if 0
         led@2 {
             gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-charging-or-full";
             label = "led_g";
             default-state = "off";
         };
-
+#endif
     };
 
     hall_sensor: hall-wh2506d {
@@ -901,7 +902,7 @@
 			reg = <0x00>;
 			spi-max-frequency = <24000000>;
 			goodix,gpio_irq = <&gpio0 RK_PC2 IRQ_TYPE_EDGE_RISING>;
-			//goodix,gpio_reset = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
+			goodix,gpio_reset = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
 			status = "okay";
 		};
 };

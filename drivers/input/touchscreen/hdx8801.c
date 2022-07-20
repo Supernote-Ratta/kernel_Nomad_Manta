@@ -391,8 +391,8 @@ static inline void hdx_report(struct hdx_data *hdx)
  */
 static void hdx_msg_process(u8 *data_in,struct hdx_data *hdx)
 {
-	u8 keyCode = read_buf[HDX_DIG_STATUS];
-	__u16 pressure = (COORD_INTERPRET(read_buf[HDX_DIG_Z_HI], read_buf[HDX_DIG_Z_LOW]));
+	u8 keyCode = read_buf[2];
+	__u16 pressure = (COORD_INTERPRET(read_buf[8], read_buf[7]));
 	bool hover_enter = 0;
 
 	//last pressure is saved in hdx->p,and last key code is saved in hdx->w
@@ -434,9 +434,9 @@ static void hdx_msg_process(u8 *data_in,struct hdx_data *hdx)
 		input_event(hdx->dig_dev,EV_KEY,BTN_TOUCH,1);
 	}
 	input_sync(hdx->dig_dev);
-	hdx->x =  COORD_INTERPRET(read_buf[HDX_DIG_X_HI], read_buf[HDX_DIG_X_LOW]);
-	hdx->y =  COORD_INTERPRET(read_buf[HDX_DIG_Y_HI], read_buf[HDX_DIG_Y_LOW]);
-	hdx->w = read_buf[HDX_DIG_STATUS];
+	hdx->x =  COORD_INTERPRET(read_buf[4], read_buf[3]);
+	hdx->y =  COORD_INTERPRET(read_buf[6], read_buf[5]);
+	hdx->w = read_buf[2];
 	hdx->p = pressure;
 	hdx_report(hdx);
 	if(hover_enter){
