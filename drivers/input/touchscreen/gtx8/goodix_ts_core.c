@@ -24,8 +24,10 @@
 #include <linux/of_platform.h>
 #include <linux/completion.h>
 #include <linux/of_irq.h>
-#ifdef CONFIG_FB
 #include <linux/notifier.h>
+#include <linux/htfy_dbg.h>  // 20220720,hsl add.
+
+#ifdef CONFIG_FB
 #include <linux/fb.h>
 #endif
 
@@ -1644,91 +1646,158 @@ static void goodix_ts_release_connects(struct goodix_ts_core *core_data)
 	}
 }
 
+static void goodix_ts_stop_working(struct goodix_ts_core *core_data, bool stop)
+{
+    struct goodix_ext_module *ext_module, *next;
+	struct goodix_ts_device *ts_dev = core_data->ts_dev;
+	int r;
+    if(stop) {
+        /*
+    	 * notify suspend event, inform the esd protector
+    	 * and charger detector to turn off the work
+    	 */
+    	goodix_ts_blocking_notify(NOTIFY_SUSPEND, NULL);
+
+    	/* inform external module */
+    	mutex_lock(&goodix_modules.mutex);
+    	if (!list_empty(&goodix_modules.head)) {
+    		list_for_each_entry_safe(ext_module, next,
+    					 &goodix_modules.head, list) {
+    			if (!ext_module->funcs->before_suspend)
+    				continue;
+
+    			r = ext_module->funcs->before_suspend(core_data,
+    							      ext_module);
+    			if (r == EVT_CANCEL_SUSPEND) {
+    				mutex_unlock(&goodix_modules.mutex);
+    				ts_info("Canceled by module:%s",
+    					ext_module->name);
+    				goto stop_out;
+    			}
+    		}
+    	}
+    	mutex_unlock(&goodix_modules.mutex);
+
+    	/* disable irq */
+    	goodix_ts_irq_enable(core_data, false);
+
+    	/* let touch ic work in sleep mode */
+    	if (ts_dev && ts_dev->hw_ops->suspend)
+    		ts_dev->hw_ops->suspend(ts_dev);
+    	atomic_set(&core_data->suspended, 1);
+    	
+#ifdef CONFIG_PINCTRL
+    	if (core_data->pinctrl) {
+    		r = pinctrl_select_state(core_data->pinctrl,
+    				core_data->pin_sta_suspend);
+    		if (r < 0)
+    			ts_err("Failed to select active pinstate, r:%d", r);
+    	}
+#endif
+
+    	/* inform exteranl modules */
+    	mutex_lock(&goodix_modules.mutex);
+    	if (!list_empty(&goodix_modules.head)) {
+    		list_for_each_entry_safe(ext_module, next,
+    					 &goodix_modules.head, list) {
+    			if (!ext_module->funcs->after_suspend)
+    				continue;
+
+    			r = ext_module->funcs->after_suspend(core_data,
+    							     ext_module);
+    			if (r == EVT_CANCEL_SUSPEND) {
+    				mutex_unlock(&goodix_modules.mutex);
+    				ts_info("Canceled by module:%s",
+    					ext_module->name);
+    				goto stop_out;
+    			}
+    		}
+    	}
+    	mutex_unlock(&goodix_modules.mutex);
+stop_out:
+    	goodix_ts_release_connects(core_data);     	
+    	ts_info("Suspend end");
+    } else {
+        mutex_lock(&goodix_modules.mutex);
+    	if (!list_empty(&goodix_modules.head)) {
+    		list_for_each_entry_safe(ext_module, next,
+    					 &goodix_modules.head, list) {
+    			if (!ext_module->funcs->before_resume)
+    				continue;
+
+    			r = ext_module->funcs->before_resume(core_data,
+    							     ext_module);
+    			if (r == EVT_CANCEL_RESUME) {
+    				mutex_unlock(&goodix_modules.mutex);
+    				ts_err("Canceled by module:%s",
+    					ext_module->name);
+    				goto start_out;
+    			}
+    		}
+    	}
+    	mutex_unlock(&goodix_modules.mutex);
+
+#ifdef CONFIG_PINCTRL
+    	if (core_data->pinctrl) {
+    		r = pinctrl_select_state(core_data->pinctrl,
+    					 core_data->pin_sta_active);
+    		if (r < 0)
+    			ts_err("Failed to select active pinstate, r:%d", r);
+    	}
+#endif
+
+    	atomic_set(&core_data->suspended, 0);
+    	/* resume device */
+    	if (ts_dev && ts_dev->hw_ops->resume)
+    		ts_dev->hw_ops->resume(ts_dev);
+
+    	mutex_lock(&goodix_modules.mutex);
+    	if (!list_empty(&goodix_modules.head)) {
+    		list_for_each_entry_safe(ext_module, next,
+    					 &goodix_modules.head, list) {
+    			if (!ext_module->funcs->after_resume)
+    				continue;
+
+    			r = ext_module->funcs->after_resume(core_data,
+    							    ext_module);
+    			if (r == EVT_CANCEL_RESUME) {
+    				mutex_unlock(&goodix_modules.mutex);
+    				ts_err("Canceled by module:%s",
+    					ext_module->name);
+    				goto start_out;
+    			}
+    		}
+    	}
+    	mutex_unlock(&goodix_modules.mutex);
+
+    	/*
+    	 * notify resume event, inform the esd protector
+    	 * and charger detector to turn on the work
+    	 */
+    	ts_info("try notify resume");
+    	goodix_ts_blocking_notify(NOTIFY_RESUME, NULL);
+start_out:
+        goodix_ts_irq_enable(core_data, true);
+    	ts_debug("Resume end");
+    }
+}
+
 /**
  * goodix_ts_suspend - Touchscreen suspend function
  * Called by PM/FB/EARLYSUSPEN module to put the device to  sleep
  */
- extern bool fb_power_off(void);
 static int goodix_ts_suspend(struct goodix_ts_core *core_data)
 {
-	struct goodix_ext_module *ext_module, *next;
+	//struct goodix_ext_module *ext_module, *next;
 	struct goodix_ts_device *ts_dev = core_data->ts_dev;
-	int r;
-
-	ts_info("Suspend start");
-
-    goodix_ts_irq_enable(core_data, false);
-	if (device_may_wakeup(ts_dev->dev)) {
-		enable_irq_wake(core_data->irq);
+	//int r;
+	ts_info("Suspend start,fb_is_power_off=%d", fb_is_power_off());
+    if(!fb_is_power_off()) {
+        //goodix_ts_irq_enable(core_data, false);
+    	if (device_may_wakeup(ts_dev->dev)) {
+    		enable_irq_wake(core_data->irq);
+    	}
 	}
-
-return 0;
-	/*
-	 * notify suspend event, inform the esd protector
-	 * and charger detector to turn off the work
-	 */
-	goodix_ts_blocking_notify(NOTIFY_SUSPEND, NULL);
-
-	/* inform external module */
-	mutex_lock(&goodix_modules.mutex);
-	if (!list_empty(&goodix_modules.head)) {
-		list_for_each_entry_safe(ext_module, next,
-					 &goodix_modules.head, list) {
-			if (!ext_module->funcs->before_suspend)
-				continue;
-
-			r = ext_module->funcs->before_suspend(core_data,
-							      ext_module);
-			if (r == EVT_CANCEL_SUSPEND) {
-				mutex_unlock(&goodix_modules.mutex);
-				ts_info("Canceled by module:%s",
-					ext_module->name);
-				goto out;
-			}
-		}
-	}
-	mutex_unlock(&goodix_modules.mutex);
-
-	/* disable irq */
-	goodix_ts_irq_enable(core_data, false);
-
-	/* let touch ic work in sleep mode */
-	if (ts_dev && ts_dev->hw_ops->suspend)
-		ts_dev->hw_ops->suspend(ts_dev);
-	atomic_set(&core_data->suspended, 1);
-
-#ifdef CONFIG_PINCTRL
-	if (core_data->pinctrl) {
-		r = pinctrl_select_state(core_data->pinctrl,
-				core_data->pin_sta_suspend);
-		if (r < 0)
-			ts_err("Failed to select active pinstate, r:%d", r);
-	}
-#endif
-
-	/* inform exteranl modules */
-	mutex_lock(&goodix_modules.mutex);
-	if (!list_empty(&goodix_modules.head)) {
-		list_for_each_entry_safe(ext_module, next,
-					 &goodix_modules.head, list) {
-			if (!ext_module->funcs->after_suspend)
-				continue;
-
-			r = ext_module->funcs->after_suspend(core_data,
-							     ext_module);
-			if (r == EVT_CANCEL_SUSPEND) {
-				mutex_unlock(&goodix_modules.mutex);
-				ts_info("Canceled by module:%s",
-					ext_module->name);
-				goto out;
-			}
-		}
-	}
-	mutex_unlock(&goodix_modules.mutex);
-
-out:
-	goodix_ts_release_connects(core_data);
-	ts_info("Suspend end");
 	return 0;
 }
 
@@ -1738,113 +1807,42 @@ out:
  */
 static int goodix_ts_resume(struct goodix_ts_core *core_data)
 {
-	struct goodix_ext_module *ext_module, *next;
+	//struct goodix_ext_module *ext_module, *next;
 	struct goodix_ts_device *ts_dev =
 				core_data->ts_dev;
-	int r;
-
-	ts_info("Resume start");
-	goodix_ts_irq_enable(core_data, true);
-	if (device_may_wakeup(ts_dev->dev)) {
-        disable_irq_wake(core_data->irq);
+	//int r;
+    ts_info("Resume start,fb_is_power_off=%d", fb_is_power_off());
+    if(!fb_is_power_off()) {
+    	//goodix_ts_irq_enable(core_data, true);
+    	if (device_may_wakeup(ts_dev->dev)) {
+            disable_irq_wake(core_data->irq);
+        }
     }
-	return 0;
-
-	mutex_lock(&goodix_modules.mutex);
-	if (!list_empty(&goodix_modules.head)) {
-		list_for_each_entry_safe(ext_module, next,
-					 &goodix_modules.head, list) {
-			if (!ext_module->funcs->before_resume)
-				continue;
-
-			r = ext_module->funcs->before_resume(core_data,
-							     ext_module);
-			if (r == EVT_CANCEL_RESUME) {
-				mutex_unlock(&goodix_modules.mutex);
-				ts_info("Canceled by module:%s",
-					ext_module->name);
-				goto out;
-			}
-		}
-	}
-	mutex_unlock(&goodix_modules.mutex);
-
-#ifdef CONFIG_PINCTRL
-	if (core_data->pinctrl) {
-		r = pinctrl_select_state(core_data->pinctrl,
-					 core_data->pin_sta_active);
-		if (r < 0)
-			ts_err("Failed to select active pinstate, r:%d", r);
-	}
-#endif
-
-	atomic_set(&core_data->suspended, 0);
-	/* resume device */
-	if (ts_dev && ts_dev->hw_ops->resume)
-		ts_dev->hw_ops->resume(ts_dev);
-
-	mutex_lock(&goodix_modules.mutex);
-	if (!list_empty(&goodix_modules.head)) {
-		list_for_each_entry_safe(ext_module, next,
-					 &goodix_modules.head, list) {
-			if (!ext_module->funcs->after_resume)
-				continue;
-
-			r = ext_module->funcs->after_resume(core_data,
-							    ext_module);
-			if (r == EVT_CANCEL_RESUME) {
-				mutex_unlock(&goodix_modules.mutex);
-				ts_info("Canceled by module:%s",
-					ext_module->name);
-				goto out;
-			}
-		}
-	}
-	mutex_unlock(&goodix_modules.mutex);
-
-	goodix_ts_irq_enable(core_data, true);
-
-	/*
-	 * notify resume event, inform the esd protector
-	 * and charger detector to turn on the work
-	 */
-	ts_info("try notify resume");
-	goodix_ts_blocking_notify(NOTIFY_RESUME, NULL);
-out:
-	ts_debug("Resume end");
 	return 0;
 }
 
-#if 0//def CONFIG_FB
 /**
  * goodix_ts_fb_notifier_callback - Framebuffer notifier callback
  * Called by kernel during framebuffer blanck/unblank phrase
  */
-int goodix_ts_fb_notifier_callback(struct notifier_block *self,
+static int goodix_ts_fb_notifier_callback(struct notifier_block *self,
 	unsigned long event, void *data)
 {
 	struct goodix_ts_core *core_data =
 		container_of(self, struct goodix_ts_core, fb_notifier);
-	struct fb_event *fb_event = data;
-	ts_info("goodix_ts_fb_notifier_callback event:%d \n",event);
+    struct goodix_ts_device *ts_dev = core_data->ts_dev;
 
-	if (fb_event && fb_event->data && core_data) {
-		if (event == FB_EARLY_EVENT_BLANK) {
-			/* before fb blank */
-		} else if (event == FB_EVENT_BLANK) {
-			int *blank = fb_event->data;
-			//tanlq 220616 delete,because powerup run will cause  Unbalanced IRQ 89 wake disable
-			//if (*blank == FB_BLANK_UNBLANK)
-				//goodix_ts_resume(core_data);
-			//else
-				//if (*blank == FB_BLANK_POWERDOWN)
-				//goodix_ts_suspend(core_data); //usb-in sleep will suspend
-		}
+	//struct fb_event *fb_event = data;
+	ts_info("event:%d(SCREEN_OFF=%d)\n",event, EINK_NOTIFY_EVENT_SCREEN_OFF);
+
+	if (event == EINK_NOTIFY_EVENT_SCREEN_OFF) {
+        goodix_ts_stop_working(core_data, true);
+	} else if (event == EINK_NOTIFY_EVENT_SCREEN_ON) {
+		goodix_ts_stop_working(core_data, false);
 	}
 
-	return 0;
+	return NOTIFY_OK;
 }
-#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 /**
@@ -1966,10 +1964,11 @@ int goodix_ts_stage2_init(struct goodix_ts_core *core_data)
 	}
 	ts_info("success register irq");
 
-#if 0//def CONFIG_FB
+#if 1 //def CONFIG_FB
 	core_data->fb_notifier.notifier_call = goodix_ts_fb_notifier_callback;
-	if (fb_register_client(&core_data->fb_notifier))
-		ts_err("Failed to register fb notifier client:%d", r);
+	htfy_ebc_register_notifier(&core_data->fb_notifier);
+	//if (fb_register_client(&core_data->fb_notifier))
+	//	ts_err("Failed to register fb notifier client:%d", r);
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 	core_data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	core_data->early_suspend.resume = goodix_ts_lateresume;

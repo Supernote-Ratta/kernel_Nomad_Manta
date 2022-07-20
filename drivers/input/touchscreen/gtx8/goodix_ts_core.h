@@ -731,8 +731,8 @@ int goodix_ts_esd_init(struct goodix_ts_core *core);
 
 int goodix_ts_register_notifier(struct notifier_block *nb);
 
-int goodix_ts_fb_notifier_callback(struct notifier_block *self,
-			unsigned long event, void *data);
+//int goodix_ts_fb_notifier_callback(struct notifier_block *self,
+//			unsigned long event, void *data);
 
 void goodix_msg_printf(const char *fmt, ...);
 int goodix_bus_init(void);

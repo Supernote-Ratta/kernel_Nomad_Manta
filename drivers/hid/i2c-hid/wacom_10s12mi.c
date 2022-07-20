@@ -23,9 +23,11 @@
 #include <linux/regulator/consumer.h>
 #include <linux/platform_data/i2c-hid.h>
 #include <asm/unaligned.h>
-#include <linux/fb.h>
+//#include <linux/fb.h>
 #include <linux/notifier.h>
-#include "../../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
+#include <linux/htfy_dbg.h>  // 20220720,hsl add.
+
+//#include "../../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
 
 #include "../hid-ids.h"
 #include "i2c-hid.h"
@@ -73,6 +75,7 @@ struct wacom_pencil {
     struct notifier_block fb_notif;
     int(*pen_suspend)(struct wacom_pencil *);
     int(*pen_resume)(struct wacom_pencil *);
+    int     suspended;
     struct mutex fb_lock;
     u8 data[WACOM_QUERY_SIZE];
     __le16 wHIDDescRegister;                /* location of the i2c register of the HID descriptor. */
@@ -206,7 +209,7 @@ out:
 
 static irqreturn_t wacom_pendet_irq(int irq, void *dev_id)
 {
-    struct wacom_pencil *wpen = dev_id;
+    //struct wacom_pencil *wpen = dev_id;
     //int pendet_gpio_value = gpio_get_value(wpen->detect_gpio);
 
     wacom_dbg("entering %s\n", __func__);
@@ -640,13 +643,19 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long actio
 
     pen = container_of(self, struct wacom_pencil, fb_notif);
 
-    wacom_dbg("entering %s\n", __func__);
+    wacom_dbg("entering %s,action=%d\n", __func__, action);
 
     mutex_lock(&pen->fb_lock);
-    if (action == EBC_FB_BLANK) {
-        pen->pen_suspend(pen);
-    } else if (action == EBC_FB_UNBLANK) {
-        pen->pen_resume(pen);
+    if (action == EINK_NOTIFY_EVENT_SCREEN_OFF /*EBC_FB_BLANK*/) {
+        if(!pen->suspended) {
+            pen->pen_suspend(pen);
+            pen->suspended = true;
+        }
+    } else if (action == EINK_NOTIFY_EVENT_SCREEN_ON/*EBC_FB_UNBLANK*/) {
+        if(pen->suspended) {
+            pen->suspended = false;
+            pen->pen_resume(pen);
+        }
     }
     mutex_unlock(&pen->fb_lock);
 
@@ -702,7 +711,8 @@ static int wacom_pen_probe(struct i2c_client *client, const struct i2c_device_id
         memset(&wpen->fb_notif, 0, sizeof(struct notifier_block));
         wpen->fb_notif.notifier_call = fb_notifier_callback;
         mutex_init(&wpen->fb_lock);
-        ebc_register_notifier(&wpen->fb_notif);
+        //ebc_register_notifier(&wpen->fb_notif);
+        htfy_ebc_register_notifier(&wpen->fb_notif);
     }
 
     ret = input_init(wpen);
@@ -717,10 +727,10 @@ static int wacom_pen_probe(struct i2c_client *client, const struct i2c_device_id
 
     return 0;
 
-error_input:
-    if (wpen->input) {
-        input_free_device(wpen->input);
-    }
+//error_input:
+//    if (wpen->input) {
+//        input_free_device(wpen->input);
+//    }
 error_irq_init:
     free_irq(client->irq, wpen);
     free_irq(wpen->pendet_irq, wpen);

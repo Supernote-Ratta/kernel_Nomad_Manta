@@ -30,15 +30,17 @@
 #include <linux/freezer.h>
 #include <linux/of_gpio.h>
 #include <linux/sensor-dev.h>
-#include <linux/fb.h>
+//#include <linux/fb.h>
 #include <linux/notifier.h>
 #include <linux/rk_keys.h>
+#include <linux/suspend.h>
+#include <linux/htfy_dbg.h>  // 20220720,hsl add.
 
 struct wh2506d_para {
     struct device *dev;
-    struct notifier_block fb_notif;
+    //struct notifier_block fb_notif;
     struct mutex ops_lock;
-    int is_suspend;
+    //int is_suspend;
     int gpio_pin;
     int irq;
     int active_value;
@@ -48,6 +50,10 @@ static struct wh2506d_para *hall = NULL;
 static struct input_dev *sinput_dev;
 static int hall_gpio_value = 0xff;
 
+//extern bool     rk808_irq_wakeup;
+#define RK817_PWR_IRQ       61
+
+#if 0
 static int hall_fb_notifier_callback(struct notifier_block *self, unsigned long action, void *data)
 {
     struct wh2506d_para *wh2506d;
@@ -77,6 +83,24 @@ static int hall_fb_notifier_callback(struct notifier_block *self, unsigned long 
 
     return NOTIFY_OK;
 }
+#endif 
+
+static void hall_wh2506d_report_key(struct wh2506d_para *wh2506d, int gpio_value)
+{
+    if (gpio_value != wh2506d->active_value) {
+        input_report_key(sinput_dev, KEY_SLEEP, 1);
+        input_sync(sinput_dev);
+        input_report_key(sinput_dev, KEY_SLEEP, 0);
+        input_sync(sinput_dev);
+        printk("hall %s suspend ...\n", __func__);
+    } else if (gpio_value == wh2506d->active_value) {
+        input_report_key(sinput_dev, KEY_WAKEUP, 1);
+        input_sync(sinput_dev);
+        input_report_key(sinput_dev, KEY_WAKEUP, 0);
+        input_sync(sinput_dev);
+        printk("hall %s wakeup ...\n", __func__);
+    }
+}
 
 static irqreturn_t hall_wh2506d_interrupt(int irq, void *dev_id)
 {
@@ -85,25 +109,34 @@ static irqreturn_t hall_wh2506d_interrupt(int irq, void *dev_id)
 
     gpio_value = gpio_get_value(wh2506d->gpio_pin);
     if (hall_gpio_value != gpio_value) {
-        printk("hall %s gpio_value=%x,wh2506d->is_suspend=%d ...\n", __func__, gpio_value, wh2506d->is_suspend);
+        printk("hall %s gpio_value=%x...\n", __func__, gpio_value);
         hall_gpio_value = gpio_value;
-
-        if (gpio_value != wh2506d->active_value) {
-            input_report_key(sinput_dev, KEY_SLEEP, 1);
-            input_sync(sinput_dev);
-            input_report_key(sinput_dev, KEY_SLEEP, 0);
-            input_sync(sinput_dev);
-            printk("hall %s suspend ...\n", __func__);
-        } else if (gpio_value == wh2506d->active_value) {
-            input_report_key(sinput_dev, KEY_WAKEUP, 1);
-            input_sync(sinput_dev);
-            input_report_key(sinput_dev, KEY_WAKEUP, 0);
-            input_sync(sinput_dev);
-            printk("hall %s wakeup ...\n", __func__);
-        }
+        hall_wh2506d_report_key(wh2506d, gpio_value);
     }
 
     return IRQ_HANDLED;
+}
+
+static int hall_wh2506d_suspend(struct platform_device *dev, pm_message_t state)
+{
+    struct wh2506d_para *wh2506d = (struct wh2506d_para *)platform_get_drvdata(dev);
+    hall_gpio_value = gpio_get_value(wh2506d->gpio_pin);
+    //printk("entering %s,hall_gpio_value=%d\n", __func__, hall_gpio_value);
+
+    return 0;
+}
+
+static int hall_wh2506d_resume(struct platform_device *dev)
+{
+    struct wh2506d_para *wh2506d = (struct wh2506d_para *)platform_get_drvdata(dev);
+    int gpio_value = gpio_get_value(wh2506d->gpio_pin);
+    printk("entering %s,gpio_value=%d/%d,active=%d,wake_irq=%d,fb_off=%d\n", __func__, 
+        hall_gpio_value, gpio_value, wh2506d->active_value, pm_wakeup_irq, fb_is_power_off());
+    if(fb_is_power_off() && gpio_value == wh2506d->active_value
+        && (gpio_value != hall_gpio_value || RK817_PWR_IRQ != pm_wakeup_irq)){
+        hall_wh2506d_report_key(wh2506d, gpio_value);
+    }
+    return 0;
 }
 
 static int hall_wh2506d_probe(struct platform_device *pdev)
@@ -134,7 +167,7 @@ static int hall_wh2506d_probe(struct platform_device *pdev)
 
     of_property_read_u32(np, "hall-active", &hallactive);
     wh2506d->active_value = hallactive;
-    wh2506d->is_suspend = 0;
+    //wh2506d->is_suspend = 0;
     mutex_init(&wh2506d->ops_lock);
 
     ret = devm_gpio_request_one(wh2506d->dev, wh2506d->gpio_pin, GPIOF_DIR_IN, "hall_wh2506d");
@@ -151,8 +184,8 @@ static int hall_wh2506d_probe(struct platform_device *pdev)
     }
 
     enable_irq_wake(wh2506d->irq);
-    wh2506d->fb_notif.notifier_call = hall_fb_notifier_callback;
-    fb_register_client(&wh2506d->fb_notif);
+    //wh2506d->fb_notif.notifier_call = hall_fb_notifier_callback;
+    //fb_register_client(&wh2506d->fb_notif);
 
     hall = wh2506d;
 
@@ -172,21 +205,24 @@ static int hall_wh2506d_probe(struct platform_device *pdev)
         return ret;
     }
     sinput_dev = hall_key;
+    platform_set_drvdata(pdev, wh2506d);
     printk("hall_wh2506d_probe success.\n");
 
     return 0;
 }
 
-int hall_get_value(void)
+int is_hall_cover(void)
 {
-    int result = 0;
+    int gpio_value;
 
-    result = gpio_get_value(hall->gpio_pin);
-    printk("[hall_get_value] %s: result=%d\n", __func__, result);
-
-    return result;
+    gpio_value = gpio_get_value(hall->gpio_pin);
+    printk("[is_hall_cover]: gpio_value=%d,act_value=%d\n", gpio_value, hall->active_value);
+    if (gpio_value != hall->active_value){
+        return true;
+    }
+    return false;
 }
-EXPORT_SYMBOL(hall_get_value);
+EXPORT_SYMBOL(is_hall_cover);
 
 static const struct of_device_id hall_wh2506d_match[] = {
     { .compatible = "hall-wh2506d" },
@@ -195,6 +231,8 @@ static const struct of_device_id hall_wh2506d_match[] = {
 
 static struct platform_driver hall_wh2506d_driver = {
     .probe = hall_wh2506d_probe,
+    .suspend = hall_wh2506d_suspend,
+    .resume = hall_wh2506d_resume,
     .driver = {
         .name = "wh2506d",
         .owner = THIS_MODULE,
