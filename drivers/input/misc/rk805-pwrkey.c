@@ -19,22 +19,31 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
+// 20220720,hsl add.
+__weak int is_hall_cover(void) 
+{
+    printk("***weak: is_hall_cover\n");
+    return false;
+}
+
 static irqreturn_t pwrkey_fall_irq(int irq, void *_pwr)
 {
 	struct input_dev *pwr = _pwr;
 
-	input_report_key(pwr, KEY_POWER, 1);
-	input_sync(pwr);
-
+    if(!is_hall_cover()) {
+    	input_report_key(pwr, KEY_POWER, 1);
+    	input_sync(pwr);
+    }
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t pwrkey_rise_irq(int irq, void *_pwr)
 {
 	struct input_dev *pwr = _pwr;
-
-	input_report_key(pwr, KEY_POWER, 0);
-	input_sync(pwr);
+    if(!is_hall_cover()) {
+    	input_report_key(pwr, KEY_POWER, 0);
+    	input_sync(pwr);
+	}
 
 	return IRQ_HANDLED;
 }

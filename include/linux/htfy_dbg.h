@@ -64,6 +64,15 @@ typedef void (*touch_input) (struct input_dev *dev, int x, int y, int press, boo
 void register_touch_detect(touch_detect det_fun);
 void register_touch_input(touch_input input_fun);
 
+// 20220720: action when calling notifier_fn_t. data is null.
+#define EINK_NOTIFY_EVENT_SCREEN_OFF        2  // EBC_FB_BLANK
+#define EINK_NOTIFY_EVENT_SCREEN_ON         3  // EBC_FB_UNBLANK
+#define EINK_NOTIFY_TP_POWERON              1
+#define EINK_NOTIFY_TP_POWEROFF             0
+
+int htfy_ebc_register_notifier(struct notifier_block *nb);
+int htfy_ebc_unregister_notifier(struct notifier_block *nb);
+
 // 20200615: call directly instead of register_touch_detect.
 void ebc_set_tp_power(/*struct input_dev *dev,*/bool pen_on);
 

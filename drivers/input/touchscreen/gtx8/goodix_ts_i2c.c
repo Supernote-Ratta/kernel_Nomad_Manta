@@ -1622,12 +1622,13 @@ static int goodix_event_handler(struct goodix_ts_device *dev,
 		pre_read_len = IRQ_HEAD_LEN_NOR + BYTES_PER_COORD + 2;
 	r = goodix_i2c_read_trans(dev, dev->reg.coor,
 				  pre_buf, pre_read_len);
-	if (unlikely(r < 0))
+	if (unlikely(r < 0)) {
+	    ts_err("irq head goodix_i2c_read_trans:ret=%d", r);
 		return r;
-
+    }
 	if (dev->ic_type == IC_TYPE_YELLOWSTONE &&
 	    checksum_u8_ys(pre_buf, IRQ_HEAD_LEN_YS)) {
-		ts_debug("irq head checksum error %*ph",
+		ts_err("irq head checksum error %*ph",
 			IRQ_HEAD_LEN_YS, pre_buf);
 		return -EINVAL;
 	}
@@ -1653,9 +1654,9 @@ static int goodix_event_handler(struct goodix_ts_device *dev,
 	} else if ((event_sta & GOODIX_HOTKNOT_EVENT) ==
 		   GOODIX_HOTKNOT_EVENT) {
 		/* handle hotknot event */
-		ts_debug("Hotknot event");
+		ts_err("Hotknot event");
 	} else {
-		ts_debug("unknow event type:0x%x", event_sta);
+		ts_err("unknow event type:0x%x", event_sta);
 		r = -EINVAL;
 	}
 
