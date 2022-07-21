@@ -834,7 +834,7 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 	temp_value |= rk817_bat_field_read(battery, BAT_TS_L);
 	temp_value1 |= rk817_bat_field_read(battery, REGE9);
 	adc_to_vol = temp_value * 1200 / 65536;
-	adc_to_vol -= (31/2) * battery->current_avg / 1000;
+	adc_to_vol -= (33/2) * battery->current_avg / 1000;
 	printk("rk817_bat_get_temp:adc=%d adcv=%d templimit:0x%2x size:%d\n",temp_value,adc_to_vol,temp_value1,battery->pdata->temp_size);
 	if((battery->pdata->temp_size==0)||(battery->pdata->tempn_size==0)){
 		return 250;
@@ -861,13 +861,15 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 	if(adc_avg > battery->pdata->tempadc_table[0]){  //temperatrue < 0
 		for(i=0;i<battery->pdata->tempn_size;i++){
 			if(adc_avg < battery->pdata->tempnadc_table[i]){
-				return -i*10;
+				//return -i*10;
+                return -i*10+20;//tanlq 220721 ntc add 33Ω
 			}
 		}
 	}else{
 		for(i=1;i<battery->pdata->temp_size;i++){ //temperatrue > 0
 			if(adc_avg > battery->pdata->tempadc_table[i]){
-				return (i-1)*10;
+				//return (i-1)*10;
+                return (i-1)*10+20;//tanlq 220721 ntc add 33Ω
 		}
 	}
 			}
