@@ -13,6 +13,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/usb/tcpm.h>
 #include <linux/regmap.h>
+#include <linux/suspend.h>
 #include "tcpci.h"
 
 #define ET7303_VID		0x6DCF
@@ -83,14 +84,12 @@ static int et7303_init(struct tcpci *tcpci, struct tcpci_data *tdata)
 	struct et7303_chip *chip = tdata_to_et7303(tdata);
 
 	/* CK 300K from 320K, shipping off, auto_idle enable, tout = 32ms */
-	ret = et7303_write8(chip, ET7303_RTCTRL8,
-			     ET7303_RTCTRL8_SET(0, 1, 1, 2));
+	ret = et7303_write8(chip, ET7303_RTCTRL8, ET7303_RTCTRL8_SET(0, 1, 1, 2));
 	if (ret < 0)
 		return ret;
 
 	/* I2C reset : (val + 1) * 12.5ms */
-	ret = et7303_write8(chip, ET7303_RTCTRL11,
-			     ET7303_RTCTRL11_SET(1, 0x0F));
+	ret = et7303_write8(chip, ET7303_RTCTRL11, ET7303_RTCTRL11_SET(1, 0x0F));
 	if (ret < 0)
 		return ret;
 
@@ -163,6 +162,7 @@ static irqreturn_t et7303_irq(int irq, void *dev_id)
 	u8 status;
 	struct et7303_chip *chip = dev_id;
 
+	//printk("ljc:---->%s\n",__func__);
 	ret = et7303_read16(chip, TCPC_ALERT, &alert);
 	if (ret < 0)
 		goto out;
@@ -189,6 +189,7 @@ static int et7303_sw_reset(struct et7303_chip *chip)
 		return ret;
 
 	usleep_range(1000, 2000);
+	//printk("ljc:---->%s\n",__func__);
 	return 0;
 }
 
@@ -278,6 +279,37 @@ static const struct i2c_device_id et7303_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, et7303_id);
 
+static int et7303_pm_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int et7303_pm_resume(struct device *dev)
+{
+	struct et7303_chip *chip = dev->driver_data;
+	if (mem_sleep_current == PM_SUSPEND_MEM_ULTRA) {
+		//printk("ljc:---->%s:PM_SUSPEND_MEM_ULTRA\n",__func__);
+		et7303_sw_reset(chip);
+
+		/*----from et7303_init----*/
+		/* CK 300K from 320K, shipping off, auto_idle enable, tout = 32ms */
+		et7303_write8(chip, ET7303_RTCTRL8, ET7303_RTCTRL8_SET(0, 1, 1, 2));
+
+		/* I2C reset : (val + 1) * 12.5ms */
+		et7303_write8(chip, ET7303_RTCTRL11, ET7303_RTCTRL11_SET(1, 0x0F));
+
+		/* tTCPCfilter : (26.7 * val) us */
+		et7303_write8(chip, ET7303_RTCTRL14, 0x0F);
+
+		/*  tDRP : (51.2 + 6.4 * val) ms */
+		et7303_write8(chip, ET7303_RTCTRL15, 0x04);
+
+		/* dcSRC.DRP : 33% */
+		et7303_write16(chip, ET7303_RTCTRL16, 330);
+	}
+	return 0;
+}
+
 #ifdef CONFIG_OF
 static const struct of_device_id et7303_of_match[] = {
 	{ .compatible = "etek,et7303", },
@@ -286,9 +318,15 @@ static const struct of_device_id et7303_of_match[] = {
 MODULE_DEVICE_TABLE(of, et7303_of_match);
 #endif
 
+static const struct dev_pm_ops et7303_pm_ops = {
+	.suspend = et7303_pm_suspend,
+	.resume = et7303_pm_resume,
+};
+
 static struct i2c_driver et7303_i2c_driver = {
 	.driver = {
 		.name = "et7303",
+		.pm = &et7303_pm_ops,
 		.of_match_table = of_match_ptr(et7303_of_match),
 	},
 	.probe = et7303_probe,

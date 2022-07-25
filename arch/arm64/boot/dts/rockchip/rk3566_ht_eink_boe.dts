@@ -119,7 +119,7 @@
     };
 
     rk817_sound: rk817-sound {
-        status = "disabled";
+        status = "okay";
         compatible = "simple-audio-card";
         simple-audio-card,format = "i2s";
         simple-audio-card,name = "rockchip,rk817-codec";
@@ -687,7 +687,7 @@
             chrg_finish_cur = <180>;
             virtual_power = <0>;
             dc_det_adc = <0>;
-            extcon = <&usb2phy0>;
+            extcon = <&usbc0>;
             gate_function_disable = <1>;
         };
 
@@ -754,7 +754,7 @@
     };
 
     usbc0: et7303@4e {
-        status = "disabled";
+        status = "okay";
         compatible = "etek,et7303";
         reg = <0x4e>;
         interrupt-parent = <&gpio0>;
@@ -1197,12 +1197,12 @@
 
 &usb2phy0 {
     status = "okay";
-    //extcon = <&usbc0>;
+    extcon = <&usbc0>;
 };
 
 &usbdrd_dwc3 {
     status = "okay";
-    //extcon = <&usbc0>;
+    extcon = <&usbc0>;
 };
 
 &usbdrd30 {

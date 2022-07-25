@@ -3801,7 +3801,9 @@ static void run_state_machine(struct tcpm_port *port)
 		if ((port->cc1 == TYPEC_CC_OPEN &&
 		     port->cc2 != TYPEC_CC_OPEN) ||
 		    (port->cc1 != TYPEC_CC_OPEN &&
-		     port->cc2 == TYPEC_CC_OPEN))
+		     port->cc2 == TYPEC_CC_OPEN) ||
+		    (port->cc1 != TYPEC_CC_OPEN &&
+		     port->cc2 != TYPEC_CC_OPEN))
 			tcpm_set_state(port, SNK_DEBOUNCED,
 				       PD_T_CC_DEBOUNCE);
 		else if (tcpm_port_is_disconnected(port))
@@ -4505,7 +4507,8 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 		if (tcpm_port_is_debug(port) || tcpm_port_is_audio(port) ||
 		    tcpm_port_is_source(port))
 			tcpm_set_state(port, SRC_ATTACH_WAIT, 0);
-		else if (tcpm_port_is_sink(port))
+		else if (tcpm_port_is_sink(port) ||
+				(tcpm_cc_is_sink((port)->cc1) && tcpm_cc_is_sink((port)->cc2)))
 			tcpm_set_state(port, SNK_ATTACH_WAIT, 0);
 		break;
 	case SRC_UNATTACHED:
