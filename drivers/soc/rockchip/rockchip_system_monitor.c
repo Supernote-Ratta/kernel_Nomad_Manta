@@ -28,6 +28,7 @@
 #include "../../devfreq/governor.h"
 
 #include "../../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
+#include <linux/htfy_dbg.h>
 
 #define CPU_REBOOT_FREQ		816000 /* kHz */
 #define VIDEO_1080P_SIZE	(1920 * 1080)
@@ -1554,7 +1555,7 @@ static int rockchip_system_monitor_probe(struct platform_device *pdev)
 	if (fb_register_client(&rockchip_monitor_fb_nb))
 		dev_err(dev, "failed to register fb nb\n");
 
-	ebc_register_notifier(&rockchip_monitor_ebc_nb);
+	htfy_ebc_register_notifier(&rockchip_monitor_ebc_nb);
 
 	dev_info(dev, "system monitor probe\n");
 
