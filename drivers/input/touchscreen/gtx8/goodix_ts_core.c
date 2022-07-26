@@ -1836,10 +1836,15 @@ static int goodix_ts_fb_notifier_callback(struct notifier_block *self,
 	ts_info("event:%d(SCREEN_OFF=%d)\n",event, EINK_NOTIFY_EVENT_SCREEN_OFF);
 
 	if (event == EINK_NOTIFY_EVENT_SCREEN_OFF) {
-        goodix_ts_stop_working(core_data, true);
+        goodix_ts_stop_working(core_data, true/*stop*/);
 	} else if (event == EINK_NOTIFY_EVENT_SCREEN_ON) {
 		goodix_ts_stop_working(core_data, false);
+	} else if(event == EINK_NOTIFY_TP_POWEROFF) {
+	    goodix_ts_irq_enable(core_data, false);
+	} else if(EINK_NOTIFY_TP_POWERON == event){
+	    goodix_ts_irq_enable(core_data, true);
 	}
+	
 
 	return NOTIFY_OK;
 }

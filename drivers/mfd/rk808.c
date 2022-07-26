@@ -1549,7 +1549,35 @@ static int __maybe_unused rk8xx_resume(struct device *dev)
 	}
 	return ret;
 }
+
+#if 0
+static int rk8xx_resume_early(struct device *dev)
+{
+    int value;
+	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
+	regmap_read(rk808->regmap, RK817_SYS_STS, &value);
+
+    // 20220723:按power唤醒，值是 0X02, hall 唤醒: 0x82, WIFI唤醒：0x82.
+	dev_err(dev, "rk8xx_resume_early: SYS_STS=0x%02x\n", value);
+	if(value&0x80) {
+	    rk817_hall_irq_wakeup = true;
+	}
+	return 0;
+}
+
+const struct dev_pm_ops rk8xx_pm_ops = {
+    .suspend = rk8xx_suspend,
+	.resume = rk8xx_resume,
+	.freeze = rk8xx_suspend,
+	.thaw = rk8xx_resume,
+	.poweroff = rk8xx_suspend,
+	.restore = rk8xx_resume,
+	.resume_early = rk8xx_resume_early,
+};
+#else 
+
 SIMPLE_DEV_PM_OPS(rk8xx_pm_ops, rk8xx_suspend, rk8xx_resume);
+#endif 
 
 static struct i2c_driver rk808_i2c_driver = {
 	.driver = {

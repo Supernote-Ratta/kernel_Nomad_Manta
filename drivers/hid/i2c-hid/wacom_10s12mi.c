@@ -209,16 +209,21 @@ out:
 
 static irqreturn_t wacom_pendet_irq(int irq, void *dev_id)
 {
-    //struct wacom_pencil *wpen = dev_id;
-    //int pendet_gpio_value = gpio_get_value(wpen->detect_gpio);
+    // 20220723：如果落笔把TP关闭，由于input-dispatch没有优化，会导致触摸无响应。
+    // 如果关闭TP，可以降低手写时候的整机功耗。
+#if 0
+    struct wacom_pencil *wpen = dev_id;
+    int pendet_gpio_value = gpio_get_value(wpen->detect_gpio);
 
-    wacom_dbg("entering %s\n", __func__);
+    wacom_dbg("entering %s,gpio_value=%d,det_level=%d\n", __func__,
+        pendet_gpio_value, wpen->detect_level);
+    ebc_set_tp_power(pendet_gpio_value == wpen->detect_level);
     // if (pendet_gpio_value) {
     //     irq_set_irq_type(wpen->pendet_irq, IRQ_TYPE_LEVEL_LOW);
     // } else {
     //     irq_set_irq_type(wpen->pendet_irq, IRQ_TYPE_LEVEL_HIGH);
     // }
-
+#endif     
     return IRQ_HANDLED;
 }
 
@@ -407,7 +412,8 @@ static int wacom_pen_init_detirq(struct i2c_client *client)
         return ret;
     }
 
-    ret = devm_request_threaded_irq(&client->dev, wpen->pendet_irq, NULL, wacom_pendet_irq, IRQF_TRIGGER_LOW | IRQF_ONESHOT, "wacom-pendet", wpen);
+    ret = devm_request_threaded_irq(&client->dev, wpen->pendet_irq, NULL, wacom_pendet_irq,
+        IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING|IRQF_ONESHOT, "wacom-pendet", wpen);
     if (ret < 0) {
         dev_err(&client->dev, "Could not register for %s interrupt, irq=%d, ret=%d\n", "wacom-pendet", wpen->pendet_irq, ret);
         return ret;
@@ -618,9 +624,10 @@ static int wacom_pen_early_suspend(struct wacom_pencil *wpen)
 {
     struct i2c_client *client = wpen->client;
 
-    wacom_dbg("entering %s\n", __func__);
+    wacom_dbg("**entering %s\n", __func__);
 
     disable_irq(client->irq);
+    disable_irq(wpen->pendet_irq);
 
     return 0;
 }
@@ -629,10 +636,11 @@ static int wacom_pen_late_resume(struct wacom_pencil *wpen)
 {
     struct i2c_client *client = wpen->client;
 
-    wacom_dbg("entering %s\n", __func__);
+    wacom_dbg("**entering %s\n", __func__);
 
     wacom_chip_power(client);
     enable_irq(client->irq);
+    enable_irq(wpen->pendet_irq);
 
     return 0;
 }
@@ -771,11 +779,13 @@ static int wacom_pen_suspend(struct device *dev)
     struct i2c_client *client = to_i2c_client(dev);
     struct wacom_pencil *wpen = i2c_get_clientdata(client);
 
-    wacom_dbg("entering %s\n", __func__);
+    wacom_dbg("entering %s,suspended=%d\n", __func__, wpen->suspended);
 
-    disable_irq(client->irq);
-    if (device_may_wakeup(dev)) {
-        enable_irq_wake(wpen->pendet_irq);
+    if(!wpen->suspended) {
+        //disable_irq(client->irq);
+        if (device_may_wakeup(dev)) {
+            enable_irq_wake(wpen->pendet_irq);
+        }
     }
 
     return 0;
@@ -788,9 +798,11 @@ static int wacom_pen_resume(struct device *dev)
 
     wacom_dbg("entering %s\n", __func__);
 
-    enable_irq(client->irq);
-    if (device_may_wakeup(dev)) {
-        disable_irq_wake(wpen->pendet_irq);
+    if(!wpen->suspended) {
+        //enable_irq(client->irq);
+        if (device_may_wakeup(dev)) {
+            disable_irq_wake(wpen->pendet_irq);
+        }
     }
 
     return 0;

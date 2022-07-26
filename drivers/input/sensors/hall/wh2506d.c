@@ -44,14 +44,19 @@ struct wh2506d_para {
     int gpio_pin;
     int irq;
     int active_value;
+
+    
+    int last_gpio_value;
+    int irq_handled;
 };
 
 static struct wh2506d_para *hall = NULL;
 static struct input_dev *sinput_dev;
-static int hall_gpio_value = 0xff;
 
-//extern bool     rk808_irq_wakeup;
-#define RK817_PWR_IRQ       61
+// 20220723: 只判断 POWER 的 IRQ会有问题。deep-sleep 的情况下，WIFI/BT的唤醒
+// 也会导致系统闪屏。此处需要修改。
+extern bool     rk817_hall_irq_wakeup;
+#define HALL_FG_IRQ         59
 
 #if 0
 static int hall_fb_notifier_callback(struct notifier_block *self, unsigned long action, void *data)
@@ -108,11 +113,12 @@ static irqreturn_t hall_wh2506d_interrupt(int irq, void *dev_id)
     int gpio_value = 0;
 
     gpio_value = gpio_get_value(wh2506d->gpio_pin);
-    if (hall_gpio_value != gpio_value) {
+    if (wh2506d->last_gpio_value != gpio_value) {
         printk("hall %s gpio_value=%x...\n", __func__, gpio_value);
-        hall_gpio_value = gpio_value;
+        wh2506d->last_gpio_value = gpio_value;
         hall_wh2506d_report_key(wh2506d, gpio_value);
     }
+    wh2506d->irq_handled = true;
 
     return IRQ_HANDLED;
 }
@@ -120,7 +126,8 @@ static irqreturn_t hall_wh2506d_interrupt(int irq, void *dev_id)
 static int hall_wh2506d_suspend(struct platform_device *dev, pm_message_t state)
 {
     struct wh2506d_para *wh2506d = (struct wh2506d_para *)platform_get_drvdata(dev);
-    hall_gpio_value = gpio_get_value(wh2506d->gpio_pin);
+    //hall_gpio_value = gpio_get_value(wh2506d->gpio_pin);
+    wh2506d->irq_handled = false;
     //printk("entering %s,hall_gpio_value=%d\n", __func__, hall_gpio_value);
 
     return 0;
@@ -130,10 +137,13 @@ static int hall_wh2506d_resume(struct platform_device *dev)
 {
     struct wh2506d_para *wh2506d = (struct wh2506d_para *)platform_get_drvdata(dev);
     int gpio_value = gpio_get_value(wh2506d->gpio_pin);
-    printk("entering %s,gpio_value=%d/%d,active=%d,wake_irq=%d,fb_off=%d\n", __func__, 
-        hall_gpio_value, gpio_value, wh2506d->active_value, pm_wakeup_irq, fb_is_power_off());
+    printk("entering %s,gpio_value=%d/%d,active=%d,wake_irq=%d,whirq=%d,fb_off=%d,irq_handled=%d\n", __func__, 
+        wh2506d->last_gpio_value, gpio_value, wh2506d->active_value, pm_wakeup_irq, 
+        wh2506d->irq, fb_is_power_off(), wh2506d->irq_handled);
     if(fb_is_power_off() && gpio_value == wh2506d->active_value
-        && (gpio_value != hall_gpio_value || RK817_PWR_IRQ != pm_wakeup_irq)){
+        && !wh2506d->irq_handled 
+        && (gpio_value != wh2506d->last_gpio_value || // rk817_hall_irq_wakeup
+            HALL_FG_IRQ == pm_wakeup_irq || wh2506d->irq == pm_wakeup_irq)){
         hall_wh2506d_report_key(wh2506d, gpio_value);
     }
     return 0;
@@ -149,7 +159,7 @@ static int hall_wh2506d_probe(struct platform_device *pdev)
     int ret = 0;
     struct input_dev *hall_key;
 
-    printk("hall %s init ...\n", __func__);
+    //printk("hall %s init ...\n", __func__);
 
     wh2506d = devm_kzalloc(&pdev->dev, sizeof(*wh2506d), GFP_KERNEL);
     if (!wh2506d) {
@@ -176,6 +186,7 @@ static int hall_wh2506d_probe(struct platform_device *pdev)
         return ret;
     }
     gpio_value = gpio_get_value(wh2506d->gpio_pin);
+    wh2506d->last_gpio_value = gpio_value;
 
     ret = devm_request_threaded_irq(wh2506d->dev, wh2506d->irq, NULL, hall_wh2506d_interrupt, irq_flags | IRQF_NO_SUSPEND | IRQF_ONESHOT, "hall_wh2506d", wh2506d);
     if (ret < 0) {
