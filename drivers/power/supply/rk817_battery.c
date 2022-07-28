@@ -862,14 +862,14 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 		for(i=0;i<battery->pdata->tempn_size;i++){
 			if(adc_avg < battery->pdata->tempnadc_table[i]){
 				//return -i*10;
-                return -i*10+20;//tanlq 220721 ntc add 33Ω
+                return -i*10;//
 			}
 		}
 	}else{
 		for(i=1;i<battery->pdata->temp_size;i++){ //temperatrue > 0
 			if(adc_avg > battery->pdata->tempadc_table[i]){
 				//return (i-1)*10;
-                return (i-1)*10+20;//tanlq 220721 ntc add 33Ω
+                return (i-1)*10;//
 		}
 	}
 			}
