@@ -684,7 +684,7 @@
             max_chrg_current = <2000>;
             max_chrg_voltage = <4400>;
             chrg_term_mode = <1>;
-            chrg_finish_cur = <180>;
+            chrg_finish_cur = <200>;
             virtual_power = <0>;
             dc_det_adc = <0>;
             extcon = <&usbc0>;
