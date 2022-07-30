@@ -1061,6 +1061,11 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 					cable = EXTCON_CHG_USB_DCP;
 					sch_work = true;
 					break;
+				case POWER_SUPPLY_TYPE_USB_FLOATING:
+					dev_dbg(&rport->phy->dev, "float is connected\n");
+					cable = EXTCON_CHG_USB_SLOW;
+					sch_work = true;
+					break;
 				case POWER_SUPPLY_TYPE_USB_CDP:
 					dev_dbg(&rport->phy->dev, "cdp cable is connected\n");
 					wake_lock(&rport->wakelock);
@@ -1166,6 +1171,8 @@ static const char *chg_to_string(enum power_supply_type chg_type)
 		return "USB_DCP_CHARGER";
 	case POWER_SUPPLY_TYPE_USB_CDP:
 		return "USB_CDP_CHARGER";
+	case POWER_SUPPLY_TYPE_USB_FLOATING:
+		return "USB_FLOATING_CHARGER";
 	default:
 		return "INVALID_CHARGER";
 	}
@@ -1256,13 +1263,17 @@ static void rockchip_chg_detect_work(struct work_struct *work)
 		rockchip_chg_enable_primary_det(rphy, false);
 		if (vout) {
 			/* Voltage Source on DM, Probe on DP  */
+			dev_dbg(&rport->phy->dev, "chg detection work Voltage Source on DM, Probe on DP\n");
 			rockchip_chg_enable_secondary_det(rphy, true);
 			delay = CHG_SECONDARY_DET_TIME;
 			rphy->chg_state = USB_CHG_STATE_PRIMARY_DONE;
 		} else {
 			if (rphy->dcd_retries == CHG_DCD_MAX_RETRIES) {
 				/* floating charger found */
-				rphy->chg_type = POWER_SUPPLY_TYPE_USB_DCP;
+			// tanlq 220730 add floating line
+				dev_dbg(&rport->phy->dev, "chg detection work floating charger found\n");
+				//rphy->chg_type = POWER_SUPPLY_TYPE_USB_DCP;
+				rphy->chg_type = POWER_SUPPLY_TYPE_USB_FLOATING;
 				rphy->chg_state = USB_CHG_STATE_DETECTED;
 				delay = 0;
 			} else {

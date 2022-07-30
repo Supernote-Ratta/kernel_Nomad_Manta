@@ -422,6 +422,7 @@ enum power_supply_type {
 	POWER_SUPPLY_TYPE_USB,			/* Standard Downstream Port */
 	POWER_SUPPLY_TYPE_USB_DCP,		/* Dedicated Charging Port */
 	POWER_SUPPLY_TYPE_USB_CDP,		/* Charging Downstream Port */
+	POWER_SUPPLY_TYPE_USB_FLOATING,
 	POWER_SUPPLY_TYPE_USB_ACA,		/* Accessory Charger Adapters */
 	POWER_SUPPLY_TYPE_USB_TYPE_C,		/* Type C Port */
 	POWER_SUPPLY_TYPE_USB_PD,		/* Power Delivery Port */
