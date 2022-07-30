@@ -748,9 +748,7 @@ static int hdx_probe(struct i2c_client *client, const struct i2c_device_id *ids)
 
 	#if UPDATE_ENABLE
 	  if(check_update())
-		 #if EMR_PRINTK_ENABLE
 			printk( "-------HDX EMR Device¡®s FW is latest version!!!!\n" );
-		#endif
 	  else
 	  {
 		  #if EMR_PRINTK_ENABLE
