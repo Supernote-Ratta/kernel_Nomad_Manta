@@ -115,210 +115,312 @@ static struct i2c_driver hdx_driver;
 	* @return      None
 	* @details     int
 	*/
-	int ReadFirmwareVersion(void)
-	{
-    int err,i = 5;
-    memset(ver_buf, 0, sizeof(ver_buf));	
-    ver_flag = 1;
-    command_flag = 1;
-    err = i2c_smbus_write_i2c_block_data(private_ts->client, 0, COMMAND_BYTE, command_list[3]);
-    mdelay(20);
-    if(err < 0)
-    {
-        ver_flag = 0;
-        command_flag = 1;
-        #if (HDX_DEBUG)
-        	printk("[Driver ]i2c_smbus_write_i2c_block_data error!!!!!%d\n",__LINE__);
-        #endif
-    }
+//------------------------------以下是设备更新相关部分-----------------
+	#define UPDATE_ENABLE		1
 
-    err = i2c_smbus_read_i2c_block_data(private_ts->client, 0, 8, ver_buf);
-    if(err < 0)
-    {
-        printk("[Driver ]ReadFirmwareVersion error!!!!!%d\n",__LINE__);
-    }
-    mdelay(200);	
-		while( (ver_buf[5] == 0) && (ver_buf[6] == 0) && i--)
-		{
-			i2c_smbus_write_i2c_block_data(private_ts->client, 0, COMMAND_BYTE, command_list[3]);
-			mdelay(10);
-			i2c_smbus_read_i2c_block_data(private_ts->client, 0, 8, ver_buf);	
-			mdelay(10);
-		}
-		#if (HDX_DEBUG)
-       	printk("====hdx8801 Version buf = %02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x===\n", ver_buf[0], ver_buf[1],ver_buf[2],ver_buf[3],ver_buf[4],ver_buf[5],ver_buf[6],ver_buf[7]);	    
-		#endif
-		if((ver_buf[0] == 0x0e)&&(ver_buf[1] == 0x48)&&(ver_buf[2] == 0x44)&&(ver_buf[3] == 0x58)&&(ver_buf[6] == 0x10)&&(ver_buf[7] == 0x01))
-    {
-        printk("[Driver ] Already in boot mode!!\n");
-        boot_flag = 1;
-        return 1;
-    }
-		if( (ver_buf[7] == 0) && (ver_buf[6] == 0))
-		{
+	#define DEV_VID  			0x0ed1
+	#define DFU_PID  			0xabcd
+	#define APP_PID  			0x7810
+	
+	#define EMR_PRINTK_ENABLE	0
+	#define DFU_MODE  			0xabcd
+	#define APP_MODE  			0x7800
+	#define INIT_MODE		 	0x0
+	#define DEV_CONNECTED 		1
+	#define DEV_DISCONNECTED	0
+	
+	#define CMD_VPID_INDEX		0x02
+	#define CMD_VER_INDEX		0x03
+	#define CMD_TODFU_INDEX		0x04
+	#define CMD_TOAPP_INDEX		0x05
+	
+	#define FLASH_PAGE			128
+	struct hdx_dev
+	{
+		__u16 	vid;
+		__u16 	pid;
+		__u16 	ver;
+		__u16 dfu_app_flag;
+		int dev_connect;
+	};
+	static struct hdx_dev hdx_device;
+	/**
+	* @brief       check_update
+	* @param       None
+	* @return      None
+	* @details     int
+	*/
+	static int get_hdx_devinfo(void)
+	{//获取hdx设备信息 vid pid ver
+		int ret;
+		char cmd[6] = {0x06, 0xa1, 0x00, 0x70, 0x46, 0x02};//获取VID PID
+		char info[6]= {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+		//获取设备VID PID
+		cmd[5] = CMD_VPID_INDEX;
+		struct i2c_msg msgs[] = {
+			{
+				.addr = private_ts->client->addr,
+				.flags = !I2C_M_RD,
+				.len = sizeof(cmd),
+				.buf = cmd,
+			},
+			{
+				.addr = private_ts->client->addr,
+				.flags = I2C_M_RD,
+				.len = sizeof(info),
+				.buf = info,
+			},
+		};
+		ret = i2c_transfer(private_ts->client->adapter, msgs, ARRAY_SIZE(msgs));
 		
-        printk("=====[Driver ]ReadFirmwareVersion error!!!!!%d\n",__LINE__);
+		#if EMR_PRINTK_ENABLE
+			printk(" Read Ack: %4x,%4x,%4x,%4x,%4x\n", info[1], info[2], info[3], info[4], info[5]);
+		#endif
+		
+		if (ret < 0)
+			return -1;
+		if (ret != ARRAY_SIZE(msgs))
+			return -EIO;
+		hdx_device.vid =  COORD_INTERPRET(info[2], info[3]);
+		hdx_device.pid =  COORD_INTERPRET(info[4], info[5]);
+		#if EMR_PRINTK_ENABLE
+			printk(" hdx_device info1--> vid:%4x,pid:%4x\n", hdx_device.vid, hdx_device.pid);
+		#endif
+		//获取Ver
+		mdelay(20);
+		cmd[5] = CMD_VER_INDEX;
+		ret = i2c_transfer(private_ts->client->adapter, msgs, ARRAY_SIZE(msgs));
+		#if EMR_PRINTK_ENABLE
+			printk(" Read Ack: %4x,%4x,%4x,%4x,%4x\n", info[1], info[2], info[3], info[4], info[5]);
+		#endif
+		if (ret < 0)
+			return -1;
+		if (ret != ARRAY_SIZE(msgs))
+			return -EIO;
+		hdx_device.ver =  COORD_INTERPRET(info[4], info[5]);
+		
+		#if EMR_PRINTK_ENABLE
+			printk(" hdx_device info2--> ver:%4x\n", hdx_device.ver);
+		#endif
+		//
+		if(hdx_device.vid == DEV_VID)
+		{//华鼎星设备
+			#if EMR_PRINTK_ENABLE
+				printk("\n THE Device is HDX EMR Device!!\n");
+			#endif
+			hdx_device.dev_connect = DEV_CONNECTED;
+			if(hdx_device.pid == DFU_PID)
+			{
+				#if EMR_PRINTK_ENABLE
+					printk("\n Device in DFU mode!!\n");
+				#endif
+				hdx_device.dfu_app_flag = DFU_MODE;
+			}
+			else if(hdx_device.pid == APP_PID)
+			{
+				#if EMR_PRINTK_ENABLE
+					printk("\n Device is BOE10.3 Inch EMR!!\n");
+				#endif
+				hdx_device.dfu_app_flag = APP_MODE;
+			}
 			return 0;
 		}
 		else
 		{
-		printk("=====[Driver ]ReadFirmwareVersion6=0x%x 7=0x%x!!!!!%d\n",ver_buf[6],ver_buf[7],__LINE__);
-			return 1;
+			#if EMR_PRINTK_ENABLE
+				printk("\n Unfind HDX Device!!\n");
+			#endif
+			hdx_device.dev_connect = DEV_DISCONNECTED;
+			return -1;
 		}
-		
-		printk("===== end [Driver ]ReadFirmwareVersion6=0x%x 7=0x%x!!!!!%d\n",ver_buf[6],ver_buf[7],__LINE__);
 	}
-#if UPDATEFW
-	
 	/**
-	* @brief       CheckIfFirmwareNeedUpdate
+	* @brief       check_update
 	* @param       None
 	* @return      None
 	* @details     int
 	*/
-	int CheckIfFirmwareNeedUpdate(void)
-	{	
-    unsigned char *p_data = NULL;
-    int ret;
-    u16 fv1, fv2;
-    u16 fw1, fw2;
-    ret = ReadFirmwareVersion();
-    if(!ret)
-    {
-      printk("[Driver ]ReadFirmwareVersion error!!!!!\n");
-      return 1;
-    }
-    p_data = hdx8801_fw;	
-    fw1 = p_data[0];
-    fw2 = p_data[1];
-    fv1 = ver_buf[6];
-    fv2 = ver_buf[7];
-    mdelay(200);
-    if(!ret)
-        return 1;
-    else
-    {
-      if(boot_flag)
-      {
-        printk("\n hdx8801 already in boot mode!!\n");
-        return 0;
-      }
-      else
-      {
-        printk("===HDX-TOUCH-FW===\n");
-        printk("hdx8801 FW Version = %01x.%01x.%01x.%01x===\n", fv1>>4,fv1&0x0f, fv2>>4,fv2&0x0f);	
-        printk("=========================\n");	
-        if(( fw1 != fv1) || ( fw2 != fv2))
-            return 0;
-        else
-            return 1;
-
-      }
-    }
-	
-	}  
-	
-	/**
-	* @brief       UpdateFirmware
-	* @param       None
-	* @return      None
-	* @details     int
-	*/
-	int UpdateFirmware(void)
+	int check_update(void)
 	{
-    int i, ret = 0;
-    int kk= 10;
-    int PkgCnt = 0;
-    u8 test[5] = {0};
-    int DataLen = 0;
-    unsigned char *p_data = NULL;
-		DataLen = sizeof(hdx8801_fw);
-		p_data = hdx8801_fw;
-		printk("FWLen = %d\n", DataLen);	
-		// Jump to Bootloader
-		if(boot_flag)
-		{
-			printk("[Driver]No need to turn to Bootloader !!!!\n");	
+		unsigned char *p_data = NULL;
+		u16 current_ver, fw_ver;
+		if( get_hdx_devinfo() )
+		{//获取设备信息失败
+			#if EMR_PRINTK_ENABLE
+				printk("HDX Driver:get_hdx_devinfo error!!!!!\n");
+			#endif
+			return -1;
 		}
-	  else
-  	{
-      printk("[Driver]Turn to Bootloader !!!!\n");
-      ret = i2c_smbus_write_i2c_block_data(private_ts->client, 0, COMMAND_BYTE, command_list[0]);
-      if(ret < 0)
-      {
-        printk("[Driver]Turn to Bootloader Fail!!!!!\n");
+		p_data = hdx_fw;
+		fw_ver = hdx_fw_ver;
+		current_ver = hdx_device.ver;
+		
+		if(hdx_device.dfu_app_flag == DFU_MODE)
+		{//需要更新
+			return 0;
+		}
+		else if(hdx_device.dfu_app_flag == APP_MODE)
+		{
+			if( hdx_fw_ver != current_ver )
+			{//需要更新
+				return 0;
+			}
+			else
+			{
+				return 1;
+			}
+		}
         return -1;
-      }
-      mdelay(100);
-      //printk("[Driver]Read IC PID !!!!\n");
-      ret = i2c_smbus_write_i2c_block_data(private_ts->client, 0, COMMAND_BYTE, command_list[4]);
-      if(ret < 0)
-      {
-        printk("[Driver]Turn to Bootloader Fail!!!!!\n");
-        return -1;
-      }
-      mdelay(10);
-
-      ret = i2c_smbus_read_i2c_block_data(private_ts->client, 0, 5, test);	
-      if(ret < 0)
-          printk("Cannot Read Ack, \n");
-
-      //printk(" Read PID Ack: %4x,%4x,%4x,%4x,%4x\n", test[0], test[1], test[2], test[3], test[4]);
-      while((test[3] != 0xab) && (test[4] != 0xcd) && kk--)
-      {
-          printk("[Driver]Turn to Bootloader Fail, read again!!!!!\n");
-
-          i2c_smbus_write_i2c_block_data(private_ts->client, 0, COMMAND_BYTE, command_list[4]);	
-          mdelay(10);
-          i2c_smbus_read_i2c_block_data(private_ts->client, 0, 5, test);
-          mdelay(10);
-          printk(" Read PID Ack: %4x,%4x,%4x,%4x,%4x\n", test[0], test[1], test[2], test[3], test[4]);
-      }
-    }
-	
-    if((boot_flag == 1) || ((test[3] == 0xab) && (test[4] == 0xcd)))
-    {
-			printk("[Driver]Turn to Bootloader sucess!!!!\n");
-			printk("================start update=================\n");
-			p_data += 13;
-			PkgCnt = (DataLen-13)/13;
-			printk("DataLen=%4x",DataLen);
-      for(i = 0; i < PkgCnt; i++)
-      {
-        // ret = i2c_master_send(private_ts->client, p_data, 13);
-        ret = i2c_smbus_write_i2c_block_data(private_ts->client, 0, FIRMWARE_UPDATE_LENGTH, p_data);			
-        if(ret < 0)
-        {
-            printk("[Driver ]i2c_smbus_write_i2c_block_data fail, Update Failed!!!!!\n");
-            return -1;
-        }
-        mdelay(10);
-
-        ret = i2c_smbus_read_i2c_block_data(private_ts->client, 0, COMMAND_BYTE, test);	
-        if(ret < 0)
-            printk("Cannot Read Ack, Update Failed\n");
-				#if (HDX_DEBUG)
-        	printk(" Read Ack: %4x,%4x,%4x,%4x,%4x\n", test[0], test[1], test[2], test[3], test[4]);
-        #endif
-        p_data += 13;
-      }
-      mdelay(400);
-      printk("================end update=================\n");
-      ret = i2c_smbus_write_i2c_block_data(private_ts->client, 0, COMMAND_BYTE, command_list[1]);
-      if(ret < 0)
-      {
-        printk("[Driver]Turn to App Fail!!!!!\n");
-        return -1;
-      }
-      else 
-      {
-      	printk("[Driver]Turn to App sucess!!!!\n");
-      }
-      mdelay(400);
-    }
-    return 0;
 	}
-#endif
+	/**
+	* @brief       check_update
+	* @param       None
+	* @return      None
+	* @details     int
+	*/
+	int update_fw(void)
+	{
+		int i, j,ret = 0;
+		int kk= 10;
+		int PkgCnt = 0;
+		u8 test[5] = {0};
+		int DataLen = 0;
+		u8 flash_data[134];
+		__u16 write_adstart=0;
+		__u16 write_adend=0;
+		unsigned char *p_data = NULL;
+		DataLen = sizeof(hdx_fw);
+		PkgCnt = (DataLen)/FLASH_PAGE;
+		p_data = hdx_fw;
+		printk("HDXFWLen = %d\n", DataLen);
+		
+		char cmd[6] = {0x06, 0xa1, 0x00, 0x70, 0x46, 0x02};//获取VID PID
+		char info[6]= {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+		//获取设备VID PID
+		struct i2c_msg msgs[] = {
+			{
+				.addr = private_ts->client->addr,
+				.flags = !I2C_M_RD,
+				.len = sizeof(cmd),
+				.buf = cmd,
+			},
+			{
+				.addr = private_ts->client->addr,
+				.flags = I2C_M_RD,
+				.len = sizeof(info),
+				.buf = info,
+			},
+		};
+		
+		struct i2c_msg flash_msgs[] = {
+			{
+				.addr = private_ts->client->addr,
+				.flags = !I2C_M_RD,
+				.len = sizeof(flash_data),
+				.buf = flash_data,
+			},
+		};
+		
+		if(hdx_device.dfu_app_flag != DFU_MODE)
+		{//需要先切换到dfu
+			printk("\n hdx device need switch to dfu mode!!\n");	
+			for(i = 0;i<200 ;i++)
+			{
+				cmd[5] = CMD_TODFU_INDEX;
+				ret = i2c_transfer(private_ts->client->adapter, msgs, ARRAY_SIZE(msgs));
+				
+				mdelay(50);
+				
+				cmd[5] = CMD_VPID_INDEX;
+				ret = i2c_transfer(private_ts->client->adapter, msgs, ARRAY_SIZE(msgs));
+				hdx_device.vid =  COORD_INTERPRET(info[2], info[3]);
+				hdx_device.pid =  COORD_INTERPRET(info[4], info[5]);
+				#if EMR_PRINTK_ENABLE
+					printk(" hdx_device info1--> pid:%4x\n", hdx_device.pid);
+				#endif	
+				if( hdx_device.pid == DFU_PID)
+				{
+					hdx_device.dfu_app_flag = DFU_MODE;
+					break;
+				}
+			}
+		}
+		write_adstart = 0x0000;
+		write_adend = 0x0000;
+		printk("================hdx emr start update=================\n");
+		for(i = 0; i < PkgCnt+1; i++)
+		{
+			printk(" [Driver DFU Info] WriteFlash Page: %4x\n",i);
+			flash_data[0] = 134;
+			flash_data[1] = 0xAF;
+			write_adstart = 0 + 128*i;
+			write_adend = write_adstart + 127;
+			flash_data[2] = (write_adstart&0xff00)>>8;
+           flash_data[3] = (write_adstart&0x00ff);
+			flash_data[4] = (write_adend&0xff00)>>8;
+			flash_data[5] = (write_adend&0x00ff);
+			for(j = 0;j < 128 ;j++)
+			{
+				flash_data[6+j] = p_data[128*i + j];
+			}
+			#if EMR_PRINTK_ENABLE
+				ret = i2c_transfer(private_ts->client->adapter, flash_msgs, ARRAY_SIZE(flash_msgs));
+			#endif		
+			if(ret < 0)
+			{
+				#if EMR_PRINTK_ENABLE
+					printk("[Driver ]i2c_smbus_write_i2c_block_data fail, Update Failed!!!!!\n");
+				#endif
+				return -1;
+			}
+			mdelay(50);
+		}
+		mdelay(400);
+		#if EMR_PRINTK_ENABLE
+			printk("================hdx emr end update=================\n");
+		#endif
+		for(i = 0;i<200;i++)
+		{
+			cmd[5] = CMD_TOAPP_INDEX;
+			ret = i2c_transfer(private_ts->client->adapter, msgs, ARRAY_SIZE(msgs));
+			mdelay(50);
+			cmd[5] = CMD_VPID_INDEX;
+			ret = i2c_transfer(private_ts->client->adapter, msgs, ARRAY_SIZE(msgs));
+			hdx_device.vid =  COORD_INTERPRET(info[2], info[3]);
+			hdx_device.pid =  COORD_INTERPRET(info[4], info[5]);
+			#if EMR_PRINTK_ENABLE
+				printk(" hdx_device info1--> pid:%4x\n", hdx_device.pid);
+			#endif
+			if(  (hdx_device.pid == APP_PID) )
+			{
+				hdx_device.dfu_app_flag = APP_MODE;
+				break;
+			}
+			mdelay(30);
+		}
+		if( get_hdx_devinfo() )
+		{//获取设备信息失败
+			#if EMR_PRINTK_ENABLE
+				printk("HDX Driver:get_hdx_devinfo error!!!!!\n");
+			#endif
+			return -1;
+		}
+		if(hdx_device.dfu_app_flag == APP_MODE)
+		{
+			#if EMR_PRINTK_ENABLE
+				printk("[Driver]Turn to App sucess!!!!\n");	
+			#endif
+		}
+		else
+		{
+			#if EMR_PRINTK_ENABLE
+				printk("[Driver]Turn to App Fail!!!!!\n");
+			#endif
+			return -1;
+		}
+		return 0;
+	}
+//------------------------------以上是设备更新相关部分-----------------
 /**
  * @brief       hdx8801_reset
  * @param       None
@@ -502,14 +604,14 @@ static void hdx_i2c_work(struct work_struct *work)
 		return;
 	}
 #if (HDX_DEBUG)
-	printk("\n");
-	printk("READ BUF: ");
-	for(i = 0; i < 8; i++)
-	{
-
-		printk("%4x", read_buf[i]);
-	}
-	printk("\n");
+	printk("\n EMR Data: 0x%02x  0x%02x  0x%02x  0x%02x  0x%02x  0x%02x  0x%02x  0x%02x  \n",read_buf[1],read_buf[2],read_buf[3],read_buf[4],read_buf[5],read_buf[6],read_buf[7],read_buf[8]);
+//	printk("\n");
+//	printk("READ BUF: ");
+//	for(i = 0; i < read_buf[0]; i++)
+//	{
+//		printk("%02x", read_buf[i]);
+//	}
+//	printk("\n");
 #endif
 
 	if (read_buf[HDX_DIG_MODE] == 1) 
@@ -580,7 +682,7 @@ static int hdx_probe(struct i2c_client *client, const struct i2c_device_id *ids)
     if (err < 0) {
         goto err_free_irq_gpio;
     }
-	
+
 	mutex_init(&hdx->lock);
 
 	/* allocate input device for digitizer */
@@ -622,11 +724,20 @@ static int hdx_probe(struct i2c_client *client, const struct i2c_device_id *ids)
 	//hdx->early_suspend.suspend = hdx_early_suspend;
 	//hdx->early_suspend.resume = hdx_late_resume;
 	//register_early_suspend(&hdx->early_suspend);
+	/*
 	err = ReadFirmwareVersion();
 	if(err==0)
 	{
 	  printk("[Driver ]ReadFirmwareVersion error!!!!!\n");
 	  goto exit_input;
+	}
+	*/
+	if( get_hdx_devinfo() )
+	{
+		#if EMR_PRINTK_ENABLE
+			printk("HDX Driver:get_hdx_devinfo error!!!!!\n");
+		#endif
+		goto exit_input;
 	}
 	client->irq = gpio_to_irq(hdx->irq);
 
@@ -635,20 +746,20 @@ static int hdx_probe(struct i2c_client *client, const struct i2c_device_id *ids)
 
 	err = request_irq(client->irq, hdx_irq,IRQF_TRIGGER_FALLING, HDX_DRIVER_NAME, hdx);
 
-	#if UPDATEFW
-	  if(CheckIfFirmwareNeedUpdate())
-	      printk( "====hdx8801 fw is latest version!!!!\n" );
+	#if UPDATE_ENABLE
+	  if(check_update())
+		 #if EMR_PRINTK_ENABLE
+			printk( "-------HDX EMR Device‘s FW is latest version!!!!\n" );
+		#endif
 	  else
 	  {
-	      printk("====hdx8801 fw need to update!\n");
-	      mdelay(1000);
-	      UpdateFirmware();
-	      mdelay(500);
+		  #if EMR_PRINTK_ENABLE
+			printk( "-------HDX EMR Device‘s FW need to update!\n");
+		  #endif
+	      mdelay(50);
+	      update_fw();
+	      mdelay(50);
 	  }
-	//tanlq 220524 reset will cause sy7636a death in papyrus_hw_init
-	gpio_set_value(hdx->reset_gpio, hdx->reset_level);
-    mdelay(10);
-    gpio_set_value(hdx->reset_gpio, !hdx->reset_level);
 	#endif
 	
 	printk( "====hdx8801 after reset!!!!\n" );
@@ -656,12 +767,14 @@ static int hdx_probe(struct i2c_client *client, const struct i2c_device_id *ids)
 	return 0;
 
 exit_input:
-		input_unregister_device(hdx->dig_dev);
-		kfree(hdx);
-err_free_reset_gpio:
-	devm_gpio_free(&client->dev, hdx->reset_gpio);
+	input_unregister_device(hdx->dig_dev);
 err_free_irq_gpio:
 	devm_gpio_free(&client->dev, hdx->irq);
+err_free_reset_gpio:
+	devm_gpio_free(&client->dev, hdx->reset_gpio);
+	kfree(hdx);
+
+
 	return -ENODEV;
 
 
@@ -700,12 +813,6 @@ static int hdx_suspend(struct i2c_client *client)
     ret = cancel_work_sync(&ts->work);
     if (ret && client->irq) // if work was pending disable-count is now 2 
         enable_irq(client->irq);
-    mdelay(50);
-    ret = i2c_smbus_write_i2c_block_data(ts->client, 0, COMMAND_BYTE, command_list[8]);
-    if (ret < 0){
-        printk(KERN_ERR "hdx_suspend: i2c_smbus_write_i2c_block_data failed\n");}
-    else {
-        printk("hdx8801_suspend success\n");}
     return 0;
 }
 
