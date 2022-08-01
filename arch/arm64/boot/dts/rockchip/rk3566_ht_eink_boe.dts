@@ -781,7 +781,7 @@
          goodix,reset-gpio = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
          goodix,irq-gpio = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
          goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
-         goodix,panel-max-x = <1440>;
+         goodix,panel-max-x = <1404>;
          goodix,panel-max-y = <1872>;
          goodix,panel-max-w = <255>;
          //goodix,swap-axis;
