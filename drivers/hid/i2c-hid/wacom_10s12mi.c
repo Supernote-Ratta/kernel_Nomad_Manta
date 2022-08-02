@@ -211,7 +211,7 @@ static irqreturn_t wacom_pendet_irq(int irq, void *dev_id)
 {
     // 20220723：如果落笔把TP关闭，由于input-dispatch没有优化，会导致触摸无响应。
     // 如果关闭TP，可以降低手写时候的整机功耗。
-#if 0
+#if 1
     struct wacom_pencil *wpen = dev_id;
     int pendet_gpio_value = gpio_get_value(wpen->detect_gpio);
 
@@ -300,7 +300,8 @@ static int wacom_input_open(struct input_dev *dev)
     struct i2c_client *client = wpen->client;
 
 	enable_irq(client->irq);
-
+    enable_irq(wpen->pendet_irq); // 20220801,hsl add.
+    
     return 0;
 }
 
@@ -310,6 +311,7 @@ static void wacom_input_close(struct input_dev *dev)
     struct i2c_client *client = wpen->client;
 
     disable_irq(client->irq);
+    disable_irq(wpen->pendet_irq);
 }
 
 static int wacom_query_device(struct wacom_pencil *wpen)
@@ -761,7 +763,8 @@ static int wacom_pen_remove(struct i2c_client *client)
 
     //hid_destroy_device(wpen->hid);
     free_irq(client->irq, wpen);
-
+    free_irq(wpen->pendet_irq, wpen);
+    
     return 0;
 }
 
@@ -771,6 +774,7 @@ static void wacom_pen_shutdown(struct i2c_client *client)
     wacom_dbg("entering %s\n", __func__);
 
     free_irq(client->irq, wpen);
+    free_irq(wpen->pendet_irq, wpen);
 }
 
 #ifdef CONFIG_PM
@@ -781,7 +785,7 @@ static int wacom_pen_suspend(struct device *dev)
 
     wacom_dbg("entering %s,suspended=%d\n", __func__, wpen->suspended);
 
-    if(!wpen->suspended) {
+    if(!wpen->suspended) { // screen is on.
         //disable_irq(client->irq);
         if (device_may_wakeup(dev)) {
             enable_irq_wake(wpen->pendet_irq);

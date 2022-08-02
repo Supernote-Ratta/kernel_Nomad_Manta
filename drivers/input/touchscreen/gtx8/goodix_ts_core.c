@@ -1840,9 +1840,14 @@ static int goodix_ts_fb_notifier_callback(struct notifier_block *self,
 	} else if (event == EINK_NOTIFY_EVENT_SCREEN_ON) {
 		goodix_ts_stop_working(core_data, false);
 	} else if(event == EINK_NOTIFY_TP_POWEROFF) {
+	    // 20220802: 如果落笔的时候关闭TP的电源，然后再上电。TP就会上报完整的 DOWN/UP，且上电
+	    // 之后再上报 DOWN/UP. 这样再抬笔之后，TP的触摸就自动有效了。上层无法过滤这种情况。这里
+	    // 只能看看TP是否可以进入低功耗模式。
 	    goodix_ts_irq_enable(core_data, false);
+	    //goodix_ts_stop_working(core_data, true/*stop*/);
 	} else if(EINK_NOTIFY_TP_POWERON == event){
 	    goodix_ts_irq_enable(core_data, true);
+	    //goodix_ts_stop_working(core_data, false);
 	}
 	
 

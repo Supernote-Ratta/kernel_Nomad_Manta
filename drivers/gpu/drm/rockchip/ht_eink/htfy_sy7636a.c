@@ -756,7 +756,16 @@ int sy7636a_power_check(void *priv, int timeout)
 
     stat |= papyrus_hw_getreg(sess, Fault_Flag, &pwrg);
     if (stat) {
-        pr_err("papyrus: I2C error: %d\n", stat);
+        pr_err("papyrus: power_check I2C error: %d,reset pmic!\n", stat);
+
+        // 20220719: sometime reboot will happen,need to reset papyrus.
+        gpiod_direction_output(sess->pwr_up_pin, 0);
+        msleep(20);
+        gpiod_direction_output(sess->pwr_up_pin, 1);
+        msleep(PAPYRUS_EEPROM_DELAY_MS);
+        
+        papyrus_hw_reset(sess);
+        papyrus_hw_send_powerup(sess);
         return -1;
     } else {
         if ((pwrg & 0X00000001) == 0X00000001) {
