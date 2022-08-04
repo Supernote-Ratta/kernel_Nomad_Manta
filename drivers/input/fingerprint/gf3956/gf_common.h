@@ -18,88 +18,88 @@
 
 
 #define gf_debug(level, fmt, args...) do { \
-			if (g_debug_level >= level) {\
-				pr_warn("[gf] " fmt, ##args); \
-			} \
-		} while (0)
+            if (g_debug_level >= level) {\
+                pr_warn("[gf] " fmt, ##args); \
+            } \
+        } while (0)
 
 #define FUNC_ENTRY()  gf_debug(DEBUG_LOG, "%s, %d, enter\n", __func__, __LINE__)
 #define FUNC_EXIT()  gf_debug(DEBUG_LOG, "%s, %d, exit\n", __func__, __LINE__)
 
 /**********************IO Magic**********************/
-#define GF_IOC_MAGIC	'g'
+#define GF_IOC_MAGIC    'g'
 
-#define GF_NAV_INPUT_UP			KEY_UP
-#define GF_NAV_INPUT_DOWN		KEY_DOWN
-#define GF_NAV_INPUT_LEFT		KEY_LEFT
-#define GF_NAV_INPUT_RIGHT		KEY_RIGHT
-#define GF_NAV_INPUT_CLICK		KEY_VOLUMEDOWN
-#define GF_NAV_INPUT_DOUBLE_CLICK	KEY_VOLUMEUP
-#define GF_NAV_INPUT_LONG_PRESS		KEY_SEARCH
-#define GF_NAV_INPUT_HEAVY		KEY_CHAT
+#define GF_NAV_INPUT_UP         KEY_UP
+#define GF_NAV_INPUT_DOWN       KEY_DOWN
+#define GF_NAV_INPUT_LEFT       KEY_LEFT
+#define GF_NAV_INPUT_RIGHT      KEY_RIGHT
+#define GF_NAV_INPUT_CLICK      KEY_VOLUMEDOWN
+#define GF_NAV_INPUT_DOUBLE_CLICK   KEY_VOLUMEUP
+#define GF_NAV_INPUT_LONG_PRESS     KEY_SEARCH
+#define GF_NAV_INPUT_HEAVY      KEY_CHAT
 
-#define GF_KEY_INPUT_HOME		KEY_HOMEPAGE
-#define GF_KEY_INPUT_MENU		KEY_MENU
-#define GF_KEY_INPUT_BACK		KEY_BACK
-#define GF_KEY_INPUT_POWER		KEY_POWER
-#define GF_KEY_INPUT_CAMERA		KEY_CAMERA
+#define GF_KEY_INPUT_HOME       KEY_HOMEPAGE
+#define GF_KEY_INPUT_MENU       KEY_MENU
+#define GF_KEY_INPUT_BACK       KEY_BACK
+#define GF_KEY_INPUT_POWER      KEY_POWER
+#define GF_KEY_INPUT_CAMERA     KEY_CAMERA
 
 typedef enum gf_nav_event {
-	GF_NAV_NONE = 0,
-	GF_NAV_FINGER_UP,
-	GF_NAV_FINGER_DOWN,
-	GF_NAV_UP,
-	GF_NAV_DOWN,
-	GF_NAV_LEFT,
-	GF_NAV_RIGHT,
-	GF_NAV_CLICK,
-	GF_NAV_HEAVY,
-	GF_NAV_LONG_PRESS,
-	GF_NAV_DOUBLE_CLICK,
+    GF_NAV_NONE = 0,
+    GF_NAV_FINGER_UP,
+    GF_NAV_FINGER_DOWN,
+    GF_NAV_UP,
+    GF_NAV_DOWN,
+    GF_NAV_LEFT,
+    GF_NAV_RIGHT,
+    GF_NAV_CLICK,
+    GF_NAV_HEAVY,
+    GF_NAV_LONG_PRESS,
+    GF_NAV_DOUBLE_CLICK,
 } gf_nav_event_t;
 
 typedef enum gf_key_event {
-	GF_KEY_NONE = 0,
-	GF_KEY_HOME,
-	GF_KEY_POWER,
-	GF_KEY_MENU,
-	GF_KEY_BACK,
-	GF_KEY_CAMERA,
+    GF_KEY_NONE = 0,
+    GF_KEY_HOME,
+    GF_KEY_POWER,
+    GF_KEY_MENU,
+    GF_KEY_BACK,
+    GF_KEY_CAMERA,
 } gf_key_event_t;
 
 struct gf_key {
-	enum gf_key_event key;
-	uint32_t value;   /* key down = 1, key up = 0 */
+    enum gf_key_event key;
+    uint32_t value;   /* key down = 1, key up = 0 */
 };
 
 enum gf_netlink_cmd {
-	GF_NETLINK_TEST = 0,
-	GF_NETLINK_IRQ = 1,
-	GF_NETLINK_SCREEN_OFF,
-	GF_NETLINK_SCREEN_ON
+    GF_NETLINK_TEST = 0,
+    GF_NETLINK_IRQ = 1,
+    GF_NETLINK_SCREEN_OFF,
+    GF_NETLINK_SCREEN_ON
 };
 
 struct gf_ioc_transfer {
-	u8 cmd;    /* spi read = 0, spi  write = 1 */
-	u8 reserved;
-	u16 addr;
-	u32 len;
-	u8 *buf;
+    u8 cmd;    /* spi read = 0, spi  write = 1 */
+    u8 reserved;
+    u16 addr;
+    u32 len;
+    u8 *buf;
 };
 
 struct gf_ioc_transfer_raw {
-	u32 len;
-	u8 *read_buf;
-	u8 *write_buf;
-	uint32_t high_time;
-	uint32_t low_time;
+    u32 len;
+    u8 *read_buf;
+    u8 *write_buf;
+    uint32_t high_time;
+    uint32_t low_time;
 };
 
 struct gf_ioc_chip_info {
-	u8 vendor_id;
-	u8 mode;
-	u8 operation;
-	u8 reserved[5];
+    u8 vendor_id;
+    u8 mode;
+    u8 operation;
+    u8 reserved[5];
 };
 
 /* define for gf_spi_cfg_t->speed_hz */
@@ -108,23 +108,23 @@ struct gf_ioc_chip_info {
 #define GF_SPI_SPEED_HIGH 9
 
 enum gf_spi_cpol {
-	GF_SPI_CPOL_0,
-	GF_SPI_CPOL_1
+    GF_SPI_CPOL_0,
+    GF_SPI_CPOL_1
 };
 
 enum gf_spi_cpha {
-	GF_SPI_CPHA_0,
-	GF_SPI_CPHA_1
+    GF_SPI_CPHA_0,
+    GF_SPI_CPHA_1
 };
 
 typedef struct {
-	unsigned int cs_setuptime;
-	unsigned int cs_holdtime;
-	unsigned int cs_idletime;
-	unsigned int speed_hz; /* spi clock rate */
-	unsigned int duty_cycle; /* The time ratio of active level in a period. Default value is 50. that means high time and low time is same.*/
-	enum gf_spi_cpol cpol;
-	enum gf_spi_cpol cpha;
+    unsigned int cs_setuptime;
+    unsigned int cs_holdtime;
+    unsigned int cs_idletime;
+    unsigned int speed_hz; /* spi clock rate */
+    unsigned int duty_cycle; /* The time ratio of active level in a period. Default value is 50. that means high time and low time is same.*/
+    enum gf_spi_cpol cpol;
+    enum gf_spi_cpol cpha;
 } gf_spi_cfg_t;
 
 /* define commands */
@@ -151,57 +151,58 @@ typedef struct {
 #define GF_IOC_MAXNR    18  /* THIS MACRO IS NOT USED NOW... */
 
 struct gf_device {
-	dev_t devno;
-	struct cdev cdev;
-	struct device *device;
-	struct class *class;
-	struct spi_device *spi;
-	int device_count;
+    dev_t devno;
+    struct cdev cdev;
+    struct device *device;
+    struct class *class;
+    struct spi_device *spi;
+    int device_count;
 
-	spinlock_t spi_lock;
-	struct list_head device_entry;
+    spinlock_t spi_lock;
+    struct list_head device_entry;
 
-	struct input_dev *input;
+    struct input_dev *input;
 
-	u8 *spi_buffer;  /* only used for SPI transfer internal */
-	struct mutex buf_lock;
-	struct mutex release_lock;
-	u8 buf_status;
+    u8 *spi_buffer;  /* only used for SPI transfer internal */
+    struct mutex buf_lock;
+    struct mutex release_lock;
+    u8 buf_status;
 
-	/* for netlink use */
-	struct sock *nl_sk;
+    /* for netlink use */
+    struct sock *nl_sk;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	struct early_suspend early_suspend;
+    struct early_suspend early_suspend;
 #else
-	struct notifier_block notifier;
+    struct notifier_block notifier;
 #endif
 
-	u8 probe_finish;
-	u8 irq_count;
+    u8 probe_finish;
+    u8 irq_count;
 
-	/* bit24-bit32 of signal count */
-	/* bit16-bit23 of event type, 1: key down; 2: key up; 3: fp data ready; 4: home key */
-	/* bit0-bit15 of event type, buffer status register */
-	u32 event_type;
-	u8 sig_count;
-	u8 is_sleep_mode;
-	u8 system_status;
+    /* bit24-bit32 of signal count */
+    /* bit16-bit23 of event type, 1: key down; 2: key up; 3: fp data ready; 4: home key */
+    /* bit0-bit15 of event type, buffer status register */
+    u32 event_type;
+    u8 sig_count;
+    u8 is_sleep_mode;
+    u8 system_status;
 
-	u32 cs_gpio;
-	u32 reset_gpio;
-	u32 irq_gpio;
-	u32 irq_num;
-	u8  need_update;
-	u32 irq;
+    u32 cs_gpio;
+    u32 reset_gpio;
+    u32 reset_level;
+    u32 irq_gpio;
+    u32 irq_num;
+    u8  need_update;
+    u32 irq;
 
 #ifdef CONFIG_OF
-	struct pinctrl *pinctrl_gpios;
-	struct pinctrl_state *pins_irq;
-	struct pinctrl_state *pins_miso_spi, *pins_miso_pullhigh, *pins_miso_pulllow;
-	struct pinctrl_state *pins_reset_high, *pins_reset_low;
+    struct pinctrl *pinctrl_gpios;
+    struct pinctrl_state *pins_irq;
+    struct pinctrl_state *pins_miso_spi, *pins_miso_pullhigh, *pins_miso_pulllow;
+    struct pinctrl_state *pins_reset_high, *pins_reset_low;
 #endif
-	struct wake_lock wake_lock;
+    struct wake_lock wake_lock;
 };
 
 /**********************platform defination**********************/
@@ -237,4 +238,4 @@ int gf_ioctl_transfer_raw_cmd(struct gf_device *gf_dev, unsigned long arg, unsig
 int gf_ioctl_spi_init_cfg_cmd(struct gf_device *gf_dev, unsigned long arg);
 #endif
 
-#endif	/* __GF_SPI_TEE_H */
+#endif  /* __GF_SPI_TEE_H */

@@ -78,7 +78,7 @@
             linux,input-type = <EV_KEY>;
             linux,code = <KEY_BACK>;
         };
-		#endif
+        #endif
     };
 
     leds: gpio-leds {
@@ -297,7 +297,7 @@
     panel,lsl = <18>;
     panel,lbl = <17>;
     panel,ldl = <234>;
-	
+
     // 15：CKV = 117.7K, EMR NOISE 达到最佳效果。20220712:确认15是最佳效果。
     panel,lel = <15>;  // 470ns
     panel,gdck-sta = <34>;
@@ -657,10 +657,19 @@
                 3400 3660 3683 3712 3739 3761 3780
                 3794 3811 3831 3857 3902 3949 3990
                 4034 4083 4135 4191 4249 4307 4374>;
-		tempadc_table = <
-                272 261 250 240 230 220 211 203 194 187 179 172 165 159 152 147 141 135 130 125 120 116 112 107 103 100 96 92 89 86 83 80 77 74 71 69 67 64 62 60 58 56 54 52 50 49 47 45 44 42 41 40 38 37 36 35 34 33 32 31 30 29 28 27 26 25 >;
-		tempnadc_table = <
-                284 297 310 324 339 354 370 387 405 424 444 465 487 510 534 560 587 616 646 677 711 746 784 823 865 909 956 1006 1058 1113 1172 1234 1300 1369 1443 1521 1604 1692 1786 1885>;
+            tempadc_table = <
+                272 261 250 240 230 220 211 203 194
+                187 179 172 165 159 152 147 141 135
+                130 125 120 116 112 107 103 100 96
+                92 89 86 83 80 77 74 71 69 67 64 62
+                60 58 56 54 52 50 49 47 45 44 42 41
+                40 38 37 36 35 34 33 32 31 30 29 28 27 26 25 >;
+            tempnadc_table = <
+                284 297 310 324 339 354 370 387 405
+                424 444 465 487 510 534 560 587 616
+                646 677 711 746 784 823 865 909 956
+                1006 1058 1113 1172 1234 1300 1369
+                1443 1521 1604 1692 1786 1885>;
             design_capacity = <3500>;
             design_qmax = <3850>;
             bat_res = <100>;
@@ -889,22 +898,22 @@
 };
 
 &spi1 {
-	status = "okay";
-	max-freq = <48000000>;
+    status = "okay";
+    max-freq = <48000000>;
     dma-names = "tx", "rx";
     pinctrl-names = "default", "high_speed";
     pinctrl-0 = <&spi1m1_cs0 &spi1m1_pins>;
     pinctrl-1 = <&spi1m1_cs0 &spi1m1_pins_hs>;
 
-	goodix_fp@0 {
-			compatible = "goodix,goodix-fp";//goodix,fingerprint";
-			//interrupt-parent = <&gpio0>;
-			reg = <0x00>;
-			spi-max-frequency = <24000000>;
-			goodix,gpio_irq = <&gpio0 RK_PC2 IRQ_TYPE_EDGE_RISING>;
-			goodix,gpio_reset = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
-			status = "okay";
-		};
+    goodix_fp@0 {
+        compatible = "goodix,goodix-fp";//goodix,fingerprint";
+        //interrupt-parent = <&gpio0>;
+        reg = <0x00>;
+        spi-max-frequency = <24000000>;
+        goodix,gpio_irq = <&gpio0 RK_PC2 IRQ_TYPE_EDGE_RISING>;
+        goodix,gpio_reset = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;//hardware will opposite direction
+        status = "okay";
+    };
 };
 
 &spi3 {

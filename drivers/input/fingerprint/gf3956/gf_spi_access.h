@@ -14,4 +14,4 @@ extern int gf_spi_write_bytes(u16 addr, u32 data_len, u8 *tx_buf);
 extern int gf_spi_read_byte(u16 addr, u8 *value);
 extern int gf_spi_write_byte(u16 addr, u8 value);
 
-#endif	/* __GF_SPI_REE_H */
+#endif  /* __GF_SPI_REE_H */
