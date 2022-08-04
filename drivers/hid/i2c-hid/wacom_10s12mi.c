@@ -101,6 +101,46 @@ static bool debug = true;
 module_param(debug, bool, 0444);
 MODULE_PARM_DESC(debug, "print a lot of debug information");
 
+// 20220804,hsl.copy from px30 i2c-hid.
+struct wacom_i2c_hid_cmd {
+	unsigned int registerIndex;
+	__u8 opcode;
+	unsigned int length;
+	bool wait;
+};
+
+union wacom_command {
+	u8 data[0];
+	struct cmd {
+		__le16 reg;
+		__u8 reportTypeID;
+		__u8 opcode;
+	} __packed c;
+};
+
+#define WACOM_I2C_HID_CMD(opcode_) \
+	.opcode = opcode_, .length = 4, \
+	.registerIndex = offsetof(struct hid_desc, wCommandRegister)
+
+/* fetch HID descriptor */
+static const struct wacom_i2c_hid_cmd hid_descr_cmd = { .length = 2 };
+
+/* fetch report descriptors */
+static const struct wacom_i2c_hid_cmd hid_report_descr_cmd = {
+		.registerIndex = offsetof(struct hid_desc,
+			wReportDescRegister), // 0x06
+		.opcode = 0x00,
+		.length = 2 };
+		
+/* commands */
+static const struct wacom_i2c_hid_cmd hid_get_report_cmd =    { WACOM_I2C_HID_CMD(0x02) };
+static const struct wacom_i2c_hid_cmd hid_set_power_cmd =	{ WACOM_I2C_HID_CMD(0x08) };
+// opcode = 0x08, length=4, rindex= 0x10. wait=false.
+
+// 20220804: power_state for hid_set_power_cmd
+#define I2C_HID_PWR_ON		0x00
+#define I2C_HID_PWR_SLEEP	0x01
+
 static u8 greport_desc[] = {
     0x05, 0x0d, 0x09, 0x02, 0xa1, 0x01, 0x85, 0x02, 0x09, 0x20, 0xa1, 0x00,
     0x09, 0x42, 0x09, 0x44, 0x09, 0x45, 0x09, 0x3c, 0x09, 0x5a, 0x09, 0x32,
@@ -119,6 +159,174 @@ static u8 greport_desc[] = {
             printk(KERN_INFO fmt, ##arg); \
         } \
     } while (0)
+
+
+// ret = i2c_hid_set_power(client, I2C_HID_PWR_ON);
+// __i2c_hid_command(client, &hid_set_power_cmd, power_state, 0, NULL, 0, NULL, 0);
+// opcode = 0x08, length=4, rindex= 0x10. wait=false. reportID = I2C_HID_PWR_ON/I2C_HID_PWR_OFF
+// reportType = 0;
+static int wacom_i2c_hid_command(struct i2c_client *client,
+        const struct wacom_i2c_hid_cmd *command, u8 reportID,
+        u8 reportType, u8 *args, int args_len,
+        unsigned char *buf_recv, int data_len)
+{
+    struct wacom_pencil *wpen = i2c_get_clientdata(client);
+    u8                   cmd_buf[0x20];
+    union wacom_command *cmd = (union wacom_command *)cmd_buf;
+    int ret;
+    struct i2c_msg msg[2];
+    int msg_num = 1;
+
+    int length = command->length;
+    //bool wait = command->wait;
+    unsigned int registerIndex = command->registerIndex;
+
+    /* special case for hid_descr_cmd */
+    if (command == &hid_descr_cmd) {
+        cmd->c.reg = wpen->wHIDDescRegister;
+    } else {
+        u8  *hdesc_buffer = (u8*)&wpen->hdesc;
+        cmd->data[0] = hdesc_buffer[registerIndex];
+        cmd->data[1] = hdesc_buffer[registerIndex + 1];
+    }
+
+    if (length > 2) {
+        cmd->c.opcode = command->opcode;
+        cmd->c.reportTypeID = reportID | reportType << 4;
+    }
+
+    if(args_len > 0) {
+        memcpy(cmd->data + length, args, args_len);
+        length += args_len;
+    }
+    
+    wacom_dbg("%s: cmd=%*ph\n", __func__, length, cmd->data);
+
+    msg[0].addr = client->addr;
+    msg[0].flags = client->flags & I2C_M_TEN;
+    msg[0].len = length;
+    msg[0].buf = cmd->data;
+    if (data_len > 0) {
+        msg[1].addr = client->addr;
+        msg[1].flags = client->flags & I2C_M_TEN;
+        msg[1].flags |= I2C_M_RD;
+        msg[1].len = data_len;
+        msg[1].buf = buf_recv;
+        msg_num = 2;
+    }
+
+    ret = i2c_transfer(client->adapter, msg, msg_num);
+
+    if (ret != msg_num)
+        return ret < 0 ? ret : -EIO;
+
+    ret = 0;
+
+    if(data_len > 0) {
+        wacom_dbg("%s: recv=%*ph\n", __func__, data_len, buf_recv);
+    }
+
+    return ret;
+}
+
+static int wacom_get_report(struct i2c_client *client, u8 reportType,
+        u8 reportID, unsigned char *buf_recv, int data_len)
+{
+    struct wacom_pencil *wpen = i2c_get_clientdata(client);
+    u8 args[3];
+    int ret;
+    int args_len = 0;
+    u16 readRegister = le16_to_cpu(wpen->hdesc.wDataRegister);
+
+    if (reportID >= 0x0F) {
+        args[args_len++] = reportID;
+        reportID = 0x0F;
+    }
+
+    args[args_len++] = readRegister & 0xFF;
+    args[args_len++] = readRegister >> 8;
+
+    ret = wacom_i2c_hid_command(client, &hid_get_report_cmd, reportID,
+        reportType, args, args_len, buf_recv, data_len);
+    if (ret) {
+        dev_err(&client->dev,
+            "failed to retrieve report from device.\n");
+        return ret;
+    }
+
+    return 0;
+}
+
+static void wacom_i2c_print_report(struct i2c_client *client)
+{
+    u8      recv[0x10];
+    
+    recv[0] = 0XFF;
+    // reportType: HID_FEATURE_REPORT = 0x03 , HID_INPUT_REPORT: 0x01
+    // reportID: FEATURE: 02: deviceMode. 25: Position Report Rate 
+    wacom_get_report(client, 0x03, 25, recv, 1);
+}
+
+static int wacom_i2c_set_power(struct i2c_client *client, int power_state)
+{
+    int     ret;
+    dev_err(&client->dev, "%s: set state=%d\n", __func__, power_state);
+    
+    ret = wacom_i2c_hid_command(client, &hid_set_power_cmd, power_state,
+        0, NULL, 0, NULL, 0);
+    if (ret)
+        dev_err(&client->dev, "failed to change power setting.\n");
+
+    return ret;
+}
+
+
+static int wacom_fetch_hid_descriptor(struct i2c_client *client)
+{
+	struct wacom_pencil *wpen = i2c_get_clientdata(client);
+	struct hid_desc *hdesc = &wpen->hdesc;
+	unsigned int dsize;
+	int ret;
+
+	/* i2c hid fetch using a fixed descriptor size (30 bytes) */
+	ret = wacom_i2c_hid_command(client, &hid_descr_cmd, 0, 0, NULL, 0, (u8*)hdesc,
+				sizeof(struct hid_desc));
+	if (ret) {
+		dev_err(&client->dev, "hid_descr_cmd failed\n");
+		return -ENODEV;
+	}
+
+	/* Validate the length of HID descriptor, the 4 first bytes:
+	 * bytes 0-1 -> length
+	 * bytes 2-3 -> bcdVersion (has to be 1.00) */
+	/* check bcdVersion == 1.0 */
+	if (le16_to_cpu(hdesc->bcdVersion) != 0x0100) {
+		dev_err(&client->dev,
+			"unexpected HID descriptor bcdVersion (0x%04hx)\n",
+			le16_to_cpu(hdesc->bcdVersion));
+		//return -ENODEV;
+	}
+
+	/* Descriptor length should be 30 bytes as per the specification */
+	dsize = le16_to_cpu(hdesc->wHIDDescLength);
+	if (dsize != sizeof(struct hid_desc)) {
+		dev_err(&client->dev, "weird size of HID descriptor (%u)\n",
+			dsize);
+		//return -ENODEV;
+	}
+
+	// 20181103-LOG: i2c_hid 1-0009: HID Descriptor:
+	// 1e 00 00 01 1f 03 02 00 03 00 11 00 00 00 00 00 04 00 05 00 1f 2d 7a 00 31 05 00 00 00 00
+	//wacom_dbg("HID Descriptor: %*ph\n", dsize, hdesc);
+
+	// iflytek: 
+	// hid_hdesc:pid=0x2d1f,vid=0x123,fwVer=0x1241
+	// hid_hdesc:pid=0x2d1f,vid=0x149,fwVer=0x1702
+	// 202120804-BOE:  hid_hdesc:pid=0x2d1f,vid=0x95,fwVer=0x1230
+	wacom_dbg("hid_hdesc:pid=0x%x,vid=0x%x,fwVer=0x%x\n", hdesc->wVendorID,
+		hdesc->wProductID, hdesc->wVersionID);
+	return 0;
+}
 
 static int wacom_chip_power(struct i2c_client *client)
 {
@@ -356,13 +564,14 @@ static int wacom_query_device(struct wacom_pencil *wpen)
     features->y_max = get_unaligned_le16(&data[5]);
     features->pressure_max = get_unaligned_le16(&data[11]);
     features->fw_version = get_unaligned_le16(&data[13]);
-    wacom_dbg("Wacom source screen x_max:%d, y_max:%d, pressure:%d, fw:%x\n", features->x_max, features->y_max, features->pressure_max, features->fw_version);
+    wacom_dbg("Wacom source screen x_max:%d, y_max:%d, pressure:%d, fw:%x\n", features->x_max, 
+        features->y_max, features->pressure_max, features->fw_version);
 
     if (wpen->swap_xy) {
         swap(features->x_max, features->y_max);
     }
 
-    wacom_dbg("Wacom desc screen x_max:%d, y_max:%d\n", features->x_max, features->y_max);
+    //wacom_dbg("Wacom desc screen x_max:%d, y_max:%d\n", features->x_max, features->y_max);
 
     return 0;
 }
@@ -492,7 +701,7 @@ static int wacom_pen_of_probe(struct wacom_pencil *wpen)
         dev_err(&client->dev, "Bad HID register address: 0x%08x\n", hidRegister);
         return -ENODEV;
     }
-    wpen->wHIDDescRegister = cpu_to_le16(hidRegister);
+    wpen->wHIDDescRegister = cpu_to_le16(hidRegister);  // 20220804: 0x0001
     wpen->supply = devm_regulator_get(&client->dev, "pwr");
     if (wpen->supply) {
         wacom_dbg("wacom power supply = %dmv\n", regulator_get_voltage(wpen->supply));
@@ -630,7 +839,7 @@ static int wacom_pen_early_suspend(struct wacom_pencil *wpen)
 
     disable_irq(client->irq);
     disable_irq(wpen->pendet_irq);
-
+    wacom_i2c_set_power(client, I2C_HID_PWR_SLEEP);
     return 0;
 }
 
@@ -639,8 +848,10 @@ static int wacom_pen_late_resume(struct wacom_pencil *wpen)
     struct i2c_client *client = wpen->client;
 
     wacom_dbg("**entering %s\n", __func__);
-
-    wacom_chip_power(client);
+    
+    wacom_i2c_set_power(client, I2C_HID_PWR_ON);
+    //wacom_chip_power(client);
+    
     enable_irq(client->irq);
     enable_irq(wpen->pendet_irq);
 
@@ -708,6 +919,10 @@ static int wacom_pen_probe(struct i2c_client *client, const struct i2c_device_id
         goto error_of_parase;
     }
 
+    // 20220804,hsl add.--test get descriptor OK.
+    //wacom_fetch_hid_descriptor(client);
+    //wacom_i2c_print_report(client);
+    
     ret = wacom_pen_init_irq(client);
     if (ret) {
         goto error_of_parase;
