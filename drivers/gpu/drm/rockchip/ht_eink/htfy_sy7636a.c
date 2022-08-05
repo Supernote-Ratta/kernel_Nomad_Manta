@@ -282,7 +282,7 @@ static int papyrus_hw_arg_init(struct papyrus_sess *sess)
     reg_data = 0xaa;
     papyrus_hw_setreg(sess, reg_addr, reg_data);
     papyrus_hw_setreg(sess, VCOM_Adjustment_Control_1, sess->vcom1);
-    papyrus_hw_setreg(sess, VCOM_Adjustment_Control_2, sess->vcom2);
+    papyrus_hw_setreg(sess, VCOM_Adjustment_Control_2, (sess->vcom2&0x01)<<7);
 
     sy7636a_printk("sess->vcom1 = 0x%x,sess->vcom2 = 0x%x\n", sess->vcom1, sess->vcom2);
 
@@ -669,7 +669,7 @@ int sy7636a_vcom_get(void)
     stat |= papyrus_hw_getreg(sess, VCOM_Adjustment_Control_1, &rev_val1);
     read_vcom_mv = rev_val1 * 10;
     stat |= papyrus_hw_getreg(sess, VCOM_Adjustment_Control_2, &rev_val2);
-    read_vcom_mv += ((rev_val2 & 0x0001) << 8) * 10;
+    read_vcom_mv += ((rev_val2 & 0x0080)<<1)*10;
     sy7636a_printk("read_vcom_mv = %d\n", read_vcom_mv);
 
     if (stat) {
@@ -697,14 +697,14 @@ int sy7636a_vcom_set(int vcom_mv)
     // Set vcom voltage
     pmic_driver_sy7636a_i2c.set_vcom_voltage((struct pmic_sess *)&tpmic_sess_data, vcom_mv);
     stat |= papyrus_hw_setreg(sess, VCOM_Adjustment_Control_1, sess->vcom1);
-    stat |= papyrus_hw_setreg(sess, VCOM_Adjustment_Control_2, sess->vcom2);
+    stat |= papyrus_hw_setreg(sess, VCOM_Adjustment_Control_2, (sess->vcom2&0x01)<<7);
     sy7636a_printk("sess->vcom1 = 0x%x\n", sess->vcom1);
 
     read_vcom_mv = 0;
     stat |= papyrus_hw_getreg(sess, VCOM_Adjustment_Control_1, &rev_val1);
     read_vcom_mv = rev_val1 * 10;
     stat |= papyrus_hw_getreg(sess, VCOM_Adjustment_Control_2, &rev_val2);
-    read_vcom_mv += ((rev_val2 & 0x0001) << 8) * 10;
+	read_vcom_mv += ((rev_val2 & 0x0080)<<1)*10;
     sy7636a_printk("read_vcom_mv = %d\n", read_vcom_mv);
     if (stat) {
         pr_err("papyrus: I2C error: %d\n", stat);
