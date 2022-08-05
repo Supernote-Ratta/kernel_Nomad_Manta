@@ -57,7 +57,7 @@
 /******* Macro  Define Section************/
 #define EnableDebug				0
 #define HDX_DRIVER_NAME 	"hdx8801_touch"
-#define DIG_BUF_SIZE 			9//8
+#define DIG_BUF_SIZE 			11//8
 #define BTN_TOOL_PEN_HOVER 	238
 
 #define UPDATEFW					0
@@ -71,6 +71,7 @@
 struct hdx_data
 {
 	__u16 	x, y, w, p, id;
+	int tx,ty;
 	struct i2c_client *client;
 	/* digitizer */
 	struct input_dev *dig_dev;
@@ -122,7 +123,7 @@ static struct i2c_driver hdx_driver;
 	#define DFU_PID  			0xabcd
 	#define APP_PID  			0x7810
 	
-	#define EMR_PRINTK_ENABLE	0
+	#define EMR_PRINTK_ENABLE	1
 	#define DFU_MODE  			0xabcd
 	#define APP_MODE  			0x7800
 	#define INIT_MODE		 	0x0
@@ -140,7 +141,8 @@ static struct i2c_driver hdx_driver;
 		__u16 	vid;
 		__u16 	pid;
 		__u16 	ver;
-		__u16 dfu_app_flag;
+		__u16 	dfu_app_flag;
+		__u8 	hwver;
 		int dev_connect;
 	};
 	static struct hdx_dev hdx_device;
@@ -199,8 +201,11 @@ static struct i2c_driver hdx_driver;
 			return -EIO;
 		hdx_device.ver =  COORD_INTERPRET(info[4], info[5]);
 		
+		hdx_device.hwver = info[2];
+		
 		#if EMR_PRINTK_ENABLE
-			printk(" hdx_device info2--> ver:%4x\n", hdx_device.ver);
+			printk(" hdx_device info2--> sfver:%4x\n", hdx_device.ver);
+			printk(" hdx_device info2--> hwver:%4x\n", hdx_device.hwver);
 		#endif
 		//
 		if(hdx_device.vid == DEV_VID)
@@ -251,8 +256,23 @@ static struct i2c_driver hdx_driver;
 			#endif
 			return -1;
 		}
-		p_data = hdx_fw;
-		fw_ver = hdx_fw_ver;
+		if( hdx_device.hwver == 0x06)
+		{//PCB 版本 PL10R3-MAIN-V06		DVT2
+			p_data = hdx_fw_v06;
+			fw_ver = hdx_fw_ver06;
+			#if EMR_PRINTK_ENABLE
+				printk("HDX DVT2 :PL10R3-MAIN-V06!\n");
+			#endif
+		}
+		else
+		{//PCB 版本 PL10R3-MAIN-V04  	DVT1
+			p_data = hdx_fw;
+			fw_ver = hdx_fw_ver;
+			#if EMR_PRINTK_ENABLE
+				printk("HDX DVT1 :PL10R3-MAIN-V04!\n");
+			#endif
+		}
+		
 		current_ver = hdx_device.ver;
 		
 		if(hdx_device.dfu_app_flag == DFU_MODE)
@@ -261,8 +281,8 @@ static struct i2c_driver hdx_driver;
 		}
 		else if(hdx_device.dfu_app_flag == APP_MODE)
 		{
-			if( hdx_fw_ver != current_ver )
-			{//需要更新
+			if( fw_ver > current_ver )
+			{//固件版本比之前IC内部的版本高则需要更新
 				return 0;
 			}
 			else
@@ -289,9 +309,18 @@ static struct i2c_driver hdx_driver;
 		__u16 write_adstart=0;
 		__u16 write_adend=0;
 		unsigned char *p_data = NULL;
-		DataLen = sizeof(hdx_fw);
+		
+		if( hdx_device.hwver == 0x06)
+		{//PCB 版本 PL10R3-MAIN-V06		DVT2
+			DataLen = sizeof(hdx_fw_v06);
+			p_data = hdx_fw_v06;
+		}
+		else
+		{//PCB 版本 PL10R3-MAIN-V04  	DVT1
+			DataLen = sizeof(hdx_fw);
+			p_data = hdx_fw;
+		}		
 		PkgCnt = (DataLen)/FLASH_PAGE;
-		p_data = hdx_fw;
 		printk("HDXFWLen = %d\n", DataLen);
 		
 		char cmd[6] = {0x06, 0xa1, 0x00, 0x70, 0x46, 0x02};//获取VID PID
@@ -391,7 +420,7 @@ static struct i2c_driver hdx_driver;
 			#if EMR_PRINTK_ENABLE
 				printk(" hdx_device info1--> pid:%4x\n", hdx_device.pid);
 			#endif
-			if(  (hdx_device.pid == APP_PID) )
+			if( hdx_device.pid == APP_PID )
 			{
 				hdx_device.dfu_app_flag = APP_MODE;
 				break;
@@ -457,8 +486,11 @@ static irqreturn_t hdx_irq(int irq, void *_hdx)
 static inline void hdx_report(struct hdx_data *hdx)
 {	
 	__u16 x,y;
+	int	 tx,ty;
 	x = hdx->x;
 	y = hdx->y;
+	tx = hdx->tx;
+	ty = hdx->ty;
 	if(1 == hdx->swap_xy){
 		x = hdx->y;
 		y = hdx->x;
@@ -482,6 +514,8 @@ static inline void hdx_report(struct hdx_data *hdx)
 	input_report_abs(hdx->dig_dev,ABS_MT_POSITION_X,(x));
 	input_report_abs(hdx->dig_dev,ABS_MT_POSITION_Y,(y));
 	input_report_abs(hdx->dig_dev,ABS_MT_PRESSURE,hdx->p);
+	input_report_abs(hdx->dig_dev, ABS_TILT_X, tx);
+    input_report_abs(hdx->dig_dev, ABS_TILT_Y, ty);
 	input_sync(hdx->dig_dev);
 }
 
@@ -540,6 +574,8 @@ static void hdx_msg_process(u8 *data_in,struct hdx_data *hdx)
 	hdx->y =  COORD_INTERPRET(read_buf[6], read_buf[5]);
 	hdx->w = read_buf[2];
 	hdx->p = pressure;
+	hdx->tx = read_buf[9];
+	hdx->ty = read_buf[10];
 	hdx_report(hdx);
 	if(hover_enter){
 		input_event(hdx->dig_dev,EV_KEY,BTN_TOOL_PEN,1);
@@ -709,7 +745,8 @@ static int hdx_probe(struct i2c_client *client, const struct i2c_device_id *ids)
 	}
 	input_set_abs_params(input_dig, ABS_MT_TOUCH_MAJOR, 0, DIG_MAX_P, 0, 0);
 	input_set_abs_params(input_dig, ABS_MT_PRESSURE, 0, DIG_MAX_P, 0, 0);
-
+	input_set_abs_params(input_dig, ABS_TILT_X, -9000, 9000, 0, 0);
+	input_set_abs_params(input_dig, ABS_TILT_Y, -9000, 9000, 0, 0);
 
 	err = input_register_device(input_dig);
 	if (err)
@@ -760,6 +797,9 @@ static int hdx_probe(struct i2c_client *client, const struct i2c_device_id *ids)
 	  }
 	#endif
 	
+	input_dig->id.vendor = hdx_device.vid;
+	input_dig->id.product = hdx_device.pid;
+	input_dig->id.version = hdx_device.ver;
 	printk( "====hdx8801 after reset!!!!\n" );
     //enable_irq(client->irq);
 	return 0;
@@ -881,7 +921,7 @@ static struct i2c_driver hdx_driver = {
 		.name	 = HDX_DRIVER_NAME,
 		.pm		 = &hdx_pm,
 	},
-	.id_table 	= hdx_id_table,
+	.id_table 	= hdx_id_table,	/* the slave address is passed by i2c_boardinfo */
 	.probe 		= hdx_probe,
 	.remove 	= hdx_remove,
 };
