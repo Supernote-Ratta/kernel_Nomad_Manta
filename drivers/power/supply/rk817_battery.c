@@ -3008,8 +3008,8 @@ static void rk817_bat_smooth_algorithm(struct rk817_battery_device *battery)
 		DBG("<%s>. ydsoc = 0\n", __func__);
 		return;
 	}
-	battery->sm_remain_cap = battery->remain_cap;
-
+	//battery->sm_remain_cap = battery->remain_cap; //tanlq mod 220810 for charge dsoc != rsoc
+	rk817_bat_calc_sm_linek(battery);
 	DBG("<%s>. k=%d, ydsoc=%d; cap:old=%d, new:%d; delta_cap=%d\n",
 		__func__, battery->sm_linek, ydsoc, old_cap,
 		battery->sm_remain_cap, delta_cap);
