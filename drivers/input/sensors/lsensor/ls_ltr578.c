@@ -196,10 +196,11 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
             value = sensor_read_reg(ls_data->client, sensor->ops->int_status_reg);
         }
     } else {
-        msleep(80);
+        msleep(100);
     }
     value = sensor_als_read(ls_data->client);
     result = value * ls_data->lightcalibration_value / 100;
+    sensor_active(ls_data->client, 0, 9600);
     printk("ltr578 value: ----ret:%d alsraw:%d value:%d ir:%d cail:%d darkcail:%d lightcailref:%d----\n", result, ls_data->als, value, ls_data->ir_code, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
     len += sprintf(_buf, "%d\n", result);
     return len;
@@ -222,10 +223,11 @@ static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr,
             value = sensor_read_reg(ls_data->client, sensor->ops->int_status_reg);
         }
     } else {
-        msleep(80);
+        msleep(100);
     }
     value = sensor_als_read(ls_data->client);
     result = value * ls_data->lightcalibration_value / 100;
+    sensor_active(ls_data->client, 0, 9600);
     printk("ltr578 raw: ----ret:%d alsraw:%d value:%d ir:%d cail:%d darkcail:%d lightcailref:%d----\n", result, ls_data->als, value, ls_data->ir_code, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
     len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, ls_data->als, ls_data->ir_code);
     return len;
@@ -270,6 +272,7 @@ static int do_calibration(struct sensor_private_data *sensor, int dark)
             return ret;
         }
     }
+    sensor_active(ls_data->client, 0, 9600);
 
     return 0;
 }
@@ -487,7 +490,7 @@ static int sensor_report_value(struct i2c_client *client)
     // 20220627: do this at sensor-dev.c for two lsensor.
     //index = light_report_value(sensor->input_dev, result);
 
-    //printk("%s:%s result=0x%x\n", __func__, sensor->ops->name, result);
+    printk("%s:%s result=0x%x\n", __func__, sensor->ops->name, result);
     return result;
 }
 
@@ -502,8 +505,8 @@ struct sensor_operate light_ltr578_ops = {
     .precision          = 18,                   //18 bits
     .ctrl_reg           = APS_RW_MAIN_CTRL,     //enable or disable
     .int_status_reg     = APS_RO_MAIN_STATUS,   //intterupt status register
-    .range              = {0, 65535},         //range -- ABS_MISC  {0, 10}, //
-    .brightness         = {0, 255},            // brightness -- ABS_TOOL_WIDTH
+    .range              = {0, 65535},           //range -- ABS_MISC  {0, 10}, //
+    .brightness         = {0, 255},             // brightness -- ABS_TOOL_WIDTH
     .trig               = IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_SHARED,
     .active             = sensor_active,
     .init               = sensor_init,
