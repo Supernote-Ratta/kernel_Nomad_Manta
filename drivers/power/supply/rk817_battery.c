@@ -1539,7 +1539,7 @@ static int rk817_bat_get_charge_status(struct rk817_battery_device *battery)
 	status = rk817_bat_field_read(battery, CHG_STS);
 
 	if (status == CC_OR_CV_CHRG) {
-		if (battery->rsoc == 100 * 1000) {
+		if (battery->rsoc >= 100 * 1000) {
 			DBG("charge to finish\n");
 			status = CHARGE_FINISH;
 		}
@@ -2642,9 +2642,9 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 		dev_err(battery->dev, "register bat power supply fail\n");
 		return 0;
 	}
-	printk("=====rk817_bat_temperature_chrg temp:%d temperature_disable_charge:%d charge_enable:%d charge_supply_power:%d battery_protect:%d battery_maintain:%d temperature_charge_reset:%d current:%d l:%d\n",
+	printk("=====rk817_bat_temperature_chrg temp:%d temperature_disable_charge:%d charge_enable:%d charge_supply_power:%d battery_protect:%d battery_maintain:%d temperature_charge_reset:%d current:%d l:%d rl:%d\n",
 		temp,temperature_disable_charge,charge_enable,charge_supply_power,
-		battery->open_battery_protect,battery->open_battery_maintain,temperature_charge_reset,battery->current_avg,battery->dsoc);
+		battery->open_battery_protect,battery->open_battery_maintain,temperature_charge_reset,battery->current_avg,battery->dsoc,battery->rsoc);
 
 	if ((temp <= 0)||(temp >= 50)){
 		if(temperature_disable_charge == 0) {
@@ -2958,7 +2958,9 @@ static void rk817_bat_calc_smooth_dischrg(struct rk817_battery_device *battery)
 
 		if (battery->dsoc <= 0)
 			battery->dsoc = 0;
-	}
+	} else
+		battery->dsoc = battery ->smooth_soc;
+
 }
 
 static void rk817_bat_smooth_algorithm(struct rk817_battery_device *battery)
@@ -3921,7 +3923,9 @@ static void rk817_bat_resume_work(struct work_struct *work)
 {
 	struct rk817_battery_device *battery = container_of(work, struct rk817_battery_device, resume_work);
 	int interval_sec = 0, time_step = 0, pwroff_vol;
+	int suspend_soc;
 
+	suspend_soc = battery->rsoc;
 	battery->s2r = true;
 	battery->current_avg = rk817_bat_get_avg_current(battery);
 	battery->voltage_relax = rk817_bat_get_relax_voltage(battery);
@@ -3950,10 +3954,18 @@ static void rk817_bat_resume_work(struct work_struct *work)
 		interval_sec);
 
 	/* sleep: enough time and discharge */
-	if ((!battery->sleep_chrg_online) &&
-		(battery->sleep_dischrg_sec > time_step)) {
-		if (rk817_bat_sleep_dischrg(battery))
-			battery->sleep_dischrg_sec = 0;
+		if ((!battery->sleep_chrg_online)/* &&
+			(battery->sleep_dischrg_sec > time_step)*/) {
+			if (rk817_bat_sleep_dischrg(battery))
+				battery->sleep_dischrg_sec = 0;
+		}
+
+	if (battery->sleep_chrg_online) {
+		battery->dsoc = battery->rsoc - suspend_soc;
+		if (battery->dsoc > 100 * 1000)
+			battery->dsoc = 100 * 1000;
+		battery->smooth_soc = battery->dsoc;
+		rk817_bat_calc_sm_linek(battery);
 	}
 
 	rk817_bat_save_data(battery);
