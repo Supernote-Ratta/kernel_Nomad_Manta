@@ -3961,7 +3961,7 @@ static void rk817_bat_resume_work(struct work_struct *work)
 		}
 
 	if (battery->sleep_chrg_online) {
-		battery->dsoc = battery->rsoc - suspend_soc;
+		battery->dsoc += battery->rsoc - suspend_soc;
 		if (battery->dsoc > 100 * 1000)
 			battery->dsoc = 100 * 1000;
 		battery->smooth_soc = battery->dsoc;
