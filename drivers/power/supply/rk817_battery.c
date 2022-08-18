@@ -2698,7 +2698,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 			DBG("############### rk817_bat_get_charge_status battery->dsoc = %d, status = %d\n", battery->dsoc, status);
 			if(battery->open_battery_protect){
 				DBG("############### rk817_bat_get_charge_status rk817_charge_get_usb_to_sys_status(charge) = %d\n", rk817_charge_get_usb_to_sys_status(charge));
-				if (battery->dsoc / 1000 > 60) {//stop charge, battery supply
+				if (battery->dsoc / 1000 > 59) {//stop charge, battery supply
 					DBG("######################### DISABLE CHARGE1, BATTERY SUPPLY\n");
 					charge_enable = 0;
 					charge_supply_power = 0;
