@@ -498,7 +498,7 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
         case GF_IOC_RESET:
             gf_debug(INFO_LOG, "%s: chip reset command\n", __func__);
-            gf_hw_reset(gf_dev, 0);
+            gf_hw_reset(gf_dev, 10);
             break;
 
         case GF_IOC_ENABLE_IRQ:
@@ -826,7 +826,7 @@ static int gf_open(struct inode *inode, struct file *filp)
 #if 1
         gf_spi_write_bytes(gf_dev, 0x0124, 4, clr);
         gf_debug(INFO_LOG, "%s, call gf_hw_reset.\n", __func__);
-        gf_hw_reset(gf_dev, 0);
+        gf_hw_reset(gf_dev, 10);
         while (count > 0) {
             gf_spi_read_bytes(gf_dev, 0x0126, 2, irq_value);
             gf_debug(INFO_LOG, "%s 0x0126 = 0x%04x\n", __func__, (irq_value[0] << 8 | irq_value[1]));
@@ -970,7 +970,7 @@ static int gf_init_flash_fw(struct gf_device *gf_dev)
 
         /* reset sensor again */
         gf_miso_gpio_cfg(gf_dev, 1);
-        gf_hw_reset(gf_dev, 0);
+        gf_hw_reset(gf_dev, 10);
         udelay(100);
         gf_miso_gpio_cfg(gf_dev, 0);
 
