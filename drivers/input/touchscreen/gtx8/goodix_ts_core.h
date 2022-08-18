@@ -368,6 +368,7 @@ struct goodix_ts_hw_ops {
     int (*check_hw)(struct goodix_ts_device *dev);
     int (*suspend)(struct goodix_ts_device *dev);
     int (*resume)(struct goodix_ts_device *dev);
+    int (*set_idle)(struct goodix_ts_device *dev);
 };
 
 /*
@@ -411,6 +412,9 @@ struct goodix_ts_core {
     struct input_dev *input_dev;
     struct input_dev *pen_dev;
 
+    int     emu_work_pending;
+    struct delayed_work emu_work; // 20220817,hsl add.
+
     struct regulator *avdd;
     struct regulator *iovdd;
 #ifdef CONFIG_PINCTRL
@@ -431,6 +435,9 @@ struct goodix_ts_core {
 
 #ifdef CONFIG_FB
     struct notifier_block fb_notifier;
+
+	//ktime_t     kt_pwf_off;
+	int         drop_event;
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
     struct early_suspend early_suspend;
 #endif

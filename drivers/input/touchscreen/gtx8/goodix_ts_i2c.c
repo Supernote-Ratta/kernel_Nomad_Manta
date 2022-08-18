@@ -1632,6 +1632,26 @@ static int goodix_hw_resume(struct goodix_ts_device *dev)
     return 0;
 }
 
+
+// 20220817,set device to idle(low-freq-scan) status.
+static int goodix_hw_set_idle(struct goodix_ts_device *dev)
+{
+    struct goodix_ts_cmd idle_cmd;
+    int r = 0;
+
+    goodix_cmd_init(dev, &idle_cmd, 0x14/*idle-cmd*/, 0, dev->reg.command);
+    if (idle_cmd.initialized) {
+		ts_debug("idle_cmd reg:0x%x", idle_cmd.cmd_reg);
+        r = goodix_send_command(dev, &idle_cmd);
+        if (!r) {
+            ts_info("Chip in idle mode");
+        }
+    } else {
+        ts_err("Uninitialized idle command");
+    }
+    return r;
+}
+
 static int goodix_esd_check(struct goodix_ts_device *dev)
 {
     int r;
@@ -1673,6 +1693,7 @@ static const struct goodix_ts_hw_ops hw_i2c_ops = {
     .suspend = goodix_hw_suspend,
     .resume = goodix_hw_resume,
     .check_hw = goodix_esd_check,
+    .set_idle = goodix_hw_set_idle,
 };
 
 static struct platform_device *goodix_pdev;

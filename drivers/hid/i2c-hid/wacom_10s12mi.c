@@ -93,6 +93,10 @@ struct wacom_pencil {
     bool prox;
     int tool;
     int pendet_irq;
+    // 20220818,hsl add.
+    int     suspend_irq_events;
+    int     suspend_irq_tws;
+    bool    need_fix_tws;
 };
 
 /* debug option */
@@ -394,6 +398,22 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
     if (1 == wpen->revert_y) {
         y =  wpen->features.y_max - y;
 		ty = 0x10000-ty;
+    }
+
+    wpen->suspend_irq_events++;
+    if(tsw) wpen->suspend_irq_tws++;
+
+    /*printk("WACOM_IRQ:tws=%d,ers=%d,prox=0x%x,f1=%d,f2=%d,x=%d,y=%d,pre=%d,tx=%d,ty=%d,events=%d/%d,fix=%d\n",
+        tsw, ers, wpen->prox, f1, f2, x, y, pressure, tx, ty, wpen->suspend_irq_events,
+        wpen->suspend_irq_tws, wpen->need_fix_tws);*/
+        
+    if(wpen->need_fix_tws && !wpen->suspend_irq_tws) {
+        wacom_dbg("wacom_report_irq: irq=%d,fix tsw to 1!", irq);
+        tsw  = 1;
+        pressure = 300; // slight touch!
+        //cancel_delayed_work_sync(&wpen->emu_work);
+        wpen->need_fix_tws = false;
+        wpen->suspend_irq_tws++;
     }
 
     input_report_key(input, BTN_TOUCH, tsw || ers);
@@ -1005,7 +1025,10 @@ static int wacom_pen_suspend(struct device *dev)
         if (device_may_wakeup(dev)) {
             enable_irq_wake(wpen->pendet_irq);
         }
-    }
+    } 
+    wpen->suspend_irq_events = 0;
+    wpen->suspend_irq_tws = 0;
+    wpen->need_fix_tws = false;
 
     return 0;
 }
@@ -1015,12 +1038,17 @@ static int wacom_pen_resume(struct device *dev)
     struct i2c_client *client = to_i2c_client(dev);
     struct wacom_pencil *wpen = i2c_get_clientdata(client);
 
-    wacom_dbg("entering %s\n", __func__);
-
     if(!wpen->suspended) {
         //enable_irq(client->irq);
         if (device_may_wakeup(dev)) {
             disable_irq_wake(wpen->pendet_irq);
+        }
+
+        wacom_dbg("entering %s,irq=%d,det_irq=%d,wake_irq=%d,envents=%d,tws=%d\n", __func__, 
+            client->irq, wpen->pendet_irq, pm_wakeup_irq, wpen->suspend_irq_events, wpen->suspend_irq_tws);
+        if(wpen->pendet_irq == pm_wakeup_irq && wpen->suspend_irq_events > 0
+            && !wpen->suspend_irq_tws) {
+            wpen->need_fix_tws = true;
         }
     }
 

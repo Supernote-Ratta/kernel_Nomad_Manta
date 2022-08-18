@@ -435,7 +435,10 @@ int goodix_gsx_gesture_init(void)
 void goodix_gsx_gesture_exit(void)
 {
     int i, ret;
-    ts_info("gesture module exit");
+    ts_info("gesture module exit,gsx_gesture=%p", gsx_gesture);
+
+    if(!gsx_gesture) return;
+    
     if (atomic_read(&gsx_gesture->registered)) {
         ret = goodix_unregister_ext_module(&gsx_gesture->module);
         atomic_set(&gsx_gesture->registered, 0);

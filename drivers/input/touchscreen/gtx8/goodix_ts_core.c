@@ -939,20 +939,23 @@ static void goodix_ts_report_pen(struct input_dev *dev, struct goodix_pen_data *
     input_sync(dev);
 }
 
+
+static u32 finger_pre_fin;
 static void goodix_ts_report_finger(struct input_dev *dev, struct goodix_touch_data *touch_data)
 {
     unsigned int touch_num = touch_data->touch_num;
-    static u32 pre_fin;
     int i;
 
+    //printk("report_finger: pre_fin=%d,num=%d\n", finger_pre_fin, touch_num);
+    
     /*first touch down and last touch up condition*/
-    if (touch_num && !pre_fin) {
+    if (touch_num && !finger_pre_fin) {
         input_report_key(dev, BTN_TOUCH, 1);
-    } else if (!touch_num && pre_fin) {
+    } else if (!touch_num && finger_pre_fin) {
         input_report_key(dev, BTN_TOUCH, 0);
     }
 
-    pre_fin = touch_num;
+    finger_pre_fin = touch_num;
 
     for (i = 0; i < GOODIX_MAX_TOUCH; i++) {
         if (!touch_data->coords[i].status) {
@@ -970,6 +973,8 @@ static void goodix_ts_report_finger(struct input_dev *dev, struct goodix_touch_d
         input_report_abs(dev, ABS_MT_POSITION_Y, touch_data->coords[i].y);
         input_report_abs(dev, ABS_MT_TOUCH_MAJOR, touch_data->coords[i].w);
     }
+
+    
 
     /* report panel key */
     for (i = 0; i < GOODIX_MAX_TP_KEY; i++) {
@@ -1002,6 +1007,12 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
     u8 irq_flag = 0;
     int r;
 
+    if(core_data->emu_work_pending) {
+        ts_info("ts_threadirq: irq=%d,cancel emu_work!", irq);
+        cancel_delayed_work_sync(&core_data->emu_work);
+        core_data->emu_work_pending = 0;
+    }
+    
     core_data->irq_trig_cnt++;
     /* inform external module */
     mutex_lock(&goodix_modules.mutex);
@@ -1021,8 +1032,18 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
     r = ts_dev->hw_ops->event_handler(ts_dev, ts_event);
     if (likely(r >= 0)) {
         if (ts_event->event_type == EVENT_TOUCH) {
+            // 20220817: æ­¤å¤„åˆ¤æ–­æ˜¯å¦éœ€è¦ä¸¢å¼ƒäº‹ä»¶.
+            if(core_data->drop_event) {
+                //s64 total_us = ktime_to_us(ktime_sub(ktime_get(),core_data->kt_pwf_off));
+                // 20220817: ts-irq-fun:delay-us=53708, touch_num=0
+                //printk("ts-irq-fun:delay-us=%lld, touch_num=%d\n", total_us, ts_event->touch_data.touch_num);
+                if(ts_event->touch_data.touch_num > 0) {
+                    core_data->drop_event = 0;
+                }
             /* report touch */
-            goodix_ts_report_finger(core_data->input_dev, &ts_event->touch_data);
+            } else {
+                goodix_ts_report_finger(core_data->input_dev, &ts_event->touch_data);
+            }
         }
         if (ts_dev->board_data.pen_enable && ts_event->event_type == EVENT_PEN) {
             goodix_ts_report_pen(core_data->pen_dev, &ts_event->pen_data);
@@ -1054,7 +1075,8 @@ int goodix_ts_irq_setup(struct goodix_ts_core *core_data)
     }
 
     ts_info("IRQ:%u,flags:%d", core_data->irq, (int)ts_bdata->irq_flags);
-    r = devm_request_threaded_irq(&core_data->pdev->dev, core_data->irq, NULL, goodix_ts_threadirq_func, ts_bdata->irq_flags | IRQF_ONESHOT, GOODIX_CORE_DRIVER_NAME, core_data);
+    r = devm_request_threaded_irq(&core_data->pdev->dev, core_data->irq, NULL, goodix_ts_threadirq_func, 
+        ts_bdata->irq_flags | IRQF_ONESHOT, GOODIX_CORE_DRIVER_NAME, core_data);
     if (r < 0) {
         ts_err("Failed to requeset threaded irq:%d", r);
     } else {
@@ -1437,6 +1459,26 @@ void goodix_ts_pen_dev_remove(struct goodix_ts_core *core_data)
     core_data->pen_dev = NULL;
 }
 
+static void goodix_ts_emu_work(struct work_struct *work)
+{
+    struct delayed_work *dwork = to_delayed_work(work);
+    struct goodix_ts_core *core = container_of(dwork, struct goodix_ts_core, emu_work);
+    struct goodix_ts_event *ts_event = &core->ts_event;
+    struct goodix_touch_data *touch_data = &ts_event->touch_data;
+    int     i;
+
+    ts_info("goodix_ts_emu_work enter!");
+    //goodix_ts_threadirq_func(0/*core->irq*/, core);
+
+    for (i = 0; i < GOODIX_MAX_TOUCH; i++) {
+        touch_data->coords[i].status = TS_RELEASE;
+    }
+    touch_data->touch_num = 0;
+
+    goodix_ts_report_finger(core->input_dev, &ts_event->touch_data);
+    core->emu_work_pending = 0;
+}
+
 /**
  * goodix_ts_esd_work - check hardware status and recovery
  *  the hardware if needed.
@@ -1561,6 +1603,7 @@ int goodix_ts_esd_init(struct goodix_ts_core *core)
     }
 
     INIT_DELAYED_WORK(&ts_esd->esd_work, goodix_ts_esd_work);
+    
     ts_esd->ts_core = core;
     atomic_set(&ts_esd->esd_on, 0);
     ts_esd->esd_notifier.notifier_call = goodix_esd_notifier_callback;
@@ -1739,10 +1782,14 @@ static int goodix_ts_suspend(struct goodix_ts_core *core_data)
     struct goodix_ts_device *ts_dev = core_data->ts_dev;
     ts_info("Suspend start,fb_is_power_off=%d", fb_is_power_off());
     if (!fb_is_power_off()) {
-
         if (device_may_wakeup(ts_dev->dev)) {
             enable_irq_wake(core_data->irq);
         }
+
+        if (ts_dev->hw_ops->set_idle) { // 20220817,set to idle.
+            ts_dev->hw_ops->set_idle(ts_dev);
+        }
+        core_data->emu_work_pending = 0;
     }
     return 0;
 }
@@ -1754,10 +1801,16 @@ static int goodix_ts_suspend(struct goodix_ts_core *core_data)
 static int goodix_ts_resume(struct goodix_ts_core *core_data)
 {
     struct goodix_ts_device *ts_dev = core_data->ts_dev;
-    ts_info("Resume start,fb_is_power_off=%d", fb_is_power_off());
+    ts_info("Resume start,fb_is_power_off=%d,irq=%d,pm_wakeup_irq=%d,fp_num=%d", fb_is_power_off(),
+        core_data->irq, pm_wakeup_irq, finger_pre_fin);
     if (!fb_is_power_off()) {
         if (device_may_wakeup(ts_dev->dev)) {
             disable_irq_wake(core_data->irq);
+        }
+
+        if(pm_wakeup_irq == core_data->irq && finger_pre_fin > 0) {
+            schedule_delayed_work(&core_data->emu_work, HZ/20);
+            core_data->emu_work_pending = 1;
         }
     }
 
@@ -1771,22 +1824,27 @@ static int goodix_ts_resume(struct goodix_ts_core *core_data)
 static int goodix_ts_fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
     struct goodix_ts_core *core_data = container_of(self, struct goodix_ts_core, fb_notifier);
-    struct goodix_ts_device *ts_dev = core_data->ts_dev;
+    //struct goodix_ts_device *ts_dev = core_data->ts_dev;
 
-    ts_info("event:%d(SCREEN_OFF=%d)\n", event, EINK_NOTIFY_EVENT_SCREEN_OFF);
+    ts_info("event:%d(SCREEN_OFF=%d)", event, EINK_NOTIFY_EVENT_SCREEN_OFF);
 
     if (event == EINK_NOTIFY_EVENT_SCREEN_OFF) {
         goodix_ts_stop_working(core_data, true/*stop*/);
     } else if (event == EINK_NOTIFY_EVENT_SCREEN_ON) {
         goodix_ts_stop_working(core_data, false);
     } else if (event == EINK_NOTIFY_TP_POWEROFF) {
-        /* 20220802: Èç¹ûÂä±ÊµÄÊ±ºò¹Ø±ÕTPµÄµçÔ´£¬È»ºóÔÙÉÏµç¡£TP¾Í»áÉÏ±¨ÍêÕûµÄ DOWN/UP£¬ÇÒÉÏµç
-         * Ö®ºóÔÙÉÏ±¨ DOWN/UP. ÕâÑùÔÙÌ§±ÊÖ®ºó£¬TPµÄ´¥Ãþ¾Í×Ô¶¯ÓÐÐ§ÁË¡£ÉÏ²ãÎÞ·¨¹ýÂËÕâÖÖÇé¿ö¡£ÕâÀï
-         * Ö»ÄÜ¿´¿´TPÊÇ·ñ¿ÉÒÔ½øÈëµÍ¹¦ºÄÄ£Ê½¡£
+        /* 20220802: å¦‚æžœè½ç¬”çš„æ—¶å€™å…³é—­TPçš„ç”µæºï¼Œç„¶åŽå†ä¸Šç”µã€‚TPå°±ä¼šä¸ŠæŠ¥å®Œæ•´çš„ DOWN/UPï¼Œä¸”ä¸Šç”µ
+         * ä¹‹åŽå†ä¸ŠæŠ¥ DOWN/UP. è¿™æ ·å†æŠ¬ç¬”ä¹‹åŽï¼ŒTPçš„è§¦æ‘¸å°±è‡ªåŠ¨æœ‰æ•ˆäº†ã€‚
+         * 20220817: æµ‹è¯•å‘çŽ°ï¼ŒæŒ‰ç€TPè½ç¬”ï¼Œå¦‚æžœè¿›å…¥sleepï¼ŒTPä¼šå…ˆä¸­æ–­ï¼Œäº§ç”Ÿä¸€ä¸ª touch_num=0çš„äº‹ä»¶ã€‚
+         * è¿™æ—¶æˆ‘ä»¬å°±å¯ä»¥è¿‡æ»¤ï¼ŒæŠ¬ç¬”åŽTP resetï¼Œä¸ŠæŠ¥çš„ä¹Ÿæ˜¯ touch_num =0çš„äº‹ä»¶ï¼ŒçŸ¥é“æŠ¬æ‰‹é‡æ–°touchã€‚
          */
-        goodix_ts_irq_enable(core_data, false);
+        core_data->drop_event = 1;
+        goodix_ts_stop_working(core_data, true/*stop*/);
+        //goodix_ts_irq_enable(core_data, false);
     } else if (EINK_NOTIFY_TP_POWERON == event) {
-        goodix_ts_irq_enable(core_data, true);
+        //goodix_ts_irq_enable(core_data, true);
+        goodix_ts_stop_working(core_data, false/*stop*/);
+        //core_data->kt_pwf_off = ktime_get();
     }
 
     return NOTIFY_OK;
@@ -1920,7 +1978,7 @@ int goodix_ts_stage2_init(struct goodix_ts_core *core_data)
     goodix_ts_sysfs_init(core_data);
 
     /* init gesture module */
-    goodix_gsx_gesture_init();
+    //goodix_gsx_gesture_init(); //20220817,hsl.
 
     /* esd protector */
     goodix_ts_esd_init(core_data);
@@ -2020,6 +2078,7 @@ static int goodix_ts_probe(struct platform_device *pdev)
         goto later_thread_err;
     }
     complete_all(&goodix_modules.core_comp);
+    INIT_DELAYED_WORK(&core_data->emu_work, goodix_ts_emu_work);
     ts_info("goodix_ts_core probe success");
     return 0;
 
@@ -2048,7 +2107,7 @@ static int goodix_ts_remove(struct platform_device *pdev)
 
     goodix_ts_power_off(core_data);
     goodix_tools_exit();
-    goodix_gsx_gesture_exit();
+    //goodix_gsx_gesture_exit();
     goodix_fw_update_uninit();
     goodix_ts_unregister_notifier(&core_data->ts_notifier);
 #ifdef CONFIG_FB
