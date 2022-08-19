@@ -2739,21 +2739,21 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 						break;
 					case 2://95
 						DBG("####################### MAINTAIN 95\n");
-						if (battery->dsoc / 1000 > 95) {
+						if (battery->dsoc / 1000 > 94) {
 							//rk817_bat_disable_battery_charge(battery);
 							charge_enable = 0;
 						}
 						break;
 					case 3://90
 						DBG("####################### MAINTAIN 90\n");
-						if (battery->dsoc / 1000 > 90) {
+						if (battery->dsoc / 1000 > 89) {
 							charge_enable = 0;
 							//rk817_bat_disable_battery_charge(battery);
 						}
 						break;
 					case 4://80
 						DBG("####################### MAINTAIN 80\n");
-						if (battery->dsoc / 1000 > 80) {
+						if (battery->dsoc / 1000 > 79) {
 							charge_enable = 0;
 							//rk817_bat_disable_battery_charge(battery);
 						}
