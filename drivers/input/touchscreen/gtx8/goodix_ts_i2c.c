@@ -1641,10 +1641,15 @@ static int goodix_hw_set_idle(struct goodix_ts_device *dev)
 
     goodix_cmd_init(dev, &idle_cmd, 0x14/*idle-cmd*/, 0, dev->reg.command);
     if (idle_cmd.initialized) {
-		ts_debug("idle_cmd reg:0x%x", idle_cmd.cmd_reg);
+        // 20220819: should be: reg:0x6f68, cmd: 0x14 0x00 0xec
+        // log: [GTP-DBG][goodix_hw_set_idle:1646] idle_cmd reg:0x6f68, cmd(3)=0x14 0x00 0xec
+		ts_debug("idle_cmd reg:0x%x, cmd(%d)=0x%02x 0x%02x 0x%02x", idle_cmd.cmd_reg, 
+		    idle_cmd.length, idle_cmd.cmds[0], idle_cmd.cmds[1], idle_cmd.cmds[2]);
         r = goodix_send_command(dev, &idle_cmd);
         if (!r) {
             ts_info("Chip in idle mode");
+        } else {
+            ts_err("send_command idle error:%d", r);
         }
     } else {
         ts_err("Uninitialized idle command");

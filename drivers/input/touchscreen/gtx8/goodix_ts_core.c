@@ -400,20 +400,38 @@ static ssize_t goodix_ts_chip_info_show(struct device  *dev, struct device_attri
 }
 
 /* reset chip */
+// echo i > /sys/devices/platform/goodix_ts.0/reset
 static ssize_t goodix_ts_reset_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
     struct goodix_ts_core *core_data = dev_get_drvdata(dev);
     struct goodix_ts_device *ts_dev = core_data->ts_dev;
-    int en;
+    int en = buf[0] - '0';
 
-    if (sscanf(buf, "%d", &en) != 1) {
+    /*if (sscanf(buf, "%d", &en) != 1) {
+        printk("%s: Invalid buf=%s,en=%d", __func__, buf, en);
         return -EINVAL;
-    }
+    }*/
+
+    // 20220819: hsl add for test-idle.
+    printk("%s:buf=%s, en=%d, count=%d", __func__, buf, en, count);
+    if(buf[0] == 'i') {
+        if (ts_dev->hw_ops->set_idle) {
+            ts_dev->hw_ops->set_idle(ts_dev);
+        }
+        return count;
+    } 
+
+    if(buf[0] == 's') {
+        if (ts_dev->hw_ops->suspend) {
+            ts_dev->hw_ops->suspend(ts_dev);
+        }
+        return count;
+    } 
 
     if (en != 1) {
         return -EINVAL;
     }
-
+    
     if (ts_dev->hw_ops->reset) {
         ts_dev->hw_ops->reset(ts_dev);
     }
