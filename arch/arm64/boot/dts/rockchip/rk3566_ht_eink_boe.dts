@@ -873,6 +873,7 @@
         pinctrl-0 = <&mxc6655xa_irq_gpio>;
         irq-gpio = <&gpio0 RK_PD6 IRQ_TYPE_LEVEL_LOW>;
         irq_enable = <0>;
+	wakeup-source;  //20220824,hsl add for gsensor wakeup.
         poll_delay_ms = <20>;
         type = <SENSOR_TYPE_ACCEL>;
         power-off-in-suspend = <1>;
