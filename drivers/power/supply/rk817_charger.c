@@ -29,6 +29,11 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
         } \
     } while (0)
 
+extern int charge_enable;
+extern int temperature_disable_charge;
+extern int temperature_charge_reset;
+extern int charge_supply_power;
+
 // 220617:1.Set charge current to 450mA for Boe no-cc line
 #define CHARGE_DRIVER_VERSION       "220617"
 
@@ -785,6 +790,16 @@ static void rk817_charge_set_otg_state(struct rk817_charger *charge, int state)
 }
 
 /* changed tower: for battmanager. */
+static void rk817_bat_enable_battery_charge(struct rk817_charger *charge)
+{
+	rk817_charge_field_write(charge, BAT_LTS_TS, 0xfA);
+}
+
+static void rk817_bat_disable_battery_charge(struct rk817_charger *charge)
+{
+	rk817_charge_field_write(charge, BAT_LTS_TS, 0x05);
+}
+
 int rk817_charge_get_charge_state(struct rk817_charger *charge)
 {
     return rk817_charge_field_read(charge, CHRG_EN);
@@ -869,17 +884,17 @@ static void rk817_charge_dc_det_worker(struct work_struct *work)
 
     charger = rk817_charge_get_dc_state(charge);
     if (charger == DC_TYPE_DC_CHARGER) {
-        DBG("detect dc charger in..\n");
+        printk("detect dc charger in..\n");
         rk817_charge_set_chrg_param(charge, DC_TYPE_DC_CHARGER);
         /* check otg supply */
         if (charge->otg_in && charge->pdata->power_dc2otg) {
-            DBG("otg power from dc adapter\n");
+            printk("otg power from dc adapter\n");
             rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
         }
 
         rk817_charge_boost_disable(charge);
     } else {
-        DBG("detect dc charger out..\n");
+        printk("detect dc charger out..\n");
         rk817_charge_set_chrg_param(charge, DC_TYPE_NONE_CHARGER);
         rk817_charge_boost_enable(charge);
         /* check otg supply, power on anyway */
@@ -951,23 +966,23 @@ static void rk817_charge_host_evt_worker(struct work_struct *work)
 
     /* Determine cable/charger type */
     if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) > 0) {
-        DBG("receive type-c notifier event: OTG ON...\n");
+        printk("receive type-c notifier event: OTG ON...\n");
         if (charge->dc_in && charge->pdata->power_dc2otg) {
             if (charge->otg_in) {
                 rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
             }
-            DBG("otg power from dc adapter\n");
+            printk("otg power from dc adapter\n");
         } else {
             rk817_charge_set_otg_state(charge, USB_OTG_POWER_ON);
         }
         rk817_charge_set_otg_in(charge, ONLINE);
     } else if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) == 0) {
-        DBG("receive type-c notifier event: OTG OFF...\n");
+        printk("receive type-c notifier event: OTG OFF...\n");
         rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
         rk817_charge_set_otg_in(charge, OFFLINE);
     }
 }
-
+int line_detect_retry = 0;
 static void rk817_charger_evt_worker(struct work_struct *work)
 {
     struct rk817_charger *charge = container_of(work, struct rk817_charger, usb_work.work);
@@ -975,34 +990,47 @@ static void rk817_charger_evt_worker(struct work_struct *work)
     enum charger_t charger = USB_TYPE_UNKNOWN_CHARGER;
     static const char *const event[] = {"UN", "NONE", "USB", "AC", "ACLOW","CDP1.5A"};
 	//union extcon_property_value property;
+	printk("====rk817_charger_evt_worker:cc_type:0x%2x retry=%d\n",cc_type,line_detect_retry);
 
     /* Determine cable/charger type */
     if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0) {
         charger = USB_TYPE_USB_CHARGER;
+		printk("====rk817_charger_evt_worker:USB_TYPE_USB_CHARGER:0x%2x\n",cc_type);
     } else if (extcon_get_state(edev, EXTCON_CHG_USB_DCP) > 0) {
         charger = USB_TYPE_AC_CHARGER;
 //tanlq add 220617 for boe no cc_report line
 #ifdef CONFIG_TYPEC_TCPM
 		if(cc_type == 0){
+			//tanlq 220824,sometimes vbus report before cc_type,so wait for cc_type.
+			line_detect_retry++;
+			if(line_detect_retry<3){
+				queue_delayed_work(charge->usb_charger_wq, &charge->usb_work, msecs_to_jiffies(170));
+			}
 			charger = USB_TYPE_AC_OLD_CHARGER;
+		}else{
+			line_detect_retry = 0;
 		}
 		printk("====rk817_charger_evt_worker:ac charger cc_type:0x%2x\n",cc_type);
 #endif
     }
 #ifdef CONFIG_TYPEC_TCPM
 	else if(extcon_get_state(edev, EXTCON_CHG_USB_SLOW) > 0) {
-		if(cc_type != 0){
+		//if(cc_type != 0){
 			charger = USB_TYPE_AC_OLD_CHARGER;
-		}
+		//}
 		printk("====rk817_charger_evt_worker:ac charger floating cc_type:0x%2x\n",cc_type);
 	 }
 #endif
 	else if (extcon_get_state(edev, EXTCON_CHG_USB_CDP) > 0) {
         charger = USB_TYPE_CDP_CHARGER;
+		printk("====rk817_charger_evt_worker:USB_TYPE_CDP_CHARGER:0x%2x\n",cc_type);
     }
-
+	printk("====rk817_charger_evt_worker:charger:%d\n",charger);
+	if((charger == USB_TYPE_UNKNOWN_CHARGER)||(charger == DC_TYPE_NONE_CHARGER)){
+		line_detect_retry = 0;
+	}
     if (charger != USB_TYPE_UNKNOWN_CHARGER) {
-        DBG("receive type-c notifier event: %s...\n", event[charger]);
+        printk("receive type-c notifier event: %s...\n", event[charger]);
         charge->usb_charger = charger;
 		charge_enable = 1;
 		temperature_disable_charge = 0;
@@ -1017,7 +1045,7 @@ static void rk817_charge_discnt_evt_worker(struct work_struct *work)
     struct rk817_charger *charge = container_of(work, struct rk817_charger, discnt_work.work);
 
     if (extcon_get_state(charge->cable_edev, EXTCON_USB) == 0) {
-        DBG("receive type-c notifier event: DISCNT...\n");
+        printk("receive type-c notifier event: DISCNT...\n");
 
         rk817_charge_set_chrg_param(charge, USB_TYPE_NONE_CHARGER);
     }
@@ -1137,6 +1165,15 @@ static int rk817_charge_usb_init(struct rk817_charger *charge)
             extcon_unregister_notifier(edev, EXTCON_CHG_USB_DCP, &charge->cable_cg_nb);
             return ret;
         }
+
+		ret = extcon_register_notifier(edev, EXTCON_CHG_USB_SLOW, &charge->cable_cg_nb);
+		if (ret < 0) {
+			dev_err(dev, "failed to register notifier for CDP\n");
+			extcon_unregister_notifier(edev, EXTCON_CHG_USB_SDP, &charge->cable_cg_nb);
+			extcon_unregister_notifier(edev, EXTCON_CHG_USB_DCP, &charge->cable_cg_nb);
+			extcon_unregister_notifier(edev, EXTCON_CHG_USB_CDP, &charge->cable_cg_nb);
+			return ret;
+		}
 
         /* Register host */
         INIT_DELAYED_WORK(&charge->host_work, rk817_charge_host_evt_worker);
@@ -1396,18 +1433,28 @@ static void rk817_charge_irq_delay_work(struct work_struct *work)
     struct rk817_charger *charge = container_of(work, struct rk817_charger, irq_work.work);
 
     if (charge->plugin_trigger) {
-        DBG("pmic: plug in\n");
+        printk("pmic: plug in\n");
         charge->plugin_trigger = 0;
+		charge_enable = 1;
+		temperature_disable_charge = 0;
+		charge_supply_power = 1;
+		temperature_charge_reset = 1;
         if (charge->pdata->extcon) {
             queue_delayed_work(charge->usb_charger_wq, &charge->usb_work, msecs_to_jiffies(10));
         }
     } else if (charge->plugout_trigger) {
-        DBG("pmic: plug out\n");
+        printk("pmic: plug out\n");
         charge->plugout_trigger = 0;
+		charge_enable = 1;
+		temperature_disable_charge = 0;
+		charge_supply_power = 1;
+		temperature_charge_reset = 1;
         rk817_charge_set_chrg_param(charge, USB_TYPE_NONE_CHARGER);
         rk817_charge_set_chrg_param(charge, DC_TYPE_NONE_CHARGER);
+		rk817_charge_usb_to_sys_enable(charge);
+		rk817_bat_enable_battery_charge(charge);
     } else {
-        DBG("pmic: unknown irq\n");
+        printk("pmic: unknown irq\n");
     }
 }
 

@@ -79,6 +79,7 @@ static int et7303_init(struct tcpci *tcpci, struct tcpci_data *tdata)
 {
     int ret;
     struct et7303_chip *chip = tdata_to_et7303(tdata);
+	printk("ljc:---->%s\n",__func__);
 
     /* CK 300K from 320K, shipping off, auto_idle enable, tout = 32ms */
     ret = et7303_write8(chip, ET7303_RTCTRL8, ET7303_RTCTRL8_SET(0, 1, 1, 2));
@@ -157,12 +158,14 @@ static irqreturn_t et7303_irq(int irq, void *dev_id)
     struct et7303_chip *chip = dev_id;
 
     ret = et7303_read16(chip, TCPC_ALERT, &alert);
+	printk("ljc:---->%s :%d\n",__func__,ret);
     if (ret < 0) {
         goto out;
     }
 
     if (alert & TCPC_ALERT_CC_STATUS) {
         ret = et7303_read8(chip, TCPC_CC_STATUS, &status);
+		printk("ljc:---->%sret:%d alert:0x%x status:0x%x\n",__func__,ret,alert,status);
         if (ret < 0) {
             goto out;
         }
@@ -186,6 +189,7 @@ static int et7303_sw_reset(struct et7303_chip *chip)
     }
 
     usleep_range(1000, 2000);
+	//printk("ljc:---->%s\n",__func__);
     return 0;
 }
 

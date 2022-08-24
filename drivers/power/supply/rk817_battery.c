@@ -822,6 +822,22 @@ static int rk817_bat_get_ioffset(struct rk817_battery_device *battery)
 	return ioffset_value;
 }
 
+static bool rk817_bat_get_battery(struct rk817_battery_device *battery)
+{
+	int  temp_value = 0;
+	struct rk817_charger* charge = rk817_charge_get_charger();
+
+	temp_value |= rk817_bat_field_read(battery, BAT_TS_H) << 8;
+	temp_value |= rk817_bat_field_read(battery, BAT_TS_L);
+
+	if(temp_value>65530){
+		printk("=====rk817_bat_temperature_chrg no battery!!!,shutdown!!!\n");
+		if(charge != NULL){
+			return false;
+		}
+	}
+	return true;
+}
 static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 {
 
@@ -835,7 +851,7 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 	temp_value1 |= rk817_bat_field_read(battery, REGE9);
 	adc_to_vol = temp_value * 1200 / 65536;
 	adc_to_vol -= (40/2) * battery->current_avg / 1000;
-	printk("rk817_bat_get_temp:adc=%d adcv=%d templimit:0x%2x size:%d\n",temp_value,adc_to_vol,temp_value1,battery->pdata->temp_size);
+	printk("rk817_bat_get_temp:BAT_TS=%d adcv=%d templimit:0x%2x size:%d\n",temp_value,adc_to_vol,temp_value1,battery->pdata->temp_size);
 	if((battery->pdata->temp_size==0)||(battery->pdata->tempn_size==0)){
 		return 250;
 	}
@@ -2645,7 +2661,6 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 	printk("=====rk817_bat_temperature_chrg temp:%d temperature_disable_charge:%d charge_enable:%d charge_supply_power:%d battery_protect:%d battery_maintain:%d temperature_charge_reset:%d current:%d l:%d rl:%d\n",
 		temp,temperature_disable_charge,charge_enable,charge_supply_power,
 		battery->open_battery_protect,battery->open_battery_maintain,temperature_charge_reset,battery->current_avg,battery->dsoc,battery->rsoc);
-
 	if ((temp <= 0)||(temp >= 50)){
 		if(temperature_disable_charge == 0) {
 			temperature_disable_charge = 1;
@@ -2931,7 +2946,12 @@ static void rk817_bat_lowpwr_check(struct rk817_battery_device *battery)
 		time = 0;
 		battery->fake_offline = 0;
 	}
-
+    //tanlq add 220824 for no battery ,shutdown
+	if(rk817_bat_get_battery(battery)==false){
+		printk("No battery,shutdown!!!\n");
+		battery->fake_offline = 1;
+		battery->dsoc = 0;
+	}
 	DBG("<%s>. t=%lu, dsoc=%d, current=%d, fake_offline=%d\n",
 		__func__, base2sec(time), battery->dsoc,
 		battery->current_avg, battery->fake_offline);
@@ -3482,6 +3502,7 @@ static irqreturn_t rk809_plug_in_isr(int irq, void *cg)
 {
 	struct rk817_battery_device *battery;
 
+	printk("rk809_plug_in_isr\n");
 	battery = (struct rk817_battery_device *)cg;
 	battery->plugin_trigger = 1;
 	battery->plugout_trigger = 0;
@@ -3500,12 +3521,13 @@ static irqreturn_t rk809_plug_out_isr(int irq, void *cg)
 {
 	struct rk817_battery_device *battery;
 
+	printk("rk809_plug_out_isr\n");
 	battery = (struct rk817_battery_device *)cg;
 	battery->plugin_trigger = 0;
 	battery->plugout_trigger = 1;
-	charge_enable = 0;
+	charge_enable = 1;
 	temperature_disable_charge = 0;
-	charge_supply_power = 0;
+	charge_supply_power = 1;
 	temperature_charge_reset = 1;
 	power_supply_changed(battery->bat);
 	if (battery->is_register_chg_psy)
