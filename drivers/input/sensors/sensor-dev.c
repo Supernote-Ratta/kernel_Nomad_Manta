@@ -498,7 +498,7 @@ static int sensor_reset_rate(struct i2c_client *client, int rate)
         rate = 200;
     }
 
-    dev_info(&client->dev, "set sensor poll time to %dms\n", rate);
+    dev_info(&client->dev, "set sensor poll time to %dms status cur: %d\n", rate, sensor->status_cur);
 
     /* work queue is always slow, we need more quickly to match hal rate */
     if (sensor->pdata->poll_delay_ms == (rate - 4)) {
@@ -548,8 +548,7 @@ static void  sensor_delaywork_func(struct work_struct *work)
             if(sensor1 != NULL){
                 int result1 = sensor1->ops->report(sensor1->client);
 
-                // 20220627：light_stk3x1x 1-0048: sensor_delaywork_func: light-sensor,result=203,result1=93,irq0=0,irq1=0
-                dev_info(&client->dev, "%s: light-sensor,result=%d,result1=%d\n", __func__, result, result1);
+                pr_debug("%s: light-sensor,result=%d,result1=%d\n", __func__, result, result1);
 
                 // 20220627: 最终亮度取两个光感的最大值。
                 if(result1 > result) {
@@ -557,8 +556,7 @@ static void  sensor_delaywork_func(struct work_struct *work)
                 }
             }
 
-            // 02220627:改为直接上报 亮度，而不是上报 等级.此处应该优化变化超出了一定范围再上报。或者划分为等级
-            // 上报。
+            // 02220627:改为直接上报 亮度，而不是上报 等级.此处应该优化变化超出了一定范围再上报。或者划分为等级上报。
             input_report_abs(sensor->input_dev, ABS_MISC, result);
             input_sync(sensor->input_dev);
         }
@@ -1599,7 +1597,7 @@ static int sensor_misc_device_register(struct sensor_private_data *sensor, int t
                 sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
                 if (strcmp("ls_ltr578", sensor->i2c_id->name) == 0) {
                     sensor->miscdev.name = "lightsensor1";
-                } else if (strcmp("ls_stk3410", sensor->i2c_id->name) == 0) {
+                } else if (strcmp("ls_stk3x1x", sensor->i2c_id->name) == 0) {
                     sensor->miscdev.name = "lightsensor";
                 } else {
                     sensor->miscdev.name = "lightsensor";
@@ -1860,7 +1858,9 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
     client->irq = pdata->irq_pin;
     type = pdata->type;
     pdata->irq_flags = irq_flags;
-    pdata->poll_delay_ms = 30;
+    if (pdata->poll_delay_ms <= 0) {
+        pdata->poll_delay_ms = 30;
+    }
 
     if ((type >= SENSOR_NUM_TYPES) || (type <= SENSOR_TYPE_NULL)) {
         dev_err(&client->adapter->dev, "sensor type is error %d\n", type);

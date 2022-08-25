@@ -736,6 +736,7 @@
         als_threshold_low = <10>;
         als_ctrl_gain = <2>; /* 0:x1 1:x4 2:x16 3:x64 */
         poll_delay_ms = <150>;
+        power-off-in-suspend = <1>;
     };
 
     ls_ltr578: light@53 {
@@ -748,6 +749,7 @@
         irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
         irq_enable = <0>;
         poll_delay_ms = <100>;
+        power-off-in-suspend = <1>;
     };
 
     aw9610x_sar: pressure@12 {
@@ -873,7 +875,7 @@
         pinctrl-0 = <&mxc6655xa_irq_gpio>;
         irq-gpio = <&gpio0 RK_PD6 IRQ_TYPE_LEVEL_LOW>;
         irq_enable = <0>;
-	wakeup-source;  //20220824,hsl add for gsensor wakeup.
+        wakeup-source;  //20220824,hsl add for gsensor wakeup.
         poll_delay_ms = <20>;
         type = <SENSOR_TYPE_ACCEL>;
         power-off-in-suspend = <1>;

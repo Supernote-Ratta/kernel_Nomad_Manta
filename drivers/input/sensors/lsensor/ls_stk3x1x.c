@@ -883,7 +883,7 @@ static int sensor_report_value(struct i2c_client *client)
             }
         }
     }
-
+    pr_debug("%s:%s result=0x%x\n", __func__, sensor->ops->name, result);
     return result;
 }
 

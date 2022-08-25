@@ -376,7 +376,7 @@ static int sensor_init(struct i2c_client *client)
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
     int ret = 0, regdata;
 
-    printk("%s:line=%d\n", __func__, __LINE__);
+    printk("ltr578 %s init ...\n", __func__);
 
 #if 0
     /* Reset the devices */
@@ -432,7 +432,7 @@ static int sensor_init(struct i2c_client *client)
     }
 
     ls_data->client = client;
-
+    printk("ltr578 %s init successful \n", __func__);
     return ret;
 }
 
@@ -490,7 +490,7 @@ static int sensor_report_value(struct i2c_client *client)
     // 20220627: do this at sensor-dev.c for two lsensor.
     //index = light_report_value(sensor->input_dev, result);
 
-    printk("%s:%s result=0x%x\n", __func__, sensor->ops->name, result);
+    pr_debug("%s:%s result=0x%x\n", __func__, sensor->ops->name, result);
     return result;
 }
 
