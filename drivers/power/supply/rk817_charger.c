@@ -1026,7 +1026,7 @@ static void rk817_charger_evt_worker(struct work_struct *work)
 		printk("====rk817_charger_evt_worker:USB_TYPE_CDP_CHARGER:0x%2x\n",cc_type);
     }
 	printk("====rk817_charger_evt_worker:charger:%d\n",charger);
-	if((charger == USB_TYPE_UNKNOWN_CHARGER)||(charger == DC_TYPE_NONE_CHARGER)){
+	if((charger == USB_TYPE_UNKNOWN_CHARGER)||(charger == DC_TYPE_NONE_CHARGER)||(charger == USB_TYPE_NONE_CHARGER)){
 		line_detect_retry = 0;
 	}
     if (charger != USB_TYPE_UNKNOWN_CHARGER) {
@@ -1666,6 +1666,9 @@ static int rk817_charge_pm_resume(struct device *dev)
     if (charge->otg_slp_state) {
         rk817_charge_otg_slp_enable(charge);
     }
+	if (charge->pdata->extcon) {
+		queue_delayed_work(charge->usb_charger_wq, &charge->usb_work, msecs_to_jiffies(1000));
+	}
 
     return 0;
 }
