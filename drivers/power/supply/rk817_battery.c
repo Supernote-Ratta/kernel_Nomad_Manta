@@ -65,7 +65,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 
 // 220617:1.Charge temperature limit
 //		  2.Battery Protect & battery maintain
-#define DRIVER_VERSION	"220617"
+#define DRIVER_VERSION	"220826"
 
 #define SFT_SET_KB	1
 
@@ -3679,7 +3679,7 @@ static int rk817_battery_probe(struct platform_device *pdev)
 
 	DBG("name: 0x%x", rk817_bat_field_read(battery, CHIP_NAME_H));
 	DBG("%x\n", rk817_bat_field_read(battery, CHIP_NAME_L));
-	DBG("driver version %s\n", DRIVER_VERSION);
+	printk("driver version %s\n", DRIVER_VERSION);
 
 	return 0;
 }
