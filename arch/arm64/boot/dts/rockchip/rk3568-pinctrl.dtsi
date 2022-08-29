@@ -1610,21 +1610,21 @@
         pdmm0_clk1: pdmm0-clk1 {
             rockchip,pins =
                 /* pdmm0_clk1 */
-                <1 RK_PA4 3 &pcfg_pull_none>;
+                <1 RK_PA4 3 &pcfg_pull_none_drv_level_1>;
         };
 
         /omit-if-no-ref/
         pdmm0_sdi0: pdmm0-sdi0 {
             rockchip,pins =
                 /* pdmm0_sdi0 */
-                <1 RK_PB3 2 &pcfg_pull_none>;
+                <1 RK_PB3 2 &pcfg_pull_none_drv_level_1>;
         };
 
         /omit-if-no-ref/
         pdmm0_sdi1: pdmm0-sdi1 {
             rockchip,pins =
                 /* pdmm0_sdi1 */
-                <1 RK_PB2 3 &pcfg_pull_none>;
+                <1 RK_PB2 3 &pcfg_pull_none_drv_level_1>;
         };
 
         /omit-if-no-ref/
