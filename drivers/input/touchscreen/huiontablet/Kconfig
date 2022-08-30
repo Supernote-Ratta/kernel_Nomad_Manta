@@ -1,0 +1,13 @@
+#
+# Huion driver configuration
+#
+config TOUCHSCREEN_HUION_PANELS
+	tristate "Huion touchscreen pen"
+	depends on I2C
+	help
+	  Say Y here if you have a huion touch pen controller
+	  to your system.
+
+	  If build module, say M.
+	  If unsure, say N.
+

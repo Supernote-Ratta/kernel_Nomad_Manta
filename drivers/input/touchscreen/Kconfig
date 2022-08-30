@@ -1408,4 +1408,5 @@ config TOUCHSCREEN_HDX8801
 source "drivers/input/touchscreen/cyttsp5/Kconfig"
 
 source "drivers/input/touchscreen/gtx8/Kconfig"
+source "drivers/input/touchscreen/huiontablet/Kconfig"
 endif
