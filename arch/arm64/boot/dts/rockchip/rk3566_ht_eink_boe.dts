@@ -823,6 +823,28 @@
         wacom-support-wakeup;
     };
 
+    huion: huion@08 {
+        status = "okay";
+        compatible = "huion,hgtxx";
+        reg = <0x08>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&emr_gpio>;
+        //gpio_detect = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+        //gpio_intr = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
+        //gpio_rst = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
+		interrupt-parent = <&gpio0>;
+		//interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+		touch-gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
+		reset-gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
+		huion,tp-size = <101>;
+		huion,max-x = <1404>;
+		huion,max-y = <1872>;
+		huion,configfile-num = <1>;
+        revert_x = <1>;
+        revert_y = <1>;
+        xy_exchange = <0>;
+        //wacom-support-wakeup;
+    };
     hdx8801: hdx8801@11 {
         status = "okay";
         compatible = "hdx8801_touch";

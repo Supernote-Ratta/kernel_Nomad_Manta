@@ -1,0 +1,63 @@
+1 复制huiontablet/ 到[kernel]/drivers/inut/touchscreen/目录
+  Copy huiontablet/ to [kernel]/drivers/input/touchscreen/
+  
+2 打开 Makefile ,在尾部增加以下语句 
+  Open Makefile ,before the end of file ,add the following:
+  obj-$(CONFIG_TOUCHSCREEN_HUION_PANELS)     += huiontablet/
+
+
+3 打开Kconfig文件,在文件末尾添加:source "drivers/input/touchscreen/Kconfig" 
+  Open Kconfig file "drivers/input/touchscreen/Kconfig" add the the following line at the end  
+  source "drivers/input/touchscreen/huiontablet/Kconfig"
+
+4 make menuconfig
+选中Device Drivers-> Input device support-> Touchscreen-> Support for huion Panels ->Huion tablet 
+  open console and enter the kernel folder,
+  make menuconfig
+select Device Drivers-> Input device support-> Touchscreen-> Support for huion Panels ->Huion tablet
+  
+5  修改设备树,参考下面设备节点,添加到工程的dts里面
+   add the node of dts as the following: 
+&i2c2 {    
+	i2c-scl-rising-time-ns = <160>;
+	i2c-scl-falling-time-ns = <30>;
+	clock-frequency = <400000>;
+
+	huion: huion_ts@08 {
+		compatible = "huion,hgtxx";
+		reg = <0x08>;
+		pinctrl-name = "default";
+		pinctrl-0 = <&gtxx_gpio>;
+		interrupt-parent = <&gpio1>;
+		touch-gpio= <&gpio4 RK_PC0 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpio= <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+		huion,tp-size = <101>;
+		huion,max-x = <1536>;
+		huion,max-y= <2048>;
+		huion,configfile-num = <1>;
+		status = "okay";
+	};
+};
+&pinctrl{
+	goodix_gpio {
+		gtxx_gpio:gtxx-gpio{
+			rockchip,pins = 
+			<4 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,
+			<4 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+
+ 其中compatible = "huion,hgtxx";需要和驱动文件huiontablet.c里面的完全一样:
+ the statement: compatible = "huion,hgtxx"; must be the same as in file huiontablet.c
+ 
+static struct of_device_id huion_ts_dt_ids[] = {
+    { .compatible = "huion,hgtxx" },
+    { }
+};
+
+备注:此修改是按照内核版本4.4,不同的内核版本可能有所差异,请根据实际情况修改
+Warning:This guide is according to Linux version 4.4,you can modify according to the actual circumstance
+
+

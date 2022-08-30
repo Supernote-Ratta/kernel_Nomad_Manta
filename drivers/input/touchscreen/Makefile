@@ -129,3 +129,4 @@ obj-$(CONFIG_TOUCHSCREEN_FTS)	+= focaltech_touch/
 obj-$(CONFIG_TOUCHSCREEN_FT5436)	+= focaltech_touch_ft5436/
 obj-$(CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5) += cyttsp5/
 obj-$(CONFIG_TOUCHSCREEN_HDX8801)   += hdx8801.o  
+obj-$(CONFIG_TOUCHSCREEN_HUION_PANELS) += huiontablet/

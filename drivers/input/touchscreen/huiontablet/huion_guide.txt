@@ -1,0 +1,47 @@
+1 复制huiontablet.c 到[kernel]/drivers/hid目录
+  Copy huiontablet.c to [kernel]/drivers/hid
+  
+2 打开 Makefile ,在尾部增加以下语句 
+  Open Makefile ,before the end of file ,you can write
+  
+obj-$(CONFIG_HID_HUIONTABLET)	+= huiontablet.o
+
+3 打开Kconfig,在source "drivers/hid/usbhid/Kconfig"增加,约60行左右
+  Open Kconfig,after "drivers/hid/usbhid/Kconfig" (about Line 60),add
+  
+config HID_HUIONTABLET
+	tristate "Huion tablet"	
+	depends on INPUT
+	---help---
+	Support for Huion tablet.
+
+4 打开hid-ids.h,第675行左右的endif前增加
+  Open hid-ids.h,before endif(about Line 675),add
+#define USB_VENDOR_ID_HUIONTABLET 0x256C
+#define USB_DEVICE_ID_HUIONTABLET 0x0005
+#define USB_DEVICE_ID_HUIONTABLET2 0x006E
+
+5 进入[kernel]/drivers/hid/usbhid
+打开hid-quirks.c,在hid_blacklist结构体中,{ 0, 0 }之前增加 
+  Enter the folder [kernel]/drivers/hid/usbhid,open hid-quirks.c,in hid_blacklist struct,before { 0, 0 }，add
+        { USB_VENDOR_ID_HUIONTABLET,USB_DEVICE_ID_HUIONTABLET, HID_QUIRK_IGNORE},
+        { USB_VENDOR_ID_HUIONTABLET,USB_DEVICE_ID_HUIONTABLET2, HID_QUIRK_IGNORE},
+
+约第90行
+about Line 90
+
+6 make menuconfig
+选中Device Drivers-> HID Devices-> Huion tablet 
+  open console and enter the kernel folder,
+  make menuconfig
+select Device Drivers-> HID Devices-> Huion tablet 
+  
+
+备注:此修改是按照内核版本3.0,不同的内核版本可能有所差异,请根据实际情况修改
+Warning:This guide is according to Linux version 3.0,you can modify according to the actual circumstance
+
+
+7 Aodroid设备更新ROM后，如果光标不能设备旋转，请将Vendor_256c_Product_006e.idc文件，放到/system/usr/idc目录
+(https://source.android.com/devices/tech/input/input-device-configuration-files.html)
+After update the kernel of the Android device,you may find the cursor can not be rotated if the Android device was rotated.Please put the file Vendor_256c_Product_006e.idc to folder /system/usr/idc/
+(refer to https://source.android.com/devices/tech/input/input-device-configuration-files.html)
