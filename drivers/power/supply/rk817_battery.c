@@ -2773,6 +2773,21 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 							//rk817_bat_disable_battery_charge(battery);
 						}
 						break;
+					case 5://ft
+						DBG("####################### MAINTAIN ft\n");
+						if (battery->dsoc / 1000 > 70) {
+							charge_enable = 0;
+							if(battery->dsoc / 1000 > 79){
+								charge_supply_power = 0;
+							}else{
+								charge_supply_power = 1;
+							}
+							//rk817_bat_disable_battery_charge(battery);
+						}else{
+							charge_enable = 1;
+							charge_supply_power = 1;
+						}
+						break;
 					default:
 						charge_enable = 1;
 						break;
