@@ -233,6 +233,7 @@ static int wacom_i2c_hid_command(struct i2c_client *client,
     return ret;
 }
 
+#if 0
 static int wacom_get_report(struct i2c_client *client, u8 reportType,
         u8 reportID, unsigned char *buf_recv, int data_len)
 {
@@ -261,6 +262,7 @@ static int wacom_get_report(struct i2c_client *client, u8 reportType,
     return 0;
 }
 
+
 static void wacom_i2c_print_report(struct i2c_client *client)
 {
     u8      recv[0x10];
@@ -270,20 +272,6 @@ static void wacom_i2c_print_report(struct i2c_client *client)
     // reportID: FEATURE: 02: deviceMode. 25: Position Report Rate 
     wacom_get_report(client, 0x03, 25, recv, 1);
 }
-
-static int wacom_i2c_set_power(struct i2c_client *client, int power_state)
-{
-    int     ret;
-    dev_err(&client->dev, "%s: set state=%d\n", __func__, power_state);
-    
-    ret = wacom_i2c_hid_command(client, &hid_set_power_cmd, power_state,
-        0, NULL, 0, NULL, 0);
-    if (ret)
-        dev_err(&client->dev, "failed to change power setting.\n");
-
-    return ret;
-}
-
 
 static int wacom_fetch_hid_descriptor(struct i2c_client *client)
 {
@@ -331,6 +319,21 @@ static int wacom_fetch_hid_descriptor(struct i2c_client *client)
 		hdesc->wProductID, hdesc->wVersionID);
 	return 0;
 }
+#endif 
+
+static int wacom_i2c_set_power(struct i2c_client *client, int power_state)
+{
+    int     ret;
+    dev_err(&client->dev, "%s: set state=%d\n", __func__, power_state);
+    
+    ret = wacom_i2c_hid_command(client, &hid_set_power_cmd, power_state,
+        0, NULL, 0, NULL, 0);
+    if (ret)
+        dev_err(&client->dev, "failed to change power setting.\n");
+
+    return ret;
+}
+
 
 static int wacom_chip_power(struct i2c_client *client)
 {
@@ -357,6 +360,7 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
 	int tx,ty;
     unsigned char tsw, f1, f2, ers;
     int error;
+    static int report_tsw = 0;
 
     //wacom_dbg("entering %s\n", __func__);
 	if(input==NULL){
@@ -414,6 +418,17 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
         //cancel_delayed_work_sync(&wpen->emu_work);
         wpen->need_fix_tws = false;
         wpen->suspend_irq_tws++;
+    }
+
+    if(!tsw) {
+        if(report_tsw) {
+            report_tsw = 0;
+        } else {
+            //printk("WACOM_IRQ: abort hover-event!!\n");
+            goto out;
+        }
+    } else {
+        report_tsw = 1;
     }
 
     input_report_key(input, BTN_TOUCH, tsw || ers);
@@ -774,6 +789,7 @@ err_free_reset_gpio:
     return -ENODEV;
 }
 
+#if 0
 static int hid_init(struct wacom_pencil *wpen)
 {
     int ret = -1;
@@ -806,6 +822,7 @@ static int hid_init(struct wacom_pencil *wpen)
 
     return 0;
 }
+#endif
 
 static int input_init(struct wacom_pencil *wpen)
 {
