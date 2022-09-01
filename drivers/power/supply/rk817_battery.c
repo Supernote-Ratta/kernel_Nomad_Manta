@@ -65,7 +65,23 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 
 // 220617:1.Charge temperature limit
 //		  2.Battery Protect & battery maintain
-#define DRIVER_VERSION	"220826"
+// 220826:
+//      1.batt_maintain usb no power bug 
+//      2.Add batt_vrtemp for test
+//      3.Charge parameter.
+//      4.battery protect bug
+//      5.Battery ntc compensation
+//      6.Floating cc line charge with 450mA
+//      7.Rk817 charge,dsoc!=rsoc
+//      8.rk817 dsoc bug dsoc=0
+//      9.boe battery protect ,charge to 60%
+//      10.C to C usb line, D+ D- open,report charge
+//        sometimes vbus report before cc_type,do rk817_charger_evt_worker 3 times for cc_type
+//        Shutdown when pull out the battery.
+//      11.Bug:Ultra sleep,wakeup can't detect charge
+// 220901：1.dsoc increase slowly
+//
+#define DRIVER_VERSION	"220901"
 
 #define SFT_SET_KB	1
 
@@ -175,8 +191,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define VIRTUAL_TEMPERATURE		188
 #define VIRTUAL_STATUS			POWER_SUPPLY_STATUS_CHARGING
 
-#define FINISH_CHRG_CUR1		1000
-#define FINISH_CHRG_CUR2		1500
+#define FINISH_CHRG_CUR1		2000
+#define FINISH_CHRG_CUR2		2500
 #define FINISH_MAX_SOC_DELAY		20
 #define TERM_CHRG_DSOC			88
 #define TERM_CHRG_CURR			600
@@ -3384,7 +3400,9 @@ static void rk817_bat_finish_algorithm(struct rk817_battery_device *battery)
 			battery->finish_base = get_boot_sec();
 			if (battery->finish_base > rest)
 				battery->finish_base = get_boot_sec() - rest;
-		}
+		} else
+			battery->dsoc += (finish_sec * 1000 / DIV(soc_sec));
+
 		DBG("CHARGE_FINISH:dsoc<100,dsoc=%d\n"
 			"soc_time=%lu, sec_finish=%lu, plus_soc=%d, rest=%d\n",
 			battery->dsoc, soc_sec, finish_sec, plus_soc, rest);
