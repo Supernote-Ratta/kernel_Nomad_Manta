@@ -80,8 +80,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 //        Shutdown when pull out the battery.
 //      11.Bug:Ultra sleep,wakeup can't detect charge
 // 220901：1.dsoc increase slowly
-//
-#define DRIVER_VERSION	"220901"
+// 220902：1.charge status ,add POWER_SUPPLY_STATUS_DISCHARGING
+#define DRIVER_VERSION	"220902"
 
 #define SFT_SET_KB	1
 
@@ -2379,8 +2379,14 @@ static int rk817_battery_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_STATUS_FULL;
 		else {
 			if ((battery->chip_id != RK809_ID) &&
-				rk817_bat_get_charge_state(battery))
-				val->intval = POWER_SUPPLY_STATUS_CHARGING;
+				rk817_bat_get_charge_state(battery)){
+				if(charge_enable){
+					val->intval = POWER_SUPPLY_STATUS_CHARGING;
+				}
+				else{
+					val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+				}
+			}
 			else if (battery->chip_id == RK809_ID &&
 				 battery->plugin_trigger)
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
