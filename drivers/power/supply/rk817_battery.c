@@ -81,6 +81,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 //      11.Bug:Ultra sleep,wakeup can't detect charge
 // 220901：1.dsoc increase slowly
 // 220902：1.charge status ,add POWER_SUPPLY_STATUS_DISCHARGING
+          2.The temperature drops two degrees
 #define DRIVER_VERSION	"220902"
 
 #define SFT_SET_KB	1
@@ -866,7 +867,7 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 	temp_value |= rk817_bat_field_read(battery, BAT_TS_L);
 	temp_value1 |= rk817_bat_field_read(battery, REGE9);
 	adc_to_vol = temp_value * 1200 / 65536;
-	adc_to_vol -= (40/2) * battery->current_avg / 1000;
+	adc_to_vol -= (31/2) * battery->current_avg / 1000;
 	printk("rk817_bat_get_temp:BAT_TS=%d adcv=%d templimit:0x%2x size:%d\n",temp_value,adc_to_vol,temp_value1,battery->pdata->temp_size);
 	if((battery->pdata->temp_size==0)||(battery->pdata->tempn_size==0)){
 		return 250;
@@ -1952,6 +1953,7 @@ static void rk817_bat_init_fg(struct rk817_battery_device *battery)
 	battery->dbg_pwr_rsoc = battery->rsoc;
 	battery->dbg_pwr_vol = battery->voltage_avg;
 	battery->temperature = VIRTUAL_TEMPERATURE;
+	battery->vrtemperature = VIRTUAL_TEMPERATURE;
 	battery->adc_average[0] = 0;
 	battery->adc_average[1] = 0;
 	battery->adc_average[2] = 0;
