@@ -81,7 +81,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 //      11.Bug:Ultra sleep,wakeup can't detect charge
 // 220901：1.dsoc increase slowly
 // 220902：1.charge status ,add POWER_SUPPLY_STATUS_DISCHARGING
-          2.The temperature drops two degrees
+//          2.The temperature drops two degrees
 #define DRIVER_VERSION	"220902"
 
 #define SFT_SET_KB	1
