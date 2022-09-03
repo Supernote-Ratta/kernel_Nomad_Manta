@@ -420,7 +420,7 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
         wpen->suspend_irq_tws++;
     }
 
-    if(!tsw) {
+    if(!tsw || pressure==0) {
         if(report_tsw) {
             report_tsw = 0;
         } else {
