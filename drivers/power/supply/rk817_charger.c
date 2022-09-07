@@ -266,7 +266,7 @@ extern int temperature_disable_charge;
 extern int temperature_charge_reset;
 extern int charge_supply_power;
 
-static void rk817_charge_set_input_current(struct rk817_charger *charge, int input_current);
+void rk817_charge_set_input_current(struct rk817_charger *charge, int input_current);
 
 static int rk817_charge_ac_get_property(struct power_supply *psy, enum power_supply_property psp, union power_supply_propval *val)
 {
@@ -280,7 +280,7 @@ static int rk817_charge_ac_get_property(struct power_supply *psy, enum power_sup
             } else {
                 val->intval = (charge->ac_in | charge->dc_in);
             }
-            DBG("ac report online: %d\n", val->intval);
+            printk("ac report online: %d\n", val->intval);
             break;
         case POWER_SUPPLY_PROP_STATUS:
             if (charge->pdata->virtual_power) {
@@ -289,7 +289,7 @@ static int rk817_charge_ac_get_property(struct power_supply *psy, enum power_sup
                 val->intval = charge->prop_status;
             }
 
-            DBG("report prop: %d\n", val->intval);
+            printk("report prop: %d\n", val->intval);
             break;
         case POWER_SUPPLY_PROP_VOLTAGE_MAX:
             val->intval = charge->max_chrg_voltage * 1000;  /* uV */
@@ -318,7 +318,7 @@ static int rk817_charge_usb_get_property(struct power_supply *psy, enum power_su
                 val->intval = charge->usb_in;
             }
 
-            DBG("usb report online: %d\n", val->intval);
+            printk("usb report online: %d\n", val->intval);
             break;
         case POWER_SUPPLY_PROP_STATUS:
             if (charge->pdata->virtual_power) {
@@ -327,7 +327,7 @@ static int rk817_charge_usb_get_property(struct power_supply *psy, enum power_su
                 val->intval = charge->prop_status;
             }
 
-            DBG("report prop: %d\n", val->intval);
+            printk("report prop: %d\n", val->intval);
             break;
         case POWER_SUPPLY_PROP_VOLTAGE_MAX:
             val->intval = charge->max_chrg_voltage;
@@ -573,7 +573,7 @@ static void rk817_charge_ilimit_enable(struct rk817_charger *charge)
     rk817_charge_field_write(charge, USB_ILIM_EN, ENABLE);
 }
 
-static void rk817_charge_set_input_current(struct rk817_charger *charge, int input_current)
+void rk817_charge_set_input_current(struct rk817_charger *charge, int input_current)
 {
     if (input_current < 80 || input_current > 3000) {
         dev_err(charge->dev, "the input current is error.\n");
@@ -1032,10 +1032,10 @@ static void rk817_charger_evt_worker(struct work_struct *work)
     if (charger != USB_TYPE_UNKNOWN_CHARGER) {
         printk("receive type-c notifier event: %s...\n", event[charger]);
         charge->usb_charger = charger;
-		charge_enable = 1;
-		temperature_disable_charge = 0;
-		charge_supply_power = 1;
-		temperature_charge_reset = 1;
+		//charge_enable = 1;
+		//temperature_disable_charge = 0;
+		//charge_supply_power = 1;
+		//temperature_charge_reset = 1; //sleep¡¢wakeup not reset
         rk817_charge_set_chrg_param(charge, charger);
     }
 }

@@ -45,11 +45,12 @@ extern int get_pmic_temperature(void);
 static int dbg_enable = 0;
 int charge_enable = 1;
 int temperature_disable_charge = 0;
-static int temperature_lowvol_charge = 0;
-static int temperature_charge_current = 0;
 int temperature_charge_reset = 0;
 int charge_supply_power = 1;
 //static int used_time = 0;
+
+#define INPUT_450MA                  450
+#define INPUT_1500MA                 1500
 
 module_param_named(dbg_level, dbg_enable, int, 0644);
 //module_param_named(used_month, used_time, int, 0644);
@@ -81,7 +82,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 //      11.Bug:Ultra sleep,wakeup can't detect charge
 // 220901：1.dsoc increase slowly
 // 220902：1.charge status ,add POWER_SUPPLY_STATUS_DISCHARGING
-//          2.The temperature drops two degrees
+// 220907：1.charge status change_enable =0,POWER_SUPPLY_STATUS_DISCHARGING change to POWER_SUPPLY_STATUS_CHARGING
+//        2.Add is_batt_exist for no battery,shutdown
 #define DRIVER_VERSION	"220902"
 
 #define SFT_SET_KB	1
@@ -701,6 +703,7 @@ struct rk817_battery_device {
 	int 			adc_average[5];
 	int 			adc_count;
 	int				vrtemperature;
+	bool			is_batt_exist;
 	/* changed end. */
 };
 
@@ -712,6 +715,7 @@ extern void rk817_charge_disable_charge(struct rk817_charger *charge);
 extern void rk817_charge_usb_to_sys_enable(struct rk817_charger *charge);
 extern void rk817_charge_usb_to_sys_disable(struct rk817_charger *charge);
 extern int rk817_charge_get_usb_to_sys_status(struct rk817_charger *charge);
+extern void rk817_charge_set_input_current(struct rk817_charger *charge, int input_current);
 /* changed end. */
 
 static void rk817_bat_resume_work(struct work_struct *work);
@@ -850,9 +854,12 @@ static bool rk817_bat_get_battery(struct rk817_battery_device *battery)
 	if(temp_value>65530){
 		printk("=====rk817_bat_temperature_chrg no battery!!!,shutdown!!!\n");
 		if(charge != NULL){
+			battery->is_batt_exist = false;
+			rk817_bat_field_write(battery, BAT_CON, 1);
 			return false;
 		}
 	}
+	battery->is_batt_exist = true;
 	return true;
 }
 static int rk817_bat_get_temp(struct rk817_battery_device *battery)
@@ -1664,6 +1671,7 @@ static void rk817_bat_init_info(struct rk817_battery_device *battery)
 	battery->monitor_ms = battery->pdata->monitor_sec * TIMER_MS_COUNTS;
 	battery->res_div = (battery->pdata->sample_res == SAMPLE_RES_20MR) ?
 			   SAMPLE_RES_DIV2 : SAMPLE_RES_DIV1;
+	battery->is_batt_exist = true;
 	DBG("battery->qmax :%d\n", battery->qmax);
 }
 
@@ -2343,7 +2351,7 @@ static int rk817_battery_get_property(struct power_supply *psy,
 {
 	struct rk817_battery_device *battery = power_supply_get_drvdata(psy);
 
-	DBG("%s psp =%d\n",__func__,psp);
+	printk("%s psp =%d val->intval=%d\n",__func__,psp,val->intval);
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		val->intval = battery->current_avg * 1000;/*uA*/
@@ -2364,7 +2372,11 @@ static int rk817_battery_get_property(struct power_supply *psy,
 		val->intval = rk817_get_capacity_leve(battery);
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
-		val->intval = POWER_SUPPLY_HEALTH_GOOD;
+		if(battery->is_batt_exist){
+			val->intval = POWER_SUPPLY_HEALTH_GOOD;
+		}else{
+			val->intval = POWER_SUPPLY_HEALTH_DEAD;
+		}
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = battery->temperature;
@@ -2382,12 +2394,12 @@ static int rk817_battery_get_property(struct power_supply *psy,
 		else {
 			if ((battery->chip_id != RK809_ID) &&
 				rk817_bat_get_charge_state(battery)){
-				if(charge_enable){
+				//if(charge_enable){
 					val->intval = POWER_SUPPLY_STATUS_CHARGING;
-				}
-				else{
-					val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
-				}
+				//}
+				//else{
+				//	val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+				//}
 			}
 			else if (battery->chip_id == RK809_ID &&
 				 battery->plugin_trigger)
@@ -2811,6 +2823,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 							charge_enable = 1;
 							charge_supply_power = 1;
 						}
+						rk817_charge_set_input_current(charge,INPUT_1500MA);
 						break;
 					default:
 						charge_enable = 1;
@@ -2847,63 +2860,8 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 	}
 	temperature_charge_reset = 0;
 	/* changed end. */
-#if 0
-	if ((temp <= 13)||(temp >= 47)){
-		if(charge_low_flag == 0) {
-			charge_low_flag = 1;
-			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_500MA);
-			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4200MV);
-			printk("rk817_bat_temperature_chrg:current500,vol4200 \n");
-		}
-		return 0;
-	}
-
-	if ((temp >= 17)&&(temp <= 43)){ 
-		if(charge_low_flag == 1) {
-			charge_low_flag = 0;
-			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_2000MA);
-			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4350MV);
-			printk("rk817_bat_temperature_chrg:current2000,vol4350 \n");
-		}
-		return 0;
-	}
-#endif
 
 	return 0;
-	#if 0
-	for (i = 0; i < battery->pdata->tc_count; i++) {
-		up_temp = battery->pdata->tc_table[i].temp_up;
-		down_temp = battery->pdata->tc_table[i].temp_down;
-		cfg_current = battery->pdata->tc_table[i].chrg_current;
-
-		if (now_temp >= down_temp && now_temp <= up_temp) {
-			/* Temp range or charger are not update, return */
-			if (config_index == i)
-				return 0;
-
-			config_index = i;
-
-			if ((battery->pdata->tc_table[i].chrg_current != 0) &&
-				(battery->pdata->tc_table[i].chrg_current_index != 0xff))
-				rk817_bat_field_write(battery, CHRG_CUR_SEL,
-					battery->pdata->tc_table[i].chrg_current_index);
-			else
-				rk817_bat_disable_charge(battery);
-			#if 0
-			if ((battery->pdata->tc_table[i].chrg_voltage != 0) &&
-				(battery->pdata->tc_table[i].chrg_voltage_index != 0xff))
-				rk817_bat_field_write(battery, CHRG_CUR_SEL,
-					battery->pdata->tc_table[i].chrg_voltage_index);
-			else
-				rk817_bat_enable_charge(battery);
-			#endif
-
-			return 0;
-		}
-	}
-
-	return 0;
-	#endif
 }
 
 static void rk817_bat_update_info(struct rk817_battery_device *battery)
