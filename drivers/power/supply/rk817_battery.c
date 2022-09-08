@@ -84,6 +84,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 // 220902：1.charge status ,add POWER_SUPPLY_STATUS_DISCHARGING
 // 220907：1.charge status change_enable =0,POWER_SUPPLY_STATUS_DISCHARGING change to POWER_SUPPLY_STATUS_CHARGING
 //        2.Add is_batt_exist for no battery,shutdown
+// 220909:1.PWRON long press time:10s
 #define DRIVER_VERSION	"220902"
 
 #define SFT_SET_KB	1
@@ -325,7 +326,8 @@ enum rk817_battery_fields {
 	/* changed end. */
 	CHIP_NAME_H, CHIP_NAME_L,
 	PLUG_IN_STS,
-	F_MAX_FIELDS
+	F_MAX_FIELDS,
+	POWER_KEY_L
 };
 
 static const struct reg_field rk817_battery_reg_fields[] = {
@@ -498,6 +500,7 @@ static const struct reg_field rk817_battery_reg_fields[] = {
 	[CHIP_NAME_H] = REG_FIELD(0xED, 0, 7),
 	[CHIP_NAME_L] = REG_FIELD(0xEE, 0, 7),
 	[PLUG_IN_STS] = REG_FIELD(0xF0, 6, 6),
+	[POWER_KEY_L] = REG_FIELD(0xF7, 4, 5),
 };
 
 struct battery_platform_data {
@@ -1957,6 +1960,7 @@ static void rk817_bat_init_fg(struct rk817_battery_device *battery)
 	battery->voltage_ocv = rk817_bat_get_ocv_voltage(battery);
 	battery->voltage_relax = rk817_bat_get_relax_voltage(battery);
 	battery->current_avg = rk817_bat_get_avg_current(battery);
+	rk817_bat_field_write(battery, POWER_KEY_L, 0x02); //tanlq add 220909 PWRON long press time:10s
 	battery->dbg_pwr_dsoc = battery->dsoc;
 	battery->dbg_pwr_rsoc = battery->rsoc;
 	battery->dbg_pwr_vol = battery->voltage_avg;
