@@ -723,22 +723,6 @@
     status = "okay";
     clock-frequency = <400000>;
 
-    ls_stk3x1x: light@48 {
-        status = "okay";
-        compatible = "ls_stk3x1x";
-        reg = <0x48>;
-        type = <SENSOR_TYPE_LIGHT>;
-        pinctrl-names = "default";
-        pinctrl-0 = <&stk3x1x_irq_gpio>;
-        irq-gpio = <&gpio0 RK_PA6 IRQ_TYPE_LEVEL_LOW>;
-        irq_enable = <0>;
-        als_threshold_high = <100>;
-        als_threshold_low = <10>;
-        als_ctrl_gain = <2>; /* 0:x1 1:x4 2:x16 3:x64 */
-        poll_delay_ms = <150>;
-        power-off-in-suspend = <1>;
-    };
-
     ls_ltr578: light@53 {
         status = "okay";
         compatible = "ls_ltr578";
@@ -774,16 +758,31 @@
         pinctrl-0 = <&et7303_int>;
 
         usb_con: connector {
-            data-role = "dual";
-            power-role = "dual";
+            data-role = "device";
+            power-role = "sink";
             try-power-role = "sink";
-            source-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)>;
             sink-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)>;
             op-sink-microwatt = <10000000>;
         };
     };
 
-    goodix-gtx8@5d {
+    ls_stk3x1x: light@48 {
+        status = "okay";
+        compatible = "ls_stk3x1x";
+        reg = <0x48>;
+        type = <SENSOR_TYPE_LIGHT>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&stk3x1x_irq_gpio>;
+        irq-gpio = <&gpio0 RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+        irq_enable = <0>;
+        als_threshold_high = <100>;
+        als_threshold_low = <10>;
+        als_ctrl_gain = <2>; /* 0:x1 1:x4 2:x16 3:x64 */
+        poll_delay_ms = <150>;
+        power-off-in-suspend = <1>;
+    };
+
+    touchscreen: goodix-gtx8@5d {
          compatible = "goodix,gt9886";
          reg = <0x5d>;
          status = "okay";
@@ -832,14 +831,14 @@
         //gpio_detect = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
         //gpio_intr = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
         //gpio_rst = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
-		interrupt-parent = <&gpio0>;
-		//interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
-		touch-gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
-		reset-gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
-		huion,tp-size = <101>;
-		huion,max-x = <1404>;
-		huion,max-y = <1872>;
-		huion,configfile-num = <1>;
+        interrupt-parent = <&gpio0>;
+        //interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+        touch-gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
+        reset-gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
+        huion,tp-size = <101>;
+        huion,max-x = <1404>;
+        huion,max-y = <1872>;
+        huion,configfile-num = <1>;
         revert_x = <1>;
         revert_y = <1>;
         xy_exchange = <0>;
@@ -1236,6 +1235,7 @@
 
 &usbdrd_dwc3 {
     status = "okay";
+    dr_mode = "peripheral";
     extcon = <&usbc0>;
 };
 
