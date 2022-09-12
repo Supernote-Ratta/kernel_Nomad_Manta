@@ -360,7 +360,7 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
 	int tx,ty;
     unsigned char tsw, f1, f2, ers;
     int error;
-    static int report_tsw = 0;
+    //static int report_tsw = 0;
 
     //wacom_dbg("entering %s\n", __func__);
 	if(input==NULL){
@@ -420,6 +420,7 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
         wpen->suspend_irq_tws++;
     }
 
+#if 0
     if(!tsw || pressure==0) {
         if(report_tsw) {
             report_tsw = 0;
@@ -430,7 +431,7 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
     } else {
         report_tsw = 1;
     }
-
+#endif 
     input_report_key(input, BTN_TOUCH, tsw || ers);
     input_report_key(input, wpen->tool, wpen->prox);
     input_report_key(input, BTN_STYLUS, f1);
