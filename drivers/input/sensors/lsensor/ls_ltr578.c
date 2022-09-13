@@ -177,6 +177,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
         result = sensor_als_disable(client);
     }
 
+    dev_info(&client->dev, "%s enable: %d ret: %d\n", __func__, enable, result);
     return result;
 }
 
@@ -389,6 +390,12 @@ static int sensor_init(struct i2c_client *client)
     }
     msleep(5);
 #endif
+    ret = sensor->ops->active(client, 0, 0);
+    if (ret) {
+        printk("%s:line=%d,error!\n", __func__, __LINE__);
+        return ret;
+    }
+    sensor->status_cur = SENSOR_OFF;
 
     ls_data->als_gainrange = ALS_DEF_GAIN;
     if (ls_data->als_gainrange == 1) {
@@ -412,13 +419,6 @@ static int sensor_init(struct i2c_client *client)
     sensor_write_reg(client, APS_RW_ALS_THRES_LOW_0, 0xff);
     sensor_write_reg(client, APS_RW_ALS_THRES_LOW_1, 0xff);
     sensor_write_reg(client, APS_RW_ALS_THRES_LOW_2, 0xff);
-
-    ret = sensor->ops->active(client, 0, 0);
-    if (ret) {
-        printk("%s:line=%d,error!\n", __func__, __LINE__);
-        return ret;
-    }
-    sensor->status_cur = SENSOR_OFF;
 
     ret = light578_calibration_data_read(&ls_data->lightcalibration_value);
     if (ret) {
@@ -490,7 +490,7 @@ static int sensor_report_value(struct i2c_client *client)
     // 20220627: do this at sensor-dev.c for two lsensor.
     //index = light_report_value(sensor->input_dev, result);
 
-    pr_debug("%s:%s result=0x%x\n", __func__, sensor->ops->name, result);
+    pr_debug("%s:%s report value 0x%x\n", __func__, sensor->ops->name, result);
     return result;
 }
 

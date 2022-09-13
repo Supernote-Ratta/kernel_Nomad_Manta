@@ -514,13 +514,15 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
         ls_data->als_data_index = 0;
     }
     ls_data->als_enabled = enable ? true : false;
+
+    dev_info(&client->dev, "%s enable: %d ret: %d\n", __func__, ls_data->als_enabled, result);
     return result;
 }
 
 static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
-    int result = 0, value = 0, rawvalue = 0, ircode = 0, ret = 0;
+    uint16_t result = 0, value = 0, rawvalue = 0, ircode = 0, ret = 0;
     ssize_t len = 0, readcnt = 2, j = 0;
     char buffer[2] = {0};
 
@@ -554,8 +556,8 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
     stk_als_ir_get_corr(value);
     result = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
     sensor_active(ls_data->client, 0, 0);
-    printk("stk3x1x value: ----ret:%d factor:%d value:%d ir:%d lightcali:%d darkcali:%d lightcaliref:%d----\n", result, ls_data->als_correct_factor, value, ircode, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
-    len += sprintf(_buf, "%d\n", result);
+    printk("stk3x1x value: ----ret:%u factor:%u value:%u ir:%u lightcali:%u darkcali:%u lightcaliref:%u----\n", result, ls_data->als_correct_factor, value, ircode, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
+    len += sprintf(_buf, "%u\n", result);
     return len;
 }
 static CLASS_ATTR_RO(lux_value);
@@ -563,7 +565,7 @@ static CLASS_ATTR_RO(lux_value);
 static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
-    int result = 0, rawvalue = 0, value = 0, ircode = 0, ret = 0;
+    uint16_t result = 0, rawvalue = 0, value = 0, ircode = 0, ret = 0;
     ssize_t len = 0, j = 0;
     char readcnt = 2;
     char buffer[2] = {0};
@@ -592,15 +594,15 @@ static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr,
         }
     }
     printk("stk3x1x raw: ----retry: %d state: %d\n", j, sensor_read_reg(ls_data->client, STK_STATE_REG));
-    value = ((rawvalue - ls_data->darkcalibration_value) < 0) ? 0 : (rawvalue - ls_data->darkcalibration_value);
+    value = (rawvalue < ls_data->darkcalibration_value) ? 0 : (rawvalue - ls_data->darkcalibration_value);
     ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
     ircode = ls_data->ir_code;
     stk_als_ir_get_corr(value);
     result = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
     sensor_active(ls_data->client, 0, 0);
 
-    printk("stk3x1x raw: ----ret:%d factor:%d value:%d ir:%d lightcali:%d darkcali:%d lightcaliref:%d----\n", result, ls_data->als_correct_factor, value, ircode, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
-    len += sprintf(_buf, "x: %d, y: %d, z: %d\n", result, value, ircode);
+    printk("stk3x1x raw: ----ret:%u factor:%u value:%u ir:%u lightcali:%u darkcali:%u lightcaliref:%d----\n", result, ls_data->als_correct_factor, value, ircode, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
+    len += sprintf(_buf, "x: %u, y: %u, z: %u\n", result, value, ircode);
     return len;
 }
 static CLASS_ATTR_RO(lux_rawdata);
@@ -678,7 +680,7 @@ static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *a
         printk(KERN_ERR "read light stk3x1x dark calibration error!\n");
         dvalue = ls_data->darkcalibration_value;
     }
-    len += sprintf(_buf, "%d  %d\n", dvalue, value);
+    len += sprintf(_buf, "%u  %u\n", dvalue, value);
     return len;
 }
 
