@@ -149,7 +149,7 @@ static int accel_do_calibration(struct sensor_private_data *sensor)
         }
         //if (abs(sensor->axis.x) > ACCEL_OFFSET_MAX || abs(sensor->axis.y) > ACCEL_OFFSET_MAX || abs(abs(sensor->axis.z) - ACCEL_SENSITIVE) > ACCEL_OFFSET_MAX) {
         if (abs(sensor->axis.x) > ACCEL_OFFSET_XY_MAX || abs(sensor->axis.y) > ACCEL_OFFSET_XY_MAX) {
-		/* changed end. */
+            /* changed end. */
             sum_accel[0] = 0;
             sum_accel[1] = 0;
             sum_accel[2] = 0;
@@ -259,8 +259,9 @@ static ssize_t gyro_calibration_show(struct class *class, struct class_attribute
         return sprintf(buf, "no gyro sensor find\n");
     }
 
-    if (sensor_cali_data.is_gyro_calibrated == 1)
+    if (sensor_cali_data.is_gyro_calibrated == 1) {
         return sprintf(buf, "gyro calibration: %d, %d, %d\n", sensor_cali_data.gyro_offset[0], sensor_cali_data.gyro_offset[1], sensor_cali_data.gyro_offset[2]);
+    }
 
     ret = sensor_calibration_data_read(&sensor_cali_data);
     if (ret) {
@@ -268,8 +269,9 @@ static ssize_t gyro_calibration_show(struct class *class, struct class_attribute
         return sprintf(buf, "read error\n");
     }
 
-    if (sensor_cali_data.is_gyro_calibrated == 1)
+    if (sensor_cali_data.is_gyro_calibrated == 1) {
         return sprintf(buf, "gyro calibration: %d, %d, %d\n", sensor_cali_data.gyro_offset[0], sensor_cali_data.gyro_offset[1], sensor_cali_data.gyro_offset[2]);
+    }
 
     return sprintf(buf, "read error\n");
 }
@@ -521,9 +523,9 @@ static int sensor_reset_rate(struct i2c_client *client, int rate)
 
         // 20220627: 针对2个光感做处理.两个光感只需要一个 delaywork.不能两个都调用。
         sensor1 = sensor->brother;
-        if(sensor1 != NULL){
-            sensor->ops->active(client, SENSOR_OFF, rate);
-            sensor->ops->active(client, SENSOR_ON, rate);
+        if (sensor1 != NULL) {
+            sensor1->ops->active(client, SENSOR_OFF, rate);
+            sensor1->ops->active(client, SENSOR_ON, rate);
         }
     }
 
@@ -543,20 +545,20 @@ static void  sensor_delaywork_func(struct work_struct *work)
         dev_err(&client->dev, "%s: Get data failed\n", __func__);
     } else {
         // 20220627: 针对两个光感做特殊处理。
-        if(sensor->type == SENSOR_TYPE_LIGHT){
+        if (sensor->type == SENSOR_TYPE_LIGHT) {
             struct sensor_private_data *sensor1 = sensor->brother;
-            if(sensor1 != NULL){
+            if (sensor1 != NULL) {
                 int result1 = sensor1->ops->report(sensor1->client);
 
                 pr_debug("%s: light-sensor,result=%d,result1=%d\n", __func__, result, result1);
 
                 // 20220627: 最终亮度取两个光感的最大值。
-                if(result1 > result) {
+                if (result1 > result) {
                     result = result1;
                 }
             }
 
-            // 02220627:改为直接上报 亮度，而不是上报 等级.此处应该优化变化超出了一定范围再上报。或者划分为等级上报。
+            // 02220627:改为直接上报 亮度，而不是上报 等级.此处应该优化变化超出了一定范围再上报。或者划分为等级上报.
             input_report_abs(sensor->input_dev, ABS_MISC, result);
             input_sync(sensor->input_dev);
         }
@@ -595,8 +597,7 @@ static irqreturn_t sensor_interrupt(int irq, void *dev_id)
 
 static int sensor_irq_init(struct i2c_client *client)
 {
-    struct sensor_private_data *sensor =
-        (struct sensor_private_data *) i2c_get_clientdata(client);
+    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
     int result = 0;
     int irq;
 
@@ -1267,7 +1268,7 @@ static long light_dev_ioctl(struct file *file, unsigned int cmd, unsigned long a
 
     // 20220627,hsl add for light2.
     struct sensor_private_data *sensor1 = sensor->brother;
-    
+
     void __user *argp = (void __user *)arg;
     int result = 0;
     short rate;
@@ -1299,15 +1300,13 @@ static long light_dev_ioctl(struct file *file, unsigned int cmd, unsigned long a
                 dev_err(&client->dev, "%s:failed to copy light sensor status from user space.\n", __func__);
                 return -EFAULT;
             }
-
             mutex_lock(&sensor->operation_mutex);
+            printk("%s set status %s\n", __func__, result ? "enable" : "disable");
             if (result) {
                 if (sensor->status_cur == SENSOR_OFF) {
                     sensor_enable(sensor, SENSOR_ON);
-
-                    if(sensor1 != NULL){
+                    if (sensor1 != NULL) {
                         sensor_enable(sensor1, SENSOR_ON);
-
                         // 20220627：我们只需要一个 lsensor 的 delaywork 就可以了。为了不修改 sensor_enable
                         // 里面的代码，我们在此处做处理。
                         cancel_delayed_work_sync(&sensor1->delaywork);
@@ -1316,8 +1315,7 @@ static long light_dev_ioctl(struct file *file, unsigned int cmd, unsigned long a
             } else {
                 if (sensor->status_cur == SENSOR_ON) {
                     sensor_enable(sensor, SENSOR_OFF);
-
-                    if(sensor1 != NULL){
+                    if (sensor1 != NULL) {
                         sensor_enable(sensor1, SENSOR_OFF);
                     }
                 }
@@ -1593,11 +1591,10 @@ static int sensor_misc_device_register(struct sensor_private_data *sensor, int t
 #endif
                 sensor->fops.open = light_dev_open;
                 sensor->fops.release = light_dev_release;
-
                 sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
-                if (strcmp("ls_ltr578", sensor->i2c_id->name) == 0) {
+                if (strcmp("ls_stk3x1x", sensor->i2c_id->name) == 0) {
                     sensor->miscdev.name = "lightsensor1";
-                } else if (strcmp("ls_stk3x1x", sensor->i2c_id->name) == 0) {
+                } else if (strcmp("ls_ltr578", sensor->i2c_id->name) == 0) {
                     sensor->miscdev.name = "lightsensor";
                 } else {
                     sensor->miscdev.name = "lightsensor";
@@ -1617,7 +1614,6 @@ static int sensor_misc_device_register(struct sensor_private_data *sensor, int t
 #endif
                 sensor->fops.open = proximity_dev_open;
                 sensor->fops.release = proximity_dev_release;
-
                 sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
                 sensor->miscdev.name = "psensor";
                 sensor->miscdev.fops = &sensor->fops;
@@ -1632,7 +1628,6 @@ static int sensor_misc_device_register(struct sensor_private_data *sensor, int t
                 sensor->fops.unlocked_ioctl = temperature_dev_ioctl;
                 sensor->fops.open = temperature_dev_open;
                 sensor->fops.release = temperature_dev_release;
-
                 sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
                 sensor->miscdev.name = "temperature";
                 sensor->miscdev.fops = &sensor->fops;
@@ -1647,7 +1642,6 @@ static int sensor_misc_device_register(struct sensor_private_data *sensor, int t
                 sensor->fops.unlocked_ioctl = pressure_dev_ioctl;
                 sensor->fops.open = pressure_dev_open;
                 sensor->fops.release = pressure_dev_release;
-
                 sensor->miscdev.minor = MISC_DYNAMIC_MINOR;
                 sensor->miscdev.name = "pressure";
                 sensor->miscdev.fops = &sensor->fops;
@@ -1714,17 +1708,14 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
     pdata->wake_enable = of_property_read_bool(np, "wakeup-source");
     of_property_read_u32(np, "irq_enable", &(pdata->irq_enable));
     of_property_read_u32(np, "poll_delay_ms", &(pdata->poll_delay_ms));
-
     of_property_read_u32(np, "x_min", &(pdata->x_min));
     of_property_read_u32(np, "y_min", &(pdata->y_min));
     of_property_read_u32(np, "z_min", &(pdata->z_min));
     of_property_read_u32(np, "factory", &(pdata->factory));
     of_property_read_u32(np, "layout", &(pdata->layout));
     of_property_read_u32(np, "reprobe_en", &reprobe_en);
-
     of_property_read_u8(np, "address", &(pdata->address));
     of_get_property(np, "project_name", pdata->project_name);
-
     of_property_read_u32(np, "power-off-in-suspend", &pdata->power_off_in_suspend);
 
     switch (pdata->layout) {
@@ -1732,123 +1723,97 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
             pdata->orientation[0] = 1;
             pdata->orientation[1] = 0;
             pdata->orientation[2] = 0;
-
             pdata->orientation[3] = 0;
             pdata->orientation[4] = 1;
             pdata->orientation[5] = 0;
-
             pdata->orientation[6] = 0;
             pdata->orientation[7] = 0;
             pdata->orientation[8] = 1;
             break;
-
         case 2:
             pdata->orientation[0] = 0;
             pdata->orientation[1] = -1;
             pdata->orientation[2] = 0;
-
             pdata->orientation[3] = 1;
             pdata->orientation[4] = 0;
             pdata->orientation[5] = 0;
-
             pdata->orientation[6] = 0;
             pdata->orientation[7] = 0;
             pdata->orientation[8] = 1;
             break;
-
         case 3:
             pdata->orientation[0] = -1;
             pdata->orientation[1] = 0;
             pdata->orientation[2] = 0;
-
             pdata->orientation[3] = 0;
             pdata->orientation[4] = -1;
             pdata->orientation[5] = 0;
-
             pdata->orientation[6] = 0;
             pdata->orientation[7] = 0;
             pdata->orientation[8] = 1;
             break;
-
         case 4:
             pdata->orientation[0] = 0;
             pdata->orientation[1] = 1;
             pdata->orientation[2] = 0;
-
             pdata->orientation[3] = -1;
             pdata->orientation[4] = 0;
             pdata->orientation[5] = 0;
-
             pdata->orientation[6] = 0;
             pdata->orientation[7] = 0;
             pdata->orientation[8] = 1;
             break;
-
         case 5:
             pdata->orientation[0] = 1;
             pdata->orientation[1] = 0;
             pdata->orientation[2] = 0;
-
             pdata->orientation[3] = 0;
             pdata->orientation[4] = -1;
             pdata->orientation[5] = 0;
-
             pdata->orientation[6] = 0;
             pdata->orientation[7] = 0;
             pdata->orientation[8] = -1;
             break;
-
         case 6:
             pdata->orientation[0] = 0;
             pdata->orientation[1] = -1;
             pdata->orientation[2] = 0;
-
             pdata->orientation[3] = -1;
             pdata->orientation[4] = 0;
             pdata->orientation[5] = 0;
-
             pdata->orientation[6] = 0;
             pdata->orientation[7] = 0;
             pdata->orientation[8] = -1;
             break;
-
         case 7:
             pdata->orientation[0] = -1;
             pdata->orientation[1] = 0;
             pdata->orientation[2] = 0;
-
             pdata->orientation[3] = 0;
             pdata->orientation[4] = 1;
             pdata->orientation[5] = 0;
-
             pdata->orientation[6] = 0;
             pdata->orientation[7] = 0;
             pdata->orientation[8] = -1;
             break;
-
         case 8:
             pdata->orientation[0] = 0;
             pdata->orientation[1] = 1;
             pdata->orientation[2] = 0;
-
             pdata->orientation[3] = 1;
             pdata->orientation[4] = 0;
             pdata->orientation[5] = 0;
-
             pdata->orientation[6] = 0;
             pdata->orientation[7] = 0;
             pdata->orientation[8] = -1;
             break;
-
         default:
             pdata->orientation[0] = 1;
             pdata->orientation[1] = 0;
             pdata->orientation[2] = 0;
-
             pdata->orientation[3] = 0;
             pdata->orientation[4] = 1;
             pdata->orientation[5] = 0;
-
             pdata->orientation[6] = 0;
             pdata->orientation[7] = 0;
             pdata->orientation[8] = 1;
@@ -1895,7 +1860,6 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
     atomic_set(&sensor->flags.debug_flag, 1);
     init_waitqueue_head(&sensor->flags.open_wq);
     sensor->flags.delay = 100;
-
     sensor->status_cur = SENSOR_OFF;
     sensor->axis.x = 0;
     sensor->axis.y = 0;
@@ -1912,8 +1876,8 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
         goto out_free_memory;
     }
 
-    if(SENSOR_TYPE_LIGHT == type){
-        if(g_sensor[type] == NULL) {
+    if (SENSOR_TYPE_LIGHT == type) {
+        if (g_sensor[type] == NULL) {
             sensor->input_dev = devm_input_allocate_device(&client->dev);
         } else {
             sensor->input_dev = g_sensor[type]->input_dev;
@@ -1990,7 +1954,7 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
             input_set_abs_params(sensor->input_dev, ABS_RZ, sensor->ops->range[0], sensor->ops->range[1], 0, 0);
             break;
         case SENSOR_TYPE_LIGHT:
-            if(!brother){
+            if (!brother) {
                 sensor->input_dev->name = "lightsensor-level";
                 /* //20220627,hsl fix for two lights.ous one input_dev.
                 if (strcmp("ls_ltr578", sensor->i2c_id->name) == 0) {
@@ -2027,7 +1991,7 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
     }
     printk("===>sensor name: %s/%s\n", sensor->input_dev->name, sensor->i2c_id->name);
 
-    if(!brother) {
+    if (!brother) {
         sensor->input_dev->dev.parent = &client->dev;
 
         result = input_register_device(sensor->input_dev);
@@ -2050,7 +2014,9 @@ static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *d
         goto out_misc_device_register_device_failed;
     }
 
-    if(!brother) g_sensor[type] = sensor;
+    if (!brother) {
+        g_sensor[type] = sensor;
+    }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
     if ((sensor->ops->suspend) && (sensor->ops->resume)) {
@@ -2099,8 +2065,7 @@ int sensor_register_device(struct i2c_client *client, struct sensor_platform_dat
         return -ENODEV;
     }
 
-    if ((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID) ||
-        (((int)devid->driver_data) != ops->id_i2c)) {
+    if ((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID) || (((int)devid->driver_data) != ops->id_i2c)) {
         dev_err(&client->dev, "%s: %s id is error %d\n", __func__, ops->name, ops->id_i2c);
         return -EINVAL;
     }

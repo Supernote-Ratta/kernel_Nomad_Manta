@@ -72,7 +72,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
         dev_err(&client->dev, "%s:fail to active sensor\n", __func__);
     }
 
-    pr_debug("%s:reg = 0x%x, reg_ctrl = 0x%x, enable= %d\n", __func__, sensor->ops->ctrl_reg, sensor->ops->ctrl_data, enable);
+    dev_info(&client->dev, "%s:reg = 0x%x, reg_ctrl = 0x%x, enable= %d\n", __func__, sensor->ops->ctrl_reg, sensor->ops->ctrl_data, enable);
 
     return result;
 }
@@ -252,7 +252,7 @@ static int sensor_report_value(struct i2c_client *client)
     if (sensor->pdata->irq_enable) {
         value = sensor_read_reg(client, sensor->ops->int_status_reg);
         if (value & 0x01) {
-            pr_debug("%s:gsensor int status :0x%x\n",  __func__, value);
+            printk("%s:gsensor int status :0x%x\n",  __func__, value);
             ret = sensor_write_reg(client, MXC6655_INT_CLR1, 0x01);
             if (ret) {
                 dev_err(&client->dev, "%s:fail to clear MXC6655_INT_CLR1.\n", __func__);
