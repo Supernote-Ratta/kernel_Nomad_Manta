@@ -51,7 +51,7 @@ int charge_supply_power = 1;
 
 #define INPUT_450MA                  450
 #define INPUT_1500MA                 1500
-
+#define INPUT_2000MA                 2000
 module_param_named(dbg_level, dbg_enable, int, 0644);
 //module_param_named(used_month, used_time, int, 0644);
 
@@ -85,6 +85,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 // 220907：1.charge status change_enable =0,POWER_SUPPLY_STATUS_DISCHARGING change to POWER_SUPPLY_STATUS_CHARGING
 //        2.Add is_batt_exist for no battery,shutdown
 // 220909:1.PWRON long press time:10s
+// 220913:1.charge status change_enable =0,POWER_SUPPLY_STATUS_CHARGING change to POWER_SUPPLY_STATUS_NOT_CHARGING
 #define DRIVER_VERSION	"220902"
 
 #define SFT_SET_KB	1
@@ -2398,12 +2399,12 @@ static int rk817_battery_get_property(struct power_supply *psy,
 		else {
 			if ((battery->chip_id != RK809_ID) &&
 				rk817_bat_get_charge_state(battery)){
-				//if(charge_enable){
+				if(charge_enable){
 					val->intval = POWER_SUPPLY_STATUS_CHARGING;
-				//}
-				//else{
-				//	val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
-				//}
+				}
+				else{
+					val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+				}
 			}
 			else if (battery->chip_id == RK809_ID &&
 				 battery->plugin_trigger)
@@ -2827,7 +2828,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 							charge_enable = 1;
 							charge_supply_power = 1;
 						}
-						rk817_charge_set_input_current(charge,INPUT_1500MA);
+						rk817_charge_set_input_current(charge,INPUT_2000MA);
 						break;
 					default:
 						charge_enable = 1;
