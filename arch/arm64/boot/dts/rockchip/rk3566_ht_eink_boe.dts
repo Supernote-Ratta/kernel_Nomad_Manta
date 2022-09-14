@@ -929,7 +929,7 @@
     pinctrl-0 = <&spi1m1_cs0 &spi1m1_pins>;
     pinctrl-1 = <&spi1m1_cs0 &spi1m1_pins_hs>;
 
-    goodix_fp@0 {
+    fingerprint: goodix_fp@0 {
         compatible = "goodix,goodix-fp";//goodix,fingerprint";
         //interrupt-parent = <&gpio0>;
         reg = <0x00>;
