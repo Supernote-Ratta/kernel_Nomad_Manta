@@ -264,12 +264,20 @@ static struct i2c_driver hdx_driver;
 				printk("HDX DVT2 :PL10R3-MAIN-V06!\n");
 			#endif
 		}
-		else
+		else if( hdx_device.hwver == 0x07)
 		{//PCB °æ±¾ PL10R3-MAIN-V04  	DVT1
-			p_data = hdx_fw;
-			fw_ver = hdx_fw_ver;
+			p_data = hdx_fw_v06;
+			fw_ver = hdx_fw_ver06;
 			#if EMR_PRINTK_ENABLE
 				printk("HDX DVT1 :PL10R3-MAIN-V04!\n");
+			#endif
+		}
+		else
+		{
+			p_data = hdx_fw_v06;
+			fw_ver = hdx_fw_ver06;
+			#if EMR_PRINTK_ENABLE
+				printk("HDX DVT2 :PL10R3-MAIN-V06!\n");
 			#endif
 		}
 		
@@ -317,8 +325,8 @@ static struct i2c_driver hdx_driver;
 		}
 		else
 		{//PCB °æ±¾ PL10R3-MAIN-V04  	DVT1
-			DataLen = sizeof(hdx_fw);
-			p_data = hdx_fw;
+			DataLen = sizeof(hdx_fw_v06);
+			p_data = hdx_fw_v06;
 		}		
 		PkgCnt = (DataLen)/FLASH_PAGE;
 		printk("HDXFWLen = %d\n", DataLen);
