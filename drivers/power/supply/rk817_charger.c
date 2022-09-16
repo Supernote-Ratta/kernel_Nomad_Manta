@@ -33,6 +33,7 @@ extern int charge_enable;
 extern int temperature_disable_charge;
 extern int temperature_charge_reset;
 extern int charge_supply_power;
+extern int charge_input_current;
 
 // 220617:1.Set charge current to 450mA for Boe no-cc line
 #define CHARGE_DRIVER_VERSION       "220617"
@@ -265,6 +266,8 @@ extern int charge_enable;
 extern int temperature_disable_charge;
 extern int temperature_charge_reset;
 extern int charge_supply_power;
+extern int pre_charge_enable;
+extern int pre_charge_supply_power;
 
 void rk817_charge_set_input_current(struct rk817_charger *charge, int input_current);
 
@@ -596,7 +599,8 @@ printk("rk817_charge_set_input_current:%d",input_current);
     } else {
         rk817_charge_field_write(charge, USB_ILIM_SEL, INPUT_CUR_3000MA);
     }
-
+	if((input_current > 100)&&(input_current!=501))
+		charge_input_current = input_current;
     rk817_charge_ilimit_enable(charge);
 }
 
@@ -1435,9 +1439,9 @@ static void rk817_charge_irq_delay_work(struct work_struct *work)
     if (charge->plugin_trigger) {
         printk("pmic: plug in\n");
         charge->plugin_trigger = 0;
-		charge_enable = 1;
+		//charge_enable = 1;
 		temperature_disable_charge = 0;
-		charge_supply_power = 1;
+		//charge_supply_power = 1;
 		temperature_charge_reset = 1;
         if (charge->pdata->extcon) {
             queue_delayed_work(charge->usb_charger_wq, &charge->usb_work, msecs_to_jiffies(10));
@@ -1453,6 +1457,8 @@ static void rk817_charge_irq_delay_work(struct work_struct *work)
         rk817_charge_set_chrg_param(charge, DC_TYPE_NONE_CHARGER);
 		rk817_charge_usb_to_sys_enable(charge);
 		rk817_bat_enable_battery_charge(charge);
+		pre_charge_enable = 1;
+		pre_charge_supply_power = 1;
     } else {
         printk("pmic: unknown irq\n");
     }
@@ -1666,9 +1672,9 @@ static int rk817_charge_pm_resume(struct device *dev)
     if (charge->otg_slp_state) {
         rk817_charge_otg_slp_enable(charge);
     }
-	if (charge->pdata->extcon) {
-		queue_delayed_work(charge->usb_charger_wq, &charge->usb_work, msecs_to_jiffies(1000));
-	}
+	//if (charge->pdata->extcon) {
+	//	queue_delayed_work(charge->usb_charger_wq, &charge->usb_work, msecs_to_jiffies(1000));
+	//}
 
     return 0;
 }
