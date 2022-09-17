@@ -233,10 +233,10 @@ static ssize_t typec_direction_show(struct et7303_chip *chip, char *buf)
         printk("read typec state error!\n");
         return sprintf(buf, "%s\n", "err");
     } else {
-        if (0x11 == status) {
+        if (0x11 == status || 0x01 == status) {
             printk("CC dir status: %x positive.\n");
             return sprintf(buf, "%s\n", "positive");
-        } else if (0x14 == status) {
+        } else if (0x14 == status || 0x04 == status) {
             printk("CC dir status: %x negative.\n");
             return sprintf(buf, "%s\n", "negative");
         }
