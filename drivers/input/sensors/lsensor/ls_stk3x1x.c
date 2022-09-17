@@ -116,7 +116,7 @@
 
 #define LIGHT_SLOPE_CWF                1000
 #define LIGHT_SLOPE_D65                860
-#define LIGHT_SLOPE_A                  540
+#define LIGHT_SLOPE_A                  594
 #define LIGHT_RATIO_D                  350
 #define LIGHT_RATIO_A                  24800
 

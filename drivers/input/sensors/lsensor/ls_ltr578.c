@@ -123,11 +123,11 @@ static int sensor_als_read(struct i2c_client *client)
 
     ratio = clearval * 100 / (alsval + 1);
     if (ratio <= 240) {
-        cal_factor = 9;
+        cal_factor = 10;
     } else if (ratio <= 2000) {
-        cal_factor = 7;
+        cal_factor = 8;
     } else {
-        cal_factor = 7;
+        cal_factor = 8;
     }
 
     alsval = ((alsval - ls_data->darkcalibration_value) < 0) ? 0 : (alsval - ls_data->darkcalibration_value);
@@ -248,7 +248,7 @@ static int do_calibration(struct sensor_private_data *sensor, int dark)
     }
 
     for (i = 0; i < count; i++) {
-        msleep(80);
+        msleep(100);
         sensor_als_read(ls_data->client);
         adjvalue += ls_data->als;
         printk("ltr578 cal: ----cout %d adjvalue: %d, value: %d\n", i, adjvalue, ls_data->als);
