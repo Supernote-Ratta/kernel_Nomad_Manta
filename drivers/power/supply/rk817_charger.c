@@ -1008,7 +1008,7 @@ static void rk817_charger_evt_worker(struct work_struct *work)
 			//tanlq 220824,sometimes vbus report before cc_type,so wait for cc_type.
 			line_detect_retry++;
 			if(line_detect_retry<3){
-				queue_delayed_work(charge->usb_charger_wq, &charge->usb_work, msecs_to_jiffies(170));
+				queue_delayed_work(charge->usb_charger_wq, &charge->usb_work, msecs_to_jiffies(400));
 			}
 			charger = USB_TYPE_AC_OLD_CHARGER;
 		}else{

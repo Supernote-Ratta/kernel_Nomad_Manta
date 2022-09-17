@@ -93,7 +93,9 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 // 220913:1.charge status change_enable =0,POWER_SUPPLY_STATUS_CHARGING change to POWER_SUPPLY_STATUS_NOT_CHARGING
 // 220915:1.PWRON long press 10s,system restart
 // 220916:1.When discharge,stop usb supply ,charger OVP protect.Stop it by steps
-#define DRIVER_VERSION	"220916"
+// 220917:1.Ultra sleep, charge pull in ,cc_type not ready
+
+#define DRIVER_VERSION	"220917"
 
 #define SFT_SET_KB	1
 
