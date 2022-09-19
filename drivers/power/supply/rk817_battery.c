@@ -94,6 +94,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 // 220915:1.PWRON long press 10s,system restart
 // 220916:1.When discharge,stop usb supply ,charger OVP protect.Stop it by steps
 // 220917:1.Ultra sleep, charge pull in ,cc_type not ready
+// 220919:1.Some floating charge,cc_type = 4,cc_type = 5,report AC charge
 
 #define DRIVER_VERSION	"220917"
 

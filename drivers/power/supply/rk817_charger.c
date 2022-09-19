@@ -1019,9 +1019,13 @@ static void rk817_charger_evt_worker(struct work_struct *work)
     }
 #ifdef CONFIG_TYPEC_TCPM
 	else if(extcon_get_state(edev, EXTCON_CHG_USB_SLOW) > 0) {
-		//if(cc_type != 0){
+		if(cc_type == 4 || cc_type == 0x400){
+			charger = USB_TYPE_CDP_CHARGER;
+		}else if(cc_type == 5 || cc_type == 0x500){
+			charger = USB_TYPE_AC_CHARGER;
+		}else{
 			charger = USB_TYPE_AC_OLD_CHARGER;
-		//}
+		}
 		printk("====rk817_charger_evt_worker:ac charger floating cc_type:0x%2x\n",cc_type);
 	 }
 #endif
