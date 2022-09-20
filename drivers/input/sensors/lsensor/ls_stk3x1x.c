@@ -918,7 +918,7 @@ static int light_stk3x1x_probe(struct i2c_client *client, const struct i2c_devic
         printk(KERN_ERR "%s: failed to allocate stk3x1x_data\n", __func__);
         return -ENOMEM;
     }
-    ls_data->calibration_reference = 1100;
+    ls_data->calibration_reference = 1600;
     ls_data->lsensor_class = class_create(THIS_MODULE, client->name);
     ret = class_create_file(ls_data->lsensor_class, &class_attr_lux_value);
     if (ret) {
