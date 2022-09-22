@@ -48,6 +48,8 @@ void goodix_ts_dev_release(void);
 int goodix_fw_update_init(struct goodix_ts_core *core_data);
 void goodix_fw_update_uninit(void);
 
+extern int goodix_send_command(struct goodix_ts_device *dev, struct goodix_ts_cmd *cmd);
+
 struct goodix_module goodix_modules;
 
 #define CORE_MODULE_UNPROBED     0
@@ -1804,9 +1806,11 @@ static int goodix_ts_suspend(struct goodix_ts_core *core_data)
             enable_irq_wake(core_data->irq);
         }
 
-        if (ts_dev->hw_ops->set_idle) { // 20220817,set to idle.
-            ts_dev->hw_ops->set_idle(ts_dev);
-        }
+        /* changed tower: the idle has bug. */
+        //if (ts_dev->hw_ops->set_idle) { // 20220817,set to idle.
+        //    ts_dev->hw_ops->set_idle(ts_dev);
+        //}
+        /* changed end. */
         core_data->emu_work_pending = 0;
     }
     return 0;
@@ -1842,7 +1846,7 @@ static int goodix_ts_resume(struct goodix_ts_core *core_data)
 static int goodix_ts_fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
     struct goodix_ts_core *core_data = container_of(self, struct goodix_ts_core, fb_notifier);
-    //struct goodix_ts_device *ts_dev = core_data->ts_dev;
+    struct goodix_ts_device *ts_dev = core_data->ts_dev;
 
     ts_info("event:%d(SCREEN_OFF=%d)", event, EINK_NOTIFY_EVENT_SCREEN_OFF);
 
@@ -1857,12 +1861,37 @@ static int goodix_ts_fb_notifier_callback(struct notifier_block *self, unsigned 
          * 这时我们就可以过滤，抬笔后TP reset，上报的也是 touch_num =0的事件，知道抬手重新touch。
          */
         core_data->drop_event = 1;
-        goodix_ts_stop_working(core_data, true/*stop*/);
-        //goodix_ts_irq_enable(core_data, false);
+        struct goodix_ts_cmd pen_in_cmd;
+
+        pen_in_cmd.initialized = 1;
+        pen_in_cmd.cmd_reg = 0x6f68;
+        pen_in_cmd.length = 3;
+        pen_in_cmd.cmds[0] = 0x15;
+        pen_in_cmd.cmds[1] = 0x01;
+        pen_in_cmd.cmds[2] = 0xea;
+
+        ts_debug("Send pen in cmd when pendected.");
+
+        if (!goodix_send_command(ts_dev, &pen_in_cmd)) {
+            ts_info("Chip in pen in mode");
+        }
+        goodix_ts_irq_enable(core_data, false);
     } else if (EINK_NOTIFY_TP_POWERON == event) {
-        //goodix_ts_irq_enable(core_data, true);
-        goodix_ts_stop_working(core_data, false/*stop*/);
-        //core_data->kt_pwf_off = ktime_get();
+        struct goodix_ts_cmd pen_out_cmd;
+
+        pen_out_cmd.initialized = 1;
+        pen_out_cmd.cmd_reg = 0x6f68;
+        pen_out_cmd.length = 3;
+        pen_out_cmd.cmds[0] = 0x15;
+        pen_out_cmd.cmds[1] = 0x00;
+        pen_out_cmd.cmds[2] = 0xeb;
+
+        ts_debug("Send pen leave cmd.");
+
+        if (!goodix_send_command(ts_dev, &pen_out_cmd)) {
+            ts_info("Chip in normal mode");
+        }
+        goodix_ts_irq_enable(core_data, true);
     }
 
     return NOTIFY_OK;
