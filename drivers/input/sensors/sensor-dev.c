@@ -2073,7 +2073,7 @@ int sensor_register_device(struct i2c_client *client, struct sensor_platform_dat
     sensor_ops[ops->id_i2c] = ops;
     dev_info(&client->dev, "%s: %s, id = %d\n", __func__, sensor_ops[ops->id_i2c]->name, ops->id_i2c);
 
-    sensor_probe(client, devid);
+    result = sensor_probe(client, devid);
 
     return result;
 }

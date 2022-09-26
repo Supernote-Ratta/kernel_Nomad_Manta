@@ -106,6 +106,10 @@ static int sensor_als_read(struct i2c_client *client)
     int cal_factor;
     int luxdata_int;
 
+    if (!ls_data) {
+        printk(KERN_ERR "%s ls data is null!\n", __func__);
+        return 0;
+    }
     alsval_lo = sensor_read_reg(client, APS_RO_ALS_DATA_0);
     alsval_mi = sensor_read_reg(client, APS_RO_ALS_DATA_1);
     alsval_hi = sensor_read_reg(client, APS_RO_ALS_DATA_2);
@@ -183,7 +187,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 
 static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
-    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    struct sensor_private_data *sensor = NULL;
     int result = 0, value = 0;
     ssize_t len = 0;
 
@@ -191,6 +195,7 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
         printk(KERN_ERR "%s ls data is null!\n", __func__);
         return 0;
     }
+    sensor = (struct sensor_private_data *)i2c_get_clientdata(ls_data->client);
     sensor_active(ls_data->client, 1, 9600);
     if (sensor->pdata->irq_enable) {
         if (sensor->ops->int_status_reg) {
@@ -210,7 +215,7 @@ static CLASS_ATTR_RO(lux_value);
 
 static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
-    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    struct sensor_private_data *sensor = NULL;
     int result = 0, value = 0;
     ssize_t len = 0;
 
@@ -218,6 +223,7 @@ static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr,
         printk(KERN_ERR "%s ls data is null!\n", __func__);
         return 0;
     }
+    sensor = (struct sensor_private_data *)i2c_get_clientdata(ls_data->client);
     sensor_active(ls_data->client, 1, 9600);
     if (sensor->pdata->irq_enable) {
         if (sensor->ops->int_status_reg) {
@@ -280,7 +286,7 @@ static int do_calibration(struct sensor_private_data *sensor, int dark)
 
 static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
-    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    struct sensor_private_data *sensor = NULL;
     uint16_t value = 0, dvalue = 0;
     int len = 0;
 
@@ -288,6 +294,7 @@ static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *a
         printk(KERN_ERR "%s ls data is null!\n", __func__);
         return len;
     }
+    sensor = (struct sensor_private_data *)i2c_get_clientdata(ls_data->client);
     if (light578_calibration_data_read(&value)) {
         printk(KERN_ERR "read light ltr578 calibration error!\n");
         value = ls_data->lightcalibration_value;
@@ -302,7 +309,7 @@ static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *a
 
 static ssize_t lux_calibration_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
 {
-    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    struct sensor_private_data *sensor = NULL;
     int value = 0, dark = 0;
     int ret = -1, pre_status;
     uint16_t zero = 0, defcali = 100;
@@ -311,7 +318,7 @@ static ssize_t lux_calibration_store(struct class *class, struct class_attribute
         printk(KERN_ERR "%s ls data is null!\n", __func__);
         return ret;
     }
-
+    sensor = (struct sensor_private_data *)i2c_get_clientdata(ls_data->client);
     ret = kstrtoint(buf, 10, &value);
     if (ret) {
         printk(KERN_ERR "%s: kstrtoint error return %d\n", __func__, ret);
@@ -379,6 +386,10 @@ static int sensor_init(struct i2c_client *client)
 
     printk("ltr578 %s init ...\n", __func__);
 
+    if (!ls_data) {
+        printk(KERN_ERR "%s ls data is null!\n", __func__);
+        return -1;
+    }
 #if 0
     /* Reset the devices */
     regdata = sensor_read_reg(client, sensor->ops->ctrl_reg);
@@ -525,6 +536,7 @@ static int light_ltr578_probe(struct i2c_client *client, const struct i2c_device
     }
     ls_data->calibration_reference = 3000;
     ls_data->lsensor_class = class_create(THIS_MODULE, client->name);
+
     ret = class_create_file(ls_data->lsensor_class, &class_attr_lux_value);
     if (ret) {
         dev_err(&client->dev, "Fail to create class light578 class value!\n");
@@ -537,7 +549,18 @@ static int light_ltr578_probe(struct i2c_client *client, const struct i2c_device
     if (ret) {
         dev_err(&client->dev, "Fail to create class light578 class raw!\n");
     }
+
     ret = sensor_register_device(client, NULL, devid, &light_ltr578_ops);
+    if (ret) {
+        dev_err(&client->dev, "%s: failed to register ltr578 sensor!\n", __func__);
+        goto error;
+    }
+    return ret;
+error:
+    if (ls_data) {
+        kfree(ls_data);
+        ls_data = NULL;
+    }
     return ret;
 }
 

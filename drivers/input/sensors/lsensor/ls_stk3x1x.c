@@ -292,6 +292,10 @@ static int32_t stk3x1x_check_pid(struct i2c_client *client)
     char value = 0;
     //int result;
 
+    if (!ls_data) {
+        printk(KERN_ERR "%s ls data is null!\n", __func__);
+        return -1;
+    }
     ls_data->p_wv_r_bd_with_co = 0;
     value = sensor_read_reg(client, STK_PDT_ID_REG);
 
@@ -450,6 +454,10 @@ static int stk_als_ir_skip_als(struct i2c_client *client, struct sensor_private_
     int ret;
     unsigned char buffer[2] = {0};
 
+    if (!ls_data) {
+        printk(KERN_ERR "%s ls data is null!\n", __func__);
+        return -1;
+    }
     if (ls_data->als_data_index < 60000) {
         ls_data->als_data_index++;
     } else {
@@ -473,6 +481,10 @@ static void stk_als_ir_get_corr(int32_t als)
     int32_t als_comperator;
     int32_t ir_ratio;
 
+    if (!ls_data) {
+        printk(KERN_ERR "%s ls data is null!\n", __func__);
+        return;
+    }
     if (ls_data->ir_code) {
         ls_data->als_correct_factor = 1000;
         ir_ratio = (ls_data->ir_code * 100) / (als + 1);
@@ -501,6 +513,11 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
     struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
     int result = 0;
 
+    if (!ls_data) {
+        printk(KERN_ERR "%s ls data is null!\n", __func__);
+        return -1;
+    }
+
     sensor->ops->ctrl_data = 0;
     if (enable) {
         sensor->ops->ctrl_data |= (STK_STATE_EN_ALS_MASK);
@@ -521,7 +538,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 
 static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
-    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    struct sensor_private_data *sensor = NULL;
     uint16_t result = 0, value = 0, rawvalue = 0, ircode = 0, ret = 0;
     ssize_t len = 0, readcnt = 2, j = 0;
     char buffer[2] = {0};
@@ -530,7 +547,7 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
         printk(KERN_ERR "%s ls data is null!\n", __func__);
         return 0;
     }
-
+    sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
     sensor_active(ls_data->client, 1, 9600);
     if (sensor->ops->read_len < 2) {
         printk(KERN_ERR "%s:lenth is error,len=%d\n", __func__, sensor->ops->read_len);
@@ -564,7 +581,7 @@ static CLASS_ATTR_RO(lux_value);
 
 static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr, char *_buf)
 {
-    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    struct sensor_private_data *sensor = NULL;
     uint16_t result = 0, rawvalue = 0, value = 0, ircode = 0, ret = 0;
     ssize_t len = 0, j = 0;
     char readcnt = 2;
@@ -574,7 +591,7 @@ static ssize_t lux_rawdata_show(struct class *cls, struct class_attribute *attr,
         printk(KERN_ERR "%s ls data is null!\n", __func__);
         return 0;
     }
-
+    sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
     sensor_active(ls_data->client, 1, 9600);
     if (sensor->ops->read_len < 2) {
         printk(KERN_ERR "%s:lenth is error,len=%d\n", __func__, sensor->ops->read_len);
@@ -686,7 +703,7 @@ static ssize_t lux_calibration_show(struct class *cls, struct class_attribute *a
 
 static ssize_t lux_calibration_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
 {
-    struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
+    struct sensor_private_data *sensor = NULL;
     int value = 0, dark = 0;
     uint16_t zero = 0, defcali = 100;
     int ret = 1, pre_status;
@@ -695,7 +712,7 @@ static ssize_t lux_calibration_store(struct class *class, struct class_attribute
         printk(KERN_ERR "%s ls data is null!\n", __func__);
         return ret;
     }
-
+    sensor = (struct sensor_private_data *) i2c_get_clientdata(ls_data->client);
     ret = kstrtoint(buf, 10, &value);
     if (ret) {
         printk(KERN_ERR "%s: kstrtoint error return %d\n", __func__, ret);
@@ -933,6 +950,16 @@ static int light_stk3x1x_probe(struct i2c_client *client, const struct i2c_devic
         dev_err(&client->dev, "Fail to create class light3x1x class raw!\n");
     }
     ret = sensor_register_device(client, NULL, devid, &light_stk3x1x_ops);
+    if (ret) {
+        dev_err(&client->dev, "%s: failed to register light3x1x sensor!\n", __func__);
+        goto error;
+    }
+    return ret;
+error:
+    if (ls_data) {
+        kfree(ls_data);
+        ls_data = NULL;
+    }
     return ret;
 }
 
