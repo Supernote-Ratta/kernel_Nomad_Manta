@@ -2778,14 +2778,14 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 					charge_enable = 0;
 					charge_supply_power = 0;
 					//rk817_charge_usb_to_sys_disable(charge);
-				} else if (battery->dsoc / 1000 > 40) { //switch to usb supply
+				} else if (battery->dsoc / 1000 > 39) { //switch to usb supply
 					DBG("######################## DISABLE CHARGE1, USB SUPPLY\n");
 					charge_supply_power = 1;
 					if(temperature_charge_reset){
 						charge_enable = 0;
 					}
 				} 
-					else if (battery->dsoc /1000 <= 40) { //restart charge
+					else if (battery->dsoc /1000 <= 39) { //restart charge
 					DBG("####################### fan 0 ENABLE CHARGE\n");
 					charge_enable = 1;
 					charge_supply_power = 1;
