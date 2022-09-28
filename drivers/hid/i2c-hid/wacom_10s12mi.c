@@ -413,8 +413,8 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
         
     if(wpen->need_fix_tws && !wpen->suspend_irq_tws) {
         wacom_dbg("wacom_report_irq: irq=%d,fix tsw to 1!", irq);
-        tsw  = 1;
-        pressure = 300; // slight touch!
+        //tsw  = 1;
+        //pressure = 300; // slight touch!
         //cancel_delayed_work_sync(&wpen->emu_work);
         wpen->need_fix_tws = false;
         wpen->suspend_irq_tws++;
