@@ -127,11 +127,11 @@ static int sensor_als_read(struct i2c_client *client)
 
     ratio = clearval * 100 / (alsval + 1);
     if (ratio <= 240) {
-        cal_factor = 10;
+        cal_factor = 9;
     } else if (ratio <= 2000) {
-        cal_factor = 8;
+        cal_factor = 7;
     } else {
-        cal_factor = 8;
+        cal_factor = 7;
     }
 
     alsval = ((alsval - ls_data->darkcalibration_value) < 0) ? 0 : (alsval - ls_data->darkcalibration_value);
@@ -534,7 +534,7 @@ static int light_ltr578_probe(struct i2c_client *client, const struct i2c_device
         dev_err(&client->dev, "%s: failed to allocate ltr578_data!\n", __func__);
         return -ENOMEM;
     }
-    ls_data->calibration_reference = 3000;
+    ls_data->calibration_reference = 2350;
     ls_data->lsensor_class = class_create(THIS_MODULE, client->name);
 
     ret = class_create_file(ls_data->lsensor_class, &class_attr_lux_value);
