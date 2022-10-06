@@ -45,6 +45,8 @@ extern int get_pmic_temperature(void);
 static int dbg_enable = 0;
 int charge_enable = 1;
 int temperature_disable_charge = 0;
+int charge_vol_limit = 4400;
+int charge_current_limit = 2000;
 int temperature_charge_reset = 0;
 int charge_supply_power = 1;
 int charge_input_current = 450;
@@ -95,8 +97,9 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 // 220916:1.When discharge,stop usb supply ,charger OVP protect.Stop it by steps
 // 220917:1.Ultra sleep, charge pull in ,cc_type not ready
 // 220919:1.Some floating charge,cc_type = 4,cc_type = 5,report AC charge
+// 221005 1.Maintain Mode,control by charge vol.
 
-#define DRIVER_VERSION	"220917"
+#define DRIVER_VERSION	"221005"
 
 #define SFT_SET_KB	1
 
@@ -2368,7 +2371,7 @@ static int rk817_battery_get_property(struct power_supply *psy,
 {
 	struct rk817_battery_device *battery = power_supply_get_drvdata(psy);
 
-	printk("%s psp =%d val->intval=%d\n",__func__,psp,val->intval);
+	//printk("%s psp =%d val->intval=%d\n",__func__,psp,val->intval);
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		val->intval = battery->current_avg * 1000;/*uA*/
@@ -2701,6 +2704,44 @@ rk817_bat_update_charging_status(struct rk817_battery_device *battery)
 	if (is_charging)
 		battery->charge_count++;
 }
+static void rk817_bat_set_charge_voltage(struct rk817_battery_device *battery, int input_voltage)
+{
+    int voltage;
+
+    if (input_voltage < 4000) {
+        dev_err(battery->dev, "the input voltage is error.\n");
+    }
+
+    voltage = CHRG_VOL_4100MV + (input_voltage - 4100) / 50;
+    rk817_bat_field_write(battery, CHRG_VOL_SEL, voltage);
+}
+
+
+void rk817_bat_set_charge_current(struct rk817_battery_device *battery, int input_current)
+{
+    if (input_current < 450 || input_current > 3500) {
+        dev_err(battery->dev, "the input current is error.\n");
+    }
+	printk("rk817_charge_set_input_current:%d",input_current);
+    if (input_current < 1000) {
+        rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_500MA);
+    } else if (input_current < 1500) {
+        rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_1000MA);
+    } else if (input_current < 2000) {
+        rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_1500MA);
+    } else if (input_current < 2500) {
+        rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_2000MA);
+    } else if (input_current < 2750) {
+        rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_2500MA);
+    } else if (input_current < 3000) {
+        rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_2750MA);
+	}else if (input_current < 3500) {
+        rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_3000MA);
+    } else {
+        rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_3500MA);
+    }
+}
+
 
 static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int temp)
 {
@@ -2734,16 +2775,16 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 	if(temperature_charge_reset){
 		temperature_disable_charge = 0;
 		if( temp >= 45 ){
-			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_1500MA);
-			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4200MV);
+			charge_current_limit = 1500;
+			charge_vol_limit = 4200;
 			printk("=====rk817_bat_temperature_chrg 1.5A,4.2V\n");
 		}else if( temp >= 15 ){
-			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_2000MA);
-			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4400MV);
+			charge_current_limit = 2000;
+			charge_vol_limit = 4400;
 			printk("=====rk817_bat_temperature_chrg 2A,4.4V\n");
 		}else{
-			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_500MA);
-			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4400MV);
+			charge_current_limit = 500;
+			charge_vol_limit = 4400;
 			printk("=====rk817_bat_temperature_chrg 0.5A,4.4V\n");
 		}
 	}else{
@@ -2751,18 +2792,18 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 			temperature_disable_charge = 0;
 		}
 		if ((temp > 1) && (temp < 14)) {
-			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_500MA);
-			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4400MV);
+			charge_current_limit = 500;
+			charge_vol_limit = 4400;
 			printk("=====rk817_bat_temperature_chrg 0.5A,4.4V\n");
 		}
 		if ((temp > 15) && (temp < 44)) {
-			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_2000MA);
-			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4400MV);
+			charge_current_limit = 2000;
+			charge_vol_limit = 4400;
 			printk("=====rk817_bat_temperature_chrg 2A,4.4V\n");
 		}
 		if ((temp > 45) && (temp < 49)) {
-			rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_1500MA);
-			rk817_bat_field_write(battery, CHRG_VOL_SEL, CHRG_VOL_4200MV);
+			charge_current_limit = 1500;
+			charge_vol_limit = 4200;
 			printk("=====rk817_bat_temperature_chrg 1.5A,4.2V\n");
 		}
 	}
@@ -2805,27 +2846,48 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 						break;
 					case 2://95
 						DBG("####################### MAINTAIN 95\n");
+						#if 0
 						if (battery->dsoc / 1000 > 94) {
 							//rk817_bat_disable_battery_charge(battery);
 							charge_enable = 0;
 							charge_supply_power = 1;
 						}
+						#else
+						if(charge_vol_limit > 4350)
+							charge_vol_limit = 4350;
+						charge_enable = 1;
+						charge_supply_power = 1;
+						#endif
 						break;
 					case 3://90
 						DBG("####################### MAINTAIN 90\n");
+						#if 0
 						if (battery->dsoc / 1000 > 89) {
 							charge_enable = 0;
 							charge_supply_power = 1;
 							//rk817_bat_disable_battery_charge(battery);
 						}
+						#else
+						if(charge_vol_limit > 4300)
+							charge_vol_limit = 4300;
+						charge_enable = 1;
+						charge_supply_power = 1;
+						#endif
 						break;
 					case 4://80
 						DBG("####################### MAINTAIN 80\n");
+						#if 0
 						if (battery->dsoc / 1000 > 79) {
 							charge_enable = 0;
 							charge_supply_power = 1;
 							//rk817_bat_disable_battery_charge(battery);
 						}
+						#else
+						if(charge_vol_limit > 4200)
+							charge_vol_limit = 4200;
+						charge_enable = 1;
+						charge_supply_power = 1;
+						#endif
 						break;
 					case 5://ft
 						DBG("####################### MAINTAIN ft\n");
@@ -2930,6 +2992,8 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 			charge_supply_power = 1;
 		}
 	}
+	rk817_bat_set_charge_voltage(battery,charge_vol_limit);
+	rk817_bat_set_charge_current(battery,charge_current_limit);
 	if(charge_enable){
 		rk817_charge_usb_to_sys_enable(charge);
 		rk817_bat_enable_battery_charge(battery);//start battery charge
@@ -2938,23 +3002,35 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 		if(charge_supply_power){
             rk817_charge_usb_to_sys_enable(charge); //enable usb charge
             if(pre_charge_enable == 1){
-				rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_1500MA);
-                mdelay(20);
-                rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_1000MA);
-                mdelay(20);
-				rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_500MA);
-				mdelay(20);
+				if(charge_current_limit > 1500){
+					rk817_bat_set_charge_current(battery,1500);
+	                mdelay(20);
+				}
+				if(charge_current_limit > 1000){
+                	rk817_bat_set_charge_current(battery,1000);
+                	mdelay(20);
+				}
+				if(charge_current_limit > 500){
+					rk817_bat_set_charge_current(battery,500);
+					mdelay(20);
+				}
 				rk817_bat_disable_battery_charge(battery);
 				 printk("=====rk817_bat_temperature_chrg charge_disable\n");
             }
 		}else{
             if(pre_charge_enable == 1){
-                rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_1500MA);
-                mdelay(20);
-                rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_1000MA);
-                mdelay(20);
-				rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_500MA);
-				mdelay(20);
+                if(charge_current_limit > 1500){
+					rk817_bat_set_charge_current(battery,1500);
+	                mdelay(20);
+				}
+				if(charge_current_limit > 1000){
+                	rk817_bat_set_charge_current(battery,1000);
+                	mdelay(20);
+				}
+				if(charge_current_limit > 500){
+					rk817_bat_set_charge_current(battery,500);
+					mdelay(20);
+				}
 				rk817_bat_disable_battery_charge(battery);
 				mdelay(20);
                 printk("=====rk817_bat_temperature_chrg charge_disable\n");
