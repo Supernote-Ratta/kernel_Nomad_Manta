@@ -994,12 +994,10 @@ static void rk817_charger_evt_worker(struct work_struct *work)
     enum charger_t charger = USB_TYPE_UNKNOWN_CHARGER;
     static const char *const event[] = {"UN", "NONE", "USB", "AC", "ACLOW","CDP1.5A"};
 	//union extcon_property_value property;
-	printk("====rk817_charger_evt_worker:cc_type:0x%2x retry=%d\n",cc_type,line_detect_retry);
 
     /* Determine cable/charger type */
     if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0) {
         charger = USB_TYPE_USB_CHARGER;
-		printk("====rk817_charger_evt_worker:USB_TYPE_USB_CHARGER:0x%2x\n",cc_type);
     } else if (extcon_get_state(edev, EXTCON_CHG_USB_DCP) > 0) {
         charger = USB_TYPE_AC_CHARGER;
 //tanlq add 220617 for boe no cc_report line
@@ -1031,7 +1029,6 @@ static void rk817_charger_evt_worker(struct work_struct *work)
 #endif
 	else if (extcon_get_state(edev, EXTCON_CHG_USB_CDP) > 0) {
         charger = USB_TYPE_CDP_CHARGER;
-		printk("====rk817_charger_evt_worker:USB_TYPE_CDP_CHARGER:0x%2x\n",cc_type);
     }
 	printk("====rk817_charger_evt_worker:charger:%d\n",charger);
 	if((charger == USB_TYPE_UNKNOWN_CHARGER)||(charger == DC_TYPE_NONE_CHARGER)||(charger == USB_TYPE_NONE_CHARGER)){
@@ -1043,7 +1040,7 @@ static void rk817_charger_evt_worker(struct work_struct *work)
 		//charge_enable = 1;
 		//temperature_disable_charge = 0;
 		//charge_supply_power = 1;
-		//temperature_charge_reset = 1; //sleep¡¢wakeup not reset
+		//temperature_charge_reset = 1; //sleep wakeup not reset
         rk817_charge_set_chrg_param(charge, charger);
     }
 }

@@ -688,7 +688,7 @@
 
     wacom: wacom@09 {
         status = "okay";
-        compatible = "wacom,w9013HID";
+        compatible = "wacom,10S12MI";
         reg = <0x09>;
         hid-descr-addr = <0x0001>;
         pwr-supply = <&vcc_tp>;
@@ -817,14 +817,14 @@
     pinctrl-names = "default";
     pinctrl-0 = <&spi3m1_cs0 &spi3m1_pins>;
 
-    ft9366: ft9366@0 {
+    fingerprint: ft9366@0 {
         compatible = "focaltech,fingerprint-spidev";
         reg = <0>;
         spi-max-frequency = <1000000>;
         fingerprint,en-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
         fingerprint,touch-int-gpio = <&gpio0 RK_PC0 IRQ_TYPE_EDGE_RISING>;
         fingerprint,gpio_reset = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
-        status = "okay";
+        status = "disabled";
     };
 };
 
