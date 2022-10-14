@@ -52,7 +52,11 @@ int charge_supply_power = 1;
 int charge_input_current = 450;
 int pre_charge_enable = 1;
 int pre_charge_supply_power = 1;
-
+#ifdef CONFIG_BACKLIGHT_PWM
+extern int backlight_current;
+#else
+int backlight_current = 0;
+#endif
 //static int used_time = 0;
 
 #define INPUT_450MA                  450
@@ -98,8 +102,9 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 // 220917:1.Ultra sleep, charge pull in ,cc_type not ready
 // 220919:1.Some floating charge,cc_type = 4,cc_type = 5,report AC charge
 // 221005 1.Maintain Mode,control by charge vol.
+// 221014 1.When the forelight is on, the sleep current=backlight_current+sleep_current
 
-#define DRIVER_VERSION	"221005"
+#define DRIVER_VERSION	"221014"
 
 #define SFT_SET_KB	1
 
@@ -188,8 +193,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 /* sleep */
 #define SLP_CURR_MAX			40
 #define SLP_CURR_MIN			6
-#define LOW_PWR_SLP_CURR_MAX		20
-#define LOW_PWR_SLP_CURR_MIN		1
+#define LOW_PWR_SLP_CURR_MAX		16 //20 boe
+#define LOW_PWR_SLP_CURR_MIN		2 //1 boe
 #define DISCHRG_TIME_STEP1		MINUTE(10)
 #define DISCHRG_TIME_STEP2		MINUTE(60)
 #define SLP_DSOC_VOL_THRESD		3600
@@ -3948,14 +3953,14 @@ static int	rk817_bat_pm_suspend(struct device *dev)
 		}
 	}
 
-	DBG("suspend get_boot_sec: %lld\n", get_boot_sec());
+	printk("suspend get_boot_sec: %lld\n", get_boot_sec());
 
-	DBG("suspend: dl=%d rl=%d c=%d v=%d cap=%d at=%ld ch=%d\n",
+	printk("suspend: dl=%d rl=%d c=%d v=%d cap=%d at=%ld ch=%d\n",
 		battery->dsoc, battery->rsoc, battery->current_avg,
 		rk817_bat_get_battery_voltage(battery),
 		rk817_bat_get_capacity_uah(battery),
 		battery->sleep_dischrg_sec, battery->sleep_chrg_online);
-	DBG("battery->sleep_chrg_status=%d\n", battery->sleep_chrg_status);
+	printk("battery->sleep_chrg_status=%d\n", battery->sleep_chrg_status);
 
 	return 0;
 }
@@ -3978,7 +3983,7 @@ static void rk817_bat_relife_age_flag(struct rk817_battery_device *battery)
 
 	ocv_soc = rk817_bat_vol_to_soc(battery, battery->voltage_relax);
 	ocv_cap = rk817_bat_vol_to_cap(battery, battery->voltage_relax);
-	DBG("<%s>. ocv_soc=%d, min=%lu, vol=%d\n", __func__,
+	printk("<%s>. ocv_soc=%d, min=%lu, vol=%d\n", __func__,
 		ocv_soc, battery->sleep_dischrg_sec / 60, battery->voltage_relax);
 
 	/* sleep enough time and ocv_soc enough low */
@@ -4004,7 +4009,7 @@ static void rk817_bat_relife_age_flag(struct rk817_battery_device *battery)
 			battery->age_keep_sec = get_boot_sec();
 		}
 
-		BAT_INFO("resume: age_vol:%d, age_ocv_cap:%d, age_ocv_soc:%d, "
+		printk("resume: age_vol:%d, age_ocv_cap:%d, age_ocv_soc:%d, "
 			 "soc_level:%d, age_allow_update:%d, "
 			 "age_level:%d\n",
 			 battery->age_voltage, battery->age_ocv_cap,
@@ -4047,7 +4052,7 @@ static int rk817_bat_sleep_dischrg(struct rk817_battery_device *battery)
 	unsigned long sleep_sec = battery->sleep_dischrg_sec;
 	int sleep_cur;
 
-	DBG("<%s>. enter: dsoc=%d, rsoc=%d, rv=%d, v=%d, sleep_min=%lu\n",
+	printk("<%s>. enter: dsoc=%d, rsoc=%d, rv=%d, v=%d, sleep_min=%lu\n",
 		__func__, battery->dsoc, battery->rsoc, battery->voltage_relax,
 		battery->voltage_avg, sleep_sec / 60);
 
@@ -4059,16 +4064,19 @@ static int rk817_bat_sleep_dischrg(struct rk817_battery_device *battery)
 	}
 
 	/* handle dsoc */
-	if (battery->dsoc <= battery->rsoc) {
+#ifdef CONFIG_BACKLIGHT_PWM
+	printk("<%s> backlight_current:%d\n",__func__, backlight_current);
+#endif
+    if (battery->dsoc <= battery->rsoc) {
 		if (battery->pdata->low_pwr_sleep)
-			sleep_cur = LOW_PWR_SLP_CURR_MIN;
+			sleep_cur = LOW_PWR_SLP_CURR_MIN+backlight_current;
 		else
 			sleep_cur = SLP_CURR_MIN;
-		battery->sleep_sum_cap = (sleep_cur * sleep_sec / 3600);
+		battery->sleep_sum_cap = (sleep_cur * sleep_sec *1000/ 3600);
 		sleep_soc = battery->sleep_sum_cap * 100 / DIV(battery->fcc);
-		tgt_dsoc = battery->dsoc - sleep_soc * 1000;
+		tgt_dsoc = battery->dsoc - sleep_soc;
 		if (sleep_soc > 0) {
-			BAT_INFO("calib0: rl=%d, dl=%d, intval=%d\n",
+			printk("calib0: rl=%d, dl=%d, intval=%d\n",
 				 battery->rsoc, battery->dsoc, sleep_soc);
 			if (battery->dsoc / 1000 < 5) {
 				battery->dsoc -= 1000;
@@ -4083,51 +4091,58 @@ static int rk817_bat_sleep_dischrg(struct rk817_battery_device *battery)
 			}
 		}
 
-		DBG("%s: dsoc<=rsoc, sum_cap=%d==>sleep_soc=%d, tgt_dsoc=%d\n",
+		printk("%s: dsoc<=rsoc, sum_cap=%d==>sleep_soc=%d, tgt_dsoc=%d\n",
 			__func__, battery->sleep_sum_cap, sleep_soc, tgt_dsoc);
 	} else {
 		/* di->dsoc > di->rsoc */
 		if (battery->pdata->low_pwr_sleep)
-			sleep_cur = LOW_PWR_SLP_CURR_MAX;
+			sleep_cur = LOW_PWR_SLP_CURR_MAX+backlight_current;
 		else
 			sleep_cur = SLP_CURR_MAX;
-		battery->sleep_sum_cap = (sleep_cur * sleep_sec / 3600);
+		battery->sleep_sum_cap = (sleep_cur * sleep_sec *1000/ 3600);
 		sleep_soc = battery->sleep_sum_cap / DIV(battery->fcc / 100);
 		gap_soc = battery->dsoc - battery->rsoc;
 
-		DBG("calib1: rsoc=%d, dsoc=%d, intval=%d\n",
+		printk("calib1: rsoc=%d, dsoc=%d, intval=%d\n",
 			battery->rsoc, battery->dsoc, sleep_soc);
-		if (gap_soc / 1000 > sleep_soc) {
-			if ((gap_soc - 5000) > (sleep_soc * 2 * 1000))
-				battery->dsoc -= (sleep_soc * 2 * 1000);
-			else
-				battery->dsoc -= sleep_soc * 1000;
+		if (gap_soc > sleep_soc) {
+			if(battery->rsoc >= 5000){
+				if ((gap_soc - 5000) > (sleep_soc * 2 ))
+					battery->dsoc -= (sleep_soc * 2);
+				else
+					battery->dsoc -= sleep_soc ;
+			}else{
+				if (gap_soc > (sleep_soc * 2 ))
+					battery->dsoc -= (sleep_soc * 2);
+				else
+					battery->dsoc -= sleep_soc ;
+			}
 		} else {
 			battery->dsoc = battery->rsoc;
 		}
 
-		DBG("%s: dsoc>rsoc, sum_cap=%d=>sleep_soc=%d, gap_soc=%d\n",
+		printk("%s: dsoc>rsoc, sum_cap=%d=>sleep_soc=%d, gap_soc=%d\n",
 			__func__, battery->sleep_sum_cap, sleep_soc, gap_soc);
 	}
 
 	if (battery->voltage_avg <= pwroff_vol - 70) {
 		battery->dsoc = 0;
-		DBG("low power sleeping, shutdown... %d\n", battery->dsoc);
+		printk("low power sleeping, shutdown... %d\n", battery->dsoc);
 	}
 
 	if (ocv_soc_updated && sleep_soc &&
 		(battery->rsoc - battery->dsoc) < 5000 &&
 		battery->dsoc < 40 * 1000) {
 		battery->dsoc -= 1000;
-		DBG("low power sleeping, reserved... %d\n", battery->dsoc);
+		printk("low power sleeping, reserved... %d\n", battery->dsoc);
 	}
 
 	if (battery->dsoc <= 0) {
 		battery->dsoc = 0;
-		DBG("sleep dsoc is %d...\n", battery->dsoc);
+		printk("sleep dsoc is %d...\n", battery->dsoc);
 	}
 
-	DBG("<%s>. out: dsoc=%d, rsoc=%d, sum_cap=%d\n",
+	printk("<%s>. out: dsoc=%d, rsoc=%d, sum_cap=%d\n",
 		__func__, battery->dsoc, battery->rsoc, battery->sleep_sum_cap);
 
 	return sleep_soc;
@@ -4159,7 +4174,7 @@ static void rk817_bat_resume_work(struct work_struct *work)
 			time_step = DISCHRG_TIME_STEP2;
 	}
 
-	DBG("resume: dl=%d rl=%d c=%d v=%d rv=%d "
+	printk("resume: dl=%d rl=%d c=%d v=%d rv=%d "
 		"cap=%d dt=%d at=%ld ch=%d, sec = %d\n",
 		battery->dsoc, battery->rsoc, battery->current_avg,
 		battery->voltage_avg, battery->voltage_relax,

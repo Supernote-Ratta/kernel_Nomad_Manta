@@ -25,6 +25,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
+int backlight_cold = 0;
+int backlight_warm = 0;
+int backlight_current = 0;
+
 struct pwm_bl_data {
 	struct pwm_device	*pwm;
 	struct device		*dev;
@@ -107,11 +111,36 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	struct pwm_bl_data *pb = bl_get_data(bl);
 	int brightness = bl->props.brightness;
 	int duty_cycle;
+	int bl_current[] = {0,1, 7, 9,11,14,20,27,32,38,46,52,55,60,70,80,95,102,110,116,130,140,148,157};
+	int bl_level[] =   {0,1,21,32,45,51,62,64,76,79,84,87,89,91,94,96,99,100,101,102,104,105,106,107};
+	int i=0;
 //220601 tanlq
 	//if (bl->props.power != FB_BLANK_UNBLANK ||
 	//    bl->props.fb_blank != FB_BLANK_UNBLANK ||
 	//    bl->props.state & BL_CORE_FBBLANK)
 	//	brightness = 0;
+	if(strcmp(pb->pwm->label,"backlight-warm")){
+		for(i=0;i<24;i++){
+			if(brightness<=bl_level[i]){
+				backlight_warm = bl_current[i];
+					break;
+			}
+		}
+		//printk("===============pwm_backlight_update_status:warm enable:%d bright:%d \n",pb->enabled,backlight_warm);
+	}
+	if(strcmp(pb->pwm->label,"backlight-cold")){
+		for(i=0;i<24;i++){
+			if(brightness<=bl_level[i]){
+				backlight_cold = bl_current[i];
+					break;
+			}
+		}
+		//printk("===============pwm_backlight_update_status:cold enable:%d bright:%d \n",pb->enabled,backlight_cold);
+	}
+	backlight_current = backlight_warm+backlight_cold;
+	if(backlight_current<0||backlight_current>280){
+		backlight_current = 0;
+	}
 
 	if (pb->notify)
 		brightness = pb->notify(pb->dev, brightness);
