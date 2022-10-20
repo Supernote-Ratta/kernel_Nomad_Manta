@@ -103,8 +103,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 // 220919:1.Some floating charge,cc_type = 4,cc_type = 5,report AC charge
 // 221005 1.Maintain Mode,control by charge vol.
 // 221014 1.When the forelight is on, the sleep current=backlight_current+sleep_current
-
-#define DRIVER_VERSION	"221014"
+// 221020 1.Temperature  Compensation:42/2.
+#define DRIVER_VERSION	"221020"
 
 #define SFT_SET_KB	1
 
@@ -897,7 +897,7 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 	temp_value |= rk817_bat_field_read(battery, BAT_TS_L);
 	temp_value1 |= rk817_bat_field_read(battery, REGE9);
 	adc_to_vol = temp_value * 1200 / 65536;
-	adc_to_vol -= (31/2) * battery->current_avg / 1000;
+	adc_to_vol -= (42/2) * battery->current_avg / 1000;
 	printk("rk817_bat_get_temp:BAT_TS=%d adcv=%d templimit:0x%2x size:%d\n",temp_value,adc_to_vol,temp_value1,battery->pdata->temp_size);
 	if((battery->pdata->temp_size==0)||(battery->pdata->tempn_size==0)){
 		return 250;
