@@ -2398,7 +2398,15 @@ static int rk817_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		if(battery->is_batt_exist){
-			val->intval = POWER_SUPPLY_HEALTH_GOOD;
+			if((battery->temperature<=10)&&(temperature_disable_charge == 1)){
+				printk("========++++++++,cold!!!!!!!!!!!!!!!:%d\n",POWER_SUPPLY_HEALTH_COLD);
+				val->intval = POWER_SUPPLY_HEALTH_COLD;
+			}else if((battery->temperature>=490)&&(temperature_disable_charge == 1)){
+				printk("========++++++++,hot!!!!!!!!!!!!!!!:%d\n",battery->temperature);
+				val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
+			}else{
+				val->intval = POWER_SUPPLY_HEALTH_GOOD;
+			}
 		}else{
 			val->intval = POWER_SUPPLY_HEALTH_DEAD;
 		}
