@@ -184,7 +184,7 @@
         compatible = "bluetooth-platdata";
         clocks = <&rk817 1>;
         clock-names = "ext_clock";
-        wifi-bt-power-toggle;
+        //wifi-bt-power-toggle; //power is alawys on
         uart_rts_gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
         pinctrl-names = "default", "rts_gpio";
         pinctrl-0 = <&uart1m0_rtsn>, <&bt_reset_gpio>, <&bt_wake_gpio>, <&bt_irq_gpio>;
