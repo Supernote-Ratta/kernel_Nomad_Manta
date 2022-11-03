@@ -78,7 +78,7 @@
             linux,input-type = <EV_KEY>;
             linux,code = <KEY_BACK>;
         };
-        #endif
+#endif
     };
 
     leds: gpio-leds {
@@ -133,9 +133,24 @@
         };
     };
 
-    pdmics: dummy-codec {
+    bt_sound: bt-sound {
         status = "okay";
-        compatible = "rockchip,dummy-codec";
+        compatible = "simple-audio-card";
+        simple-audio-card,format = "dsp_b";
+        simple-audio-card,bitclock-inversion = <1>;
+        simple-audio-card,mclk-fs = <256>;
+        simple-audio-card,name = "rockchip,bt";
+        simple-audio-card,cpu {
+            sound-dai = <&i2s2_2ch>;
+        };
+        sound2_master:simple-audio-card,codec {
+            sound-dai = <&bt_sco>;
+        };
+    };
+
+    bt_sco: bt-sco {
+        status = "okay";
+        compatible = "delta,dfbmcs320";
         #sound-dai-cells = <0>;
     };
 
@@ -149,6 +164,12 @@
         simple-audio-card,codec {
             sound-dai = <&pdmics>;
         };
+    };
+
+    pdmics: dummy-codec {
+        status = "okay";
+        compatible = "rockchip,dummy-codec";
+        #sound-dai-cells = <0>;
     };
 
     sdio_pwrseq: sdio-pwrseq {
@@ -959,6 +980,10 @@
     rockchip,clk-trcm = <1>;
     pinctrl-names = "default";
     pinctrl-0 = <&i2s1m0_sclktx &i2s1m0_lrcktx &i2s1m0_sdi0 &i2s1m0_sdo0>;
+};
+
+&i2s2_2ch {
+   status = "okay";
 };
 
 &spi1 {
