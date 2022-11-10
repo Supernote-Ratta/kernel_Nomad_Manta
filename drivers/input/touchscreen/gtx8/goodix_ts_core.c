@@ -1889,7 +1889,12 @@ static int goodix_ts_fb_notifier_callback(struct notifier_block *self, unsigned 
         ts_debug("Send pen leave cmd.");
 
         if (!goodix_send_command(ts_dev, &pen_out_cmd)) {
-            ts_info("Chip in normal mode");
+            ts_info("Chip in normal mode0");
+        }
+
+        msleep(10);
+        if (!goodix_send_command(ts_dev, &pen_out_cmd)) {
+            ts_info("Chip in normal mode1");
         }
         goodix_ts_irq_enable(core_data, true);
     }
