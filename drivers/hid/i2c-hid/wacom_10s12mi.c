@@ -468,7 +468,7 @@ static irqreturn_t wacom_pendet_irq(int irq, void *dev_id)
     int pendet_gpio_value = gpio_get_value(wpen->detect_gpio);
 
     wacom_dbg("entering %s,gpio_value=%d,det_level=%d\n", __func__, pendet_gpio_value, wpen->detect_level);
-    ebc_set_tp_power(pendet_gpio_value == wpen->detect_level);
+    ebc_set_tp_power(pendet_gpio_value == wpen->detect_level, 50);
     // if (pendet_gpio_value) {
     //     irq_set_irq_type(wpen->pendet_irq, IRQ_TYPE_LEVEL_LOW);
     // } else {

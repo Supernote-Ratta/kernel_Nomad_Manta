@@ -75,7 +75,7 @@ int htfy_ebc_register_notifier(struct notifier_block *nb);
 int htfy_ebc_unregister_notifier(struct notifier_block *nb);
 
 // 20200615: call directly instead of register_touch_detect.
-void ebc_set_tp_power(/*struct input_dev *dev,*/bool pen_on);
+void ebc_set_tp_power(/*struct input_dev *dev,*/bool pen_on, int delay_ms);
 
 // 20191207: 我们在suspend的时候通过这个函数来判断是灭屏休眠还是亮屏休眠.
 bool fb_eink(struct fb_info *info);
