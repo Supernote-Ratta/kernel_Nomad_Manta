@@ -2303,6 +2303,9 @@ static void rk817_bat_get_chrg_psy(struct rk817_battery_device *battery)
 
 static int rk817_bat_get_charge_state(struct rk817_battery_device *battery)
 {
+	/* changed tower: this will case mem use after free panic. */
+	return power_supply_is_system_supplied();
+#if 0
 	union power_supply_propval val;
 	int ret;
 	struct power_supply *psy;
@@ -2330,6 +2333,8 @@ static int rk817_bat_get_charge_state(struct rk817_battery_device *battery)
 		__func__, battery->ac_in, battery->usb_in);
 
 	return (battery->usb_in || battery->ac_in);
+#endif
+	/* changed end. */
 }
 
 static int rk817_get_capacity_leve(struct rk817_battery_device *battery)
