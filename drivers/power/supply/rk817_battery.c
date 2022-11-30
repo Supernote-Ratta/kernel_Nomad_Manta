@@ -103,8 +103,11 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 // 220919:1.Some floating charge,cc_type = 4,cc_type = 5,report AC charge
 // 221005 1.Maintain Mode,control by charge vol.
 // 221014 1.When the forelight is on, the sleep current=backlight_current+sleep_current
-
-#define DRIVER_VERSION	"221014"
+// 221020 1.Temperature  Compensation:42/2.
+// 221028 1.Close some printk
+//        2.rsoc=100,(rsoc-dsoc)>20,when dsoc>90,dsoc increasing to fast.
+// 221124 1.printk -> DBG
+#define DRIVER_VERSION	"221124"
 
 #define SFT_SET_KB	1
 
@@ -897,8 +900,8 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 	temp_value |= rk817_bat_field_read(battery, BAT_TS_L);
 	temp_value1 |= rk817_bat_field_read(battery, REGE9);
 	adc_to_vol = temp_value * 1200 / 65536;
-	adc_to_vol -= (31/2) * battery->current_avg / 1000;
-	printk("rk817_bat_get_temp:BAT_TS=%d adcv=%d templimit:0x%2x size:%d\n",temp_value,adc_to_vol,temp_value1,battery->pdata->temp_size);
+	adc_to_vol -= (42/2) * battery->current_avg / 1000;
+	//printk("rk817_bat_get_temp:BAT_TS=%d adcv=%d templimit:0x%2x size:%d\n",temp_value,adc_to_vol,temp_value1,battery->pdata->temp_size);
 	if((battery->pdata->temp_size==0)||(battery->pdata->tempn_size==0)){
 		return 250;
 	}
@@ -920,7 +923,6 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 	}
 	adc_avg = adc_avg/5;
 	
-	printk("rk817_bat_get_temp:adc_avg=%d\n",adc_avg);
 	if(adc_avg > battery->pdata->tempadc_table[0]){  //temperatrue < 0
 		for(i=0;i<battery->pdata->tempn_size;i++){
 			if(adc_avg < battery->pdata->tempnadc_table[i]){
@@ -1759,16 +1761,16 @@ static void rk817_bat_calc_sm_linek(struct rk817_battery_device *battery)
 
 	if (current_avg > 0) {
 		if (battery->dsoc < battery->rsoc)
-			linek = 1000 * (delta + diff) / DIV(diff);
+			linek = 1000 * (delta + diff) / DIV(diff);// 4
 		else if (battery->dsoc > battery->rsoc)
-			linek = 1000 * diff / DIV(delta + diff);
+			linek = 1000 * diff / DIV(delta + diff); // 3/4
 		else
 			linek = 1000;
 	} else {
 		if (battery->dsoc < battery->rsoc)
-			linek = -1000 * diff / DIV(delta + diff);
+			linek = -1000 * diff / DIV(delta + diff); //-3/4
 		else if (battery->dsoc > battery->rsoc)
-			linek = -1000 * (delta + diff) / DIV(diff);
+			linek = -1000 * (delta + diff) / DIV(diff);//-4
 		else
 			linek = -1000;
 	}
@@ -2302,6 +2304,9 @@ static void rk817_bat_get_chrg_psy(struct rk817_battery_device *battery)
 
 static int rk817_bat_get_charge_state(struct rk817_battery_device *battery)
 {
+	/* changed tower: this will case mem use after free panic. */
+	return power_supply_is_system_supplied();
+#if 0
 	union power_supply_propval val;
 	int ret;
 	struct power_supply *psy;
@@ -2329,6 +2334,8 @@ static int rk817_bat_get_charge_state(struct rk817_battery_device *battery)
 		__func__, battery->ac_in, battery->usb_in);
 
 	return (battery->usb_in || battery->ac_in);
+#endif
+	/* changed end. */
 }
 
 static int rk817_get_capacity_leve(struct rk817_battery_device *battery)
@@ -2398,7 +2405,15 @@ static int rk817_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		if(battery->is_batt_exist){
-			val->intval = POWER_SUPPLY_HEALTH_GOOD;
+			if((battery->temperature<=10)&&(temperature_disable_charge == 1)){
+				DBG("========++++++++,cold!!!!!!!!!!!!!!!:%d\n",POWER_SUPPLY_HEALTH_COLD);
+				val->intval = POWER_SUPPLY_HEALTH_COLD;
+			}else if((battery->temperature>=490)&&(temperature_disable_charge == 1)){
+				DBG("========++++++++,hot!!!!!!!!!!!!!!!:%d\n",battery->temperature);
+				val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
+			}else{
+				val->intval = POWER_SUPPLY_HEALTH_GOOD;
+			}
 		}else{
 			val->intval = POWER_SUPPLY_HEALTH_DEAD;
 		}
@@ -2501,7 +2516,7 @@ static int rk817_battery_set_property(struct power_supply *psy, enum power_suppl
 	struct rk817_battery_device *battery = power_supply_get_drvdata(psy);
 	struct rk817_charger* charge;
 
-	printk("%s psp =%d\n",__func__,psp);
+	DBG("%s psp =%d\n",__func__,psp);
 	switch (psp) {
 		case POWER_SUPPLY_PROP_BATTERY_PROTECT:
 			if (val->intval) {
@@ -2522,15 +2537,15 @@ static int rk817_battery_set_property(struct power_supply *psy, enum power_suppl
 			break;
 		case POWER_SUPPLY_PROP_STATUS:
 			charge = rk817_charge_get_charger();
-			printk("##fan## %s set battery status val=%d, i2c_addr=0x%x\n",__func__,val->intval,charge->client->addr);
+			DBG("##fan## %s set battery status val=%d, i2c_addr=0x%x\n",__func__,val->intval,charge->client->addr);
 			if (0 == val->intval) {
 				printk("##fan## %s disable charge val=0x%x\n",__func__,rk817_charge_get_usb_to_sys_status(charge));
 				charge_enable = 0;
 				rk817_charge_usb_to_sys_disable(charge);
 				rk817_bat_disable_battery_charge(battery);
-				printk("##fan## %s disable charge val=0x%x\n",__func__,rk817_charge_get_usb_to_sys_status(charge));
+				DBG("##fan## %s disable charge val=0x%x\n",__func__,rk817_charge_get_usb_to_sys_status(charge));
 			} else if(2 == val->intval) {
-				printk("##fan## %s enable charge \n",__func__);
+				DBG("##fan## %s enable charge \n",__func__);
 				charge_enable = 1;
 			}
 			break;
@@ -2601,14 +2616,14 @@ static int rk809_chg_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = online;
-		printk( "report online: %d\n", val->intval);
+		DBG( "report online: %d\n", val->intval);
 		break;
 	case POWER_SUPPLY_PROP_STATUS:
 		if (online)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
-		printk( "report prop: %d\n", val->intval);
+		DBG( "report prop: %d\n", val->intval);
 		break;
 	default:
 		ret = -EINVAL;
@@ -2727,7 +2742,7 @@ void rk817_bat_set_charge_current(struct rk817_battery_device *battery, int inpu
     if (input_current < 450 || input_current > 3500) {
         dev_err(battery->dev, "the input current is error.\n");
     }
-	printk("rk817_charge_set_input_current:%d",input_current);
+	DBG("rk817_charge_set_input_current:%d",input_current);
     if (input_current < 1000) {
         rk817_bat_field_write(battery, CHRG_CUR_SEL, CHRG_CUR_500MA);
     } else if (input_current < 1500) {
@@ -2763,7 +2778,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 		dev_err(battery->dev, "register bat power supply fail\n");
 		return 0;
 	}
-	printk("=====rk817_bat_temperature_chrg temp:%d temperature_disable_charge:%d charge_enable:%d charge_supply_power:%d battery_protect:%d battery_maintain:%d temperature_charge_reset:%d current:%d l:%d rl:%d\n",
+	DBG("=====rk817_bat_temperature_chrg temp:%d temperature_disable_charge:%d charge_enable:%d charge_supply_power:%d battery_protect:%d battery_maintain:%d temperature_charge_reset:%d current:%d l:%d rl:%d\n",
 		temp,temperature_disable_charge,charge_enable,charge_supply_power,
 		battery->open_battery_protect,battery->open_battery_maintain,temperature_charge_reset,battery->current_avg,battery->dsoc,battery->rsoc);
 	if ((temp <= 0)||(temp >= 50)){
@@ -2771,7 +2786,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 			temperature_disable_charge = 1;
 			//charge_low_flag = 0;
 			//rk817_bat_disable_battery_charge(battery);
-			printk("rk817_bat_temperature_chrg:rk817_bat_disable_charge \n");
+			DBG("rk817_bat_temperature_chrg:rk817_bat_disable_charge \n");
 		}
 		charge_enable = 0;
 		temperature_charge_reset = 0;
@@ -2782,15 +2797,15 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 		if( temp >= 45 ){
 			charge_current_limit = 1500;
 			charge_vol_limit = 4200;
-			printk("=====rk817_bat_temperature_chrg 1.5A,4.2V\n");
+			DBG("=====rk817_bat_temperature_chrg 1.5A,4.2V\n");
 		}else if( temp >= 15 ){
 			charge_current_limit = 2000;
 			charge_vol_limit = 4400;
-			printk("=====rk817_bat_temperature_chrg 2A,4.4V\n");
+			DBG("=====rk817_bat_temperature_chrg 2A,4.4V\n");
 		}else{
 			charge_current_limit = 500;
 			charge_vol_limit = 4400;
-			printk("=====rk817_bat_temperature_chrg 0.5A,4.4V\n");
+			DBG("=====rk817_bat_temperature_chrg 0.5A,4.4V\n");
 		}
 	}else{
 		if ((temp > 1) && (temp < 49)) {
@@ -2799,17 +2814,17 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 		if ((temp > 1) && (temp < 14)) {
 			charge_current_limit = 500;
 			charge_vol_limit = 4400;
-			printk("=====rk817_bat_temperature_chrg 0.5A,4.4V\n");
+			DBG("=====rk817_bat_temperature_chrg 0.5A,4.4V\n");
 		}
 		if ((temp > 15) && (temp < 44)) {
 			charge_current_limit = 2000;
 			charge_vol_limit = 4400;
-			printk("=====rk817_bat_temperature_chrg 2A,4.4V\n");
+			DBG("=====rk817_bat_temperature_chrg 2A,4.4V\n");
 		}
 		if ((temp > 45) && (temp < 49)) {
 			charge_current_limit = 1500;
 			charge_vol_limit = 4200;
-			printk("=====rk817_bat_temperature_chrg 1.5A,4.2V\n");
+			DBG("=====rk817_bat_temperature_chrg 1.5A,4.2V\n");
 		}
 	}
 	if (temperature_disable_charge == 0) {
@@ -2911,17 +2926,17 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 						rk817_charge_set_input_current(charge,INPUT_2000MA);
 						break;
 					case 6://
-						printk("####################### charge=0  supply_power=0\n");
+						DBG("####################### charge=0  supply_power=0\n");
 							charge_enable = 0;
 							charge_supply_power = 0;
 						break;
 					case 7://
-						printk("####################### charge=0  supply_power=1\n");
+						DBG("####################### charge=0  supply_power=1\n");
 							charge_enable = 0;
 							charge_supply_power = 1;
 						break;
 					case 8://
-						printk("####################### charge=1  supply_power=1\n");
+						DBG("####################### charge=1  supply_power=1\n");
 							charge_enable = 1;
 							charge_supply_power = 1;
 						break;
@@ -2976,12 +2991,12 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 						rk817_charge_set_input_current(charge,INPUT_2000MA);
 						break;
                     case 6://
-						printk("####################### supply_power=0\n");
+						DBG("####################### supply_power=0\n");
 							charge_supply_power = 0;
 						break;
 					case 7://
 					case 8://
-						printk("####################### supply_power=1\n");
+						DBG("####################### supply_power=1\n");
 							charge_supply_power = 1;
 						break;
 					default:
@@ -3002,7 +3017,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 	if(charge_enable){
 		rk817_charge_usb_to_sys_enable(charge);
 		rk817_bat_enable_battery_charge(battery);//start battery charge
-		printk("=====rk817_bat_temperature_chrg charge_enable\n");
+		DBG("=====rk817_bat_temperature_chrg charge_enable\n");
 	}else{
 		if(charge_supply_power){
             rk817_charge_usb_to_sys_enable(charge); //enable usb charge
@@ -3020,7 +3035,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 					mdelay(20);
 				}
 				rk817_bat_disable_battery_charge(battery);
-				 printk("=====rk817_bat_temperature_chrg charge_disable\n");
+				DBG("=====rk817_bat_temperature_chrg charge_disable\n");
             }
 		}else{
             if(pre_charge_enable == 1){
@@ -3038,7 +3053,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 				}
 				rk817_bat_disable_battery_charge(battery);
 				mdelay(20);
-                printk("=====rk817_bat_temperature_chrg charge_disable\n");
+                DBG("=====rk817_bat_temperature_chrg charge_disable\n");
             }
             if(pre_charge_supply_power == 1){
                 rk817_charge_set_input_current(charge, 501);
@@ -3047,16 +3062,16 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 				mdelay(20);
 				rk817_charge_usb_to_sys_disable(charge);
                 rk817_charge_set_input_current(charge, charge_input_current);
-                printk("=====rk817_bat_temperature_chrg not for power\n");
+                DBG("=====rk817_bat_temperature_chrg not for power\n");
             }
         }
 	}
 	temperature_charge_reset = 0;
     pre_charge_enable = charge_enable;
     pre_charge_supply_power = charge_supply_power;
-    printk("=====rk817_bat_temperature_chrg over temperature_disable_charge:%d charge_enable:%d charge_supply_power:%d battery_protect:%d battery_maintain:%d temperature_charge_reset:%d current:%d l:%d rl:%d\n",
-		temperature_disable_charge,charge_enable,charge_supply_power,
-		battery->open_battery_protect,battery->open_battery_maintain,temperature_charge_reset,battery->current_avg,battery->dsoc,battery->rsoc);
+    //printk("=====rk817_bat_temperature_chrg over temperature_disable_charge:%d charge_enable:%d charge_supply_power:%d battery_protect:%d battery_maintain:%d temperature_charge_reset:%d current:%d l:%d rl:%d\n",
+	//	temperature_disable_charge,charge_enable,charge_supply_power,
+	//	battery->open_battery_protect,battery->open_battery_maintain,temperature_charge_reset,battery->current_avg,battery->dsoc,battery->rsoc);
 	/* changed end. */
 
 	return 0;
@@ -3558,15 +3573,16 @@ static void rk817_bat_finish_algorithm(struct rk817_battery_device *battery)
 
 		soc_sec = battery->fcc * 3600 / 100 / DIV(finish_current);
 		plus_soc = finish_sec / DIV(soc_sec);
-		if (finish_sec > soc_sec) {
+		if (finish_sec > soc_sec) {//差距大于1%容量充电时间,越来越快速的接近
 			rest = finish_sec % soc_sec;
+			if(plus_soc > 2) //tanlq 221029 rsoc=100,(rsoc-dsoc)>20,when dsoc>90,dsoc increasing to fast.
+				plus_soc = 2;
 			battery->dsoc += plus_soc * 1000;
 			battery->finish_base = get_boot_sec();
 			if (battery->finish_base > rest)
 				battery->finish_base = get_boot_sec() - rest;
-		} else
+		} else//差距在1%容量充电时间内
 			battery->dsoc += (finish_sec * 1000 / DIV(soc_sec));
-
 		DBG("CHARGE_FINISH:dsoc<100,dsoc=%d\n"
 			"soc_time=%lu, sec_finish=%lu, plus_soc=%d, rest=%d\n",
 			battery->dsoc, soc_sec, finish_sec, plus_soc, rest);
@@ -4041,7 +4057,7 @@ static void rk817_bat_relax_vol_calib(struct rk817_battery_device *battery)
 	soc = rk817_bat_vol_to_soc(battery, vol);
 	cap = rk817_bat_vol_to_cap(battery, vol);
 	rk817_bat_init_capacity(battery, cap);
-	BAT_INFO("sleep ocv calib: rsoc=%d, cap=%d\n", soc, cap);
+	printk("sleep ocv calib: rsoc=%d, cap=%d\n", soc, cap);
 }
 
 static int rk817_bat_sleep_dischrg(struct rk817_battery_device *battery)
@@ -4065,7 +4081,7 @@ static int rk817_bat_sleep_dischrg(struct rk817_battery_device *battery)
 
 	/* handle dsoc */
 #ifdef CONFIG_BACKLIGHT_PWM
-	printk("<%s> backlight_current:%d\n",__func__, backlight_current);
+	DBG("<%s> backlight_current:%d\n",__func__, backlight_current);
 #endif
     if (battery->dsoc <= battery->rsoc) {
 		if (battery->pdata->low_pwr_sleep)
@@ -4076,7 +4092,7 @@ static int rk817_bat_sleep_dischrg(struct rk817_battery_device *battery)
 		sleep_soc = battery->sleep_sum_cap * 100 / DIV(battery->fcc);
 		tgt_dsoc = battery->dsoc - sleep_soc;
 		if (sleep_soc > 0) {
-			printk("calib0: rl=%d, dl=%d, intval=%d\n",
+			DBG("calib0: rl=%d, dl=%d, intval=%d\n",
 				 battery->rsoc, battery->dsoc, sleep_soc);
 			if (battery->dsoc / 1000 < 5) {
 				battery->dsoc -= 1000;
@@ -4091,7 +4107,7 @@ static int rk817_bat_sleep_dischrg(struct rk817_battery_device *battery)
 			}
 		}
 
-		printk("%s: dsoc<=rsoc, sum_cap=%d==>sleep_soc=%d, tgt_dsoc=%d\n",
+		DBG("%s: dsoc<=rsoc, sum_cap=%d==>sleep_soc=%d, tgt_dsoc=%d\n",
 			__func__, battery->sleep_sum_cap, sleep_soc, tgt_dsoc);
 	} else {
 		/* di->dsoc > di->rsoc */
@@ -4103,7 +4119,7 @@ static int rk817_bat_sleep_dischrg(struct rk817_battery_device *battery)
 		sleep_soc = battery->sleep_sum_cap / DIV(battery->fcc / 100);
 		gap_soc = battery->dsoc - battery->rsoc;
 
-		printk("calib1: rsoc=%d, dsoc=%d, intval=%d\n",
+		DBG("calib1: rsoc=%d, dsoc=%d, intval=%d\n",
 			battery->rsoc, battery->dsoc, sleep_soc);
 		if (gap_soc > sleep_soc) {
 			if(battery->rsoc >= 5000){
@@ -4175,12 +4191,12 @@ static void rk817_bat_resume_work(struct work_struct *work)
 	}
 
 	printk("resume: dl=%d rl=%d c=%d v=%d rv=%d "
-		"cap=%d dt=%d at=%ld ch=%d, sec = %d\n",
+		"cap=%d dt=%d at=%ld ch=%d, sec = %d suspend_soc=%d\n",
 		battery->dsoc, battery->rsoc, battery->current_avg,
 		battery->voltage_avg, battery->voltage_relax,
 		rk817_bat_get_capacity_uah(battery), interval_sec,
 		battery->sleep_dischrg_sec, battery->sleep_chrg_online,
-		interval_sec);
+		interval_sec,suspend_soc);
 
 	/* sleep: enough time and discharge */
 		if ((!battery->sleep_chrg_online)/* &&

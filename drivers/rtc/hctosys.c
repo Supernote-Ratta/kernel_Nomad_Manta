@@ -7,7 +7,7 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -24,52 +24,83 @@
  * the best guess is to add 0.5s.
  */
 
+/* changed tower: for set default system date 2022-10-01:00.00.00. */
+#define DEFAULT_YEAR    0x7A    //2022 -1900
+#define DEFAULT_MONTH   0x09    //10 -1
+#define DEFAULT_DAY     0x01
+#define DEFAULT_HOUR    0x0
+#define DEFAULT_MIN     0x0
+#define DEFAULT_SEC     0x0
+#define DEFAULT_YDAY    0x112
+#define DEFAULT_WEEKDAY 0x06
+#define DEFAULT_DST     0x0
+/* changed end. */
 int rtc_hctosys(void)
 {
-	int err = -ENODEV;
-	struct rtc_time tm;
-	struct timespec64 tv64 = {
-		.tv_nsec = NSEC_PER_SEC >> 1,
-	};
-	struct rtc_device *rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
+    int err = -ENODEV;
+    struct rtc_time tm;
+    /* changed tower: for set default system date 2022-10-01. */
+    struct rtc_time tm_default;
+    time64_t default_sec;
+    /* changed end. */
+    struct timespec64 tv64 = {
+        .tv_nsec = NSEC_PER_SEC >> 1,
+    };
+    struct rtc_device *rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
 
-	if (rtc == NULL) {
-		pr_info("unable to open rtc device (%s)\n",
-			CONFIG_RTC_HCTOSYS_DEVICE);
-		goto err_open;
-	}
+    if (rtc == NULL) {
+        pr_info("unable to open rtc device (%s)\n", CONFIG_RTC_HCTOSYS_DEVICE);
+        goto err_open;
+    }
 
-	err = rtc_read_time(rtc, &tm);
-	if (err) {
-		dev_err(rtc->dev.parent,
-			"hctosys: unable to read the hardware clock\n");
-		goto err_read;
+    err = rtc_read_time(rtc, &tm);
+    if (err) {
+        dev_err(rtc->dev.parent, "hctosys: unable to read the hardware clock\n");
+        goto err_read;
+    }
 
-	}
+    /* changed tower: for set default system date 2022-10-01. */
+    tm_default.tm_year = DEFAULT_YEAR;
+    tm_default.tm_mon = DEFAULT_MONTH;
+    tm_default.tm_mday = DEFAULT_DAY;
+    tm_default.tm_hour = DEFAULT_HOUR;
+    tm_default.tm_min = DEFAULT_MIN;
+    tm_default.tm_sec = DEFAULT_SEC;
+    tm_default.tm_wday = DEFAULT_WEEKDAY;
+    tm_default.tm_yday = DEFAULT_YDAY;
+    tm_default.tm_isdst = DEFAULT_DST;
+    /* changed end. */
 
-	tv64.tv_sec = rtc_tm_to_time64(&tm);
+    tv64.tv_sec = rtc_tm_to_time64(&tm);
 
+    /* changed tower: for set default system date 2022-10-01. */
+    default_sec = rtc_tm_to_time64(&tm_default);
+    if (default_sec > tv64.tv_sec) {
+        tv64.tv_sec = default_sec;
+        err = rtc_set_time(rtc, &tm_default);
+        if (err) {
+            dev_err(rtc->dev.parent, "hctosys: unable to set the default hardware clock\n");
+        } else {
+            tm = tm_default;
+        }
+    }
+    /* changed end. */
 #if BITS_PER_LONG == 32
-	if (tv64.tv_sec > INT_MAX) {
-		err = -ERANGE;
-		goto err_read;
-	}
+    if (tv64.tv_sec > INT_MAX) {
+        err = -ERANGE;
+        goto err_read;
+    }
 #endif
 
-	err = do_settimeofday64(&tv64);
+    err = do_settimeofday64(&tv64);
 
-	dev_info(rtc->dev.parent,
-		"setting system clock to "
-		"%d-%02d-%02d %02d:%02d:%02d UTC (%lld)\n",
-		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-		tm.tm_hour, tm.tm_min, tm.tm_sec,
-		(long long) tv64.tv_sec);
+    dev_info(rtc->dev.parent, "setting system clock to %d-%02d-%02d %02d:%02d:%02d UTC (%lld)\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long long)tv64.tv_sec);
 
 err_read:
-	rtc_class_close(rtc);
+    rtc_class_close(rtc);
 
 err_open:
-	rtc_hctosys_ret = err;
+    rtc_hctosys_ret = err;
 
-	return err;
+    return err;
 }

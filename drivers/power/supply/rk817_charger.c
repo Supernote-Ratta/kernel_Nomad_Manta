@@ -283,7 +283,7 @@ static int rk817_charge_ac_get_property(struct power_supply *psy, enum power_sup
             } else {
                 val->intval = (charge->ac_in | charge->dc_in);
             }
-            printk("ac report online: %d\n", val->intval);
+            DBG("ac report online: %d\n", val->intval);
             break;
         case POWER_SUPPLY_PROP_STATUS:
             if (charge->pdata->virtual_power) {
@@ -292,7 +292,7 @@ static int rk817_charge_ac_get_property(struct power_supply *psy, enum power_sup
                 val->intval = charge->prop_status;
             }
 
-            printk("report prop: %d\n", val->intval);
+            DBG("report prop: %d\n", val->intval);
             break;
         case POWER_SUPPLY_PROP_VOLTAGE_MAX:
             val->intval = charge->max_chrg_voltage * 1000;  /* uV */
@@ -321,7 +321,7 @@ static int rk817_charge_usb_get_property(struct power_supply *psy, enum power_su
                 val->intval = charge->usb_in;
             }
 
-            printk("usb report online: %d\n", val->intval);
+            DBG("usb report online: %d\n", val->intval);
             break;
         case POWER_SUPPLY_PROP_STATUS:
             if (charge->pdata->virtual_power) {
@@ -330,7 +330,7 @@ static int rk817_charge_usb_get_property(struct power_supply *psy, enum power_su
                 val->intval = charge->prop_status;
             }
 
-            printk("report prop: %d\n", val->intval);
+            DBG("report prop: %d\n", val->intval);
             break;
         case POWER_SUPPLY_PROP_VOLTAGE_MAX:
             val->intval = charge->max_chrg_voltage;
@@ -534,7 +534,7 @@ static void rk817_charge_set_chrg_current(struct rk817_charger *charge, int chrg
     if (chrg_current < 500 || chrg_current > 3500) {
         dev_err(charge->dev, "the charge current is error!\n");
     }
-printk("rk817_charge_set_chrg_current:%d",chrg_current);
+DBG("rk817_charge_set_chrg_current:%d",chrg_current);
     if (chrg_current < 1000) {
         rk817_charge_field_write(charge, CHRG_CUR_SEL, CHRG_CUR_500MA);
     } else if (chrg_current < 1500) {
@@ -581,7 +581,7 @@ void rk817_charge_set_input_current(struct rk817_charger *charge, int input_curr
     if (input_current < 80 || input_current > 3000) {
         dev_err(charge->dev, "the input current is error.\n");
     }
-printk("rk817_charge_set_input_current:%d",input_current);
+DBG("rk817_charge_set_input_current:%d",input_current);
     if (input_current < 450) {
         rk817_charge_field_write(charge, USB_ILIM_SEL, INPUT_CUR_80MA);
     } else if (input_current < 850) {
@@ -672,7 +672,7 @@ static void rk817_charge_set_otg_in(struct rk817_charger *charge, int online)
 
 static void rk817_charge_set_chrg_param(struct rk817_charger *charge, enum charger_t charger)
 {
-printk("rk817_charge_set_chrg_param:%d usb_in:%d ac_in:%d dc_in:%d \n",charger,
+DBG("rk817_charge_set_chrg_param:%d usb_in:%d ac_in:%d dc_in:%d \n",charger,
 	charge->usb_in,charge->ac_in,charge->dc_in);
     switch (charger) {
         case USB_TYPE_NONE_CHARGER:

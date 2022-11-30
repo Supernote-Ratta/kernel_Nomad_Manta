@@ -26,6 +26,7 @@
 #include <linux/atomic.h>
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/wakelock.h>
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 #include <linux/of_gpio.h>
@@ -48,6 +49,7 @@ struct wh2506d_para {
     
     int last_gpio_value;
     int irq_handled;
+	struct wake_lock wake_lock; //tanlq add 221028
 };
 
 #define WD2506_DBG          1
@@ -99,6 +101,7 @@ static void hall_wh2506d_report_key(struct wh2506d_para *wh2506d, int gpio_value
         input_sync(sinput_dev);
         input_report_key(sinput_dev, KEY_SLEEP, 0);
         input_sync(sinput_dev);
+		wake_unlock(&wh2506d->wake_lock); //tanlq add 221028
         if(WD2506_DBG) printk("hall %s suspend,gpio_value=%d...\n", __func__, gpio_value); // gpio=0
     } else /*if (gpio_value == wh2506d->active_value)*/ {
         input_report_key(sinput_dev, KEY_WAKEUP, 1);
@@ -106,7 +109,8 @@ static void hall_wh2506d_report_key(struct wh2506d_para *wh2506d, int gpio_value
         input_report_key(sinput_dev, KEY_WAKEUP, 0);
         input_sync(sinput_dev);
         if(WD2506_DBG) printk("hall %s wakeup,gpio_value=%d...\n", __func__, gpio_value); // gpio=1.
-    }
+		wake_lock_timeout(&wh2506d->wake_lock, msecs_to_jiffies(7000)); //tanlq add 221028 delay for autobright control
+	}
 }
 
 static irqreturn_t hall_wh2506d_interrupt(int irq, void *dev_id)
@@ -221,6 +225,8 @@ static int hall_wh2506d_probe(struct platform_device *pdev)
     }
     sinput_dev = hall_key;
     platform_set_drvdata(pdev, wh2506d);
+	wake_lock_init(&wh2506d->wake_lock, WAKE_LOCK_SUSPEND,
+			   "wh2506d_lock"); //tanlq add 221028
     printk("hall_wh2506d_probe success.\n");
 
     return 0;

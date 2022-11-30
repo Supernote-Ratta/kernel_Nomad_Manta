@@ -23,7 +23,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/platform_data/i2c-hid.h>
 #include <asm/unaligned.h>
-
+#include <linux/timer.h>
+//#include <linux/fb.h>
 #include <linux/notifier.h>
 #include <linux/htfy_dbg.h>  // 20220720,hsl add.
 
@@ -64,6 +65,16 @@ struct wacom_features {
     u16 fw_version;
 };
 
+/* changed tower: for pencil data track. */
+#define DATATRACKTIME 60 * HZ  // 60 secods
+struct wacom_datatrack {
+    struct timer_list datatrack_timer;
+    struct device *dev;
+    atomic_t state;
+    bool initok;
+};
+/* changed end. */
+
 /* The main device structure */
 struct wacom_pencil {
     struct i2c_client *client;              /* i2c client */
@@ -71,9 +82,10 @@ struct wacom_pencil {
     struct input_dev *input;
     struct hid_desc hdesc;                  /* the HID Descriptor */
     struct notifier_block fb_notif;
-    int(*pen_suspend)(struct wacom_pencil *);
+    struct wacom_datatrack datatrack;
+    int (*pen_suspend)(struct wacom_pencil *);
     int(*pen_resume)(struct wacom_pencil *);
-    int     suspended;
+    int suspended;
     struct mutex fb_lock;
     u8 data[WACOM_QUERY_SIZE];
     __le16 wHIDDescRegister;                /* location of the i2c register of the HID descriptor. */
@@ -129,14 +141,14 @@ static const struct wacom_i2c_hid_cmd hid_descr_cmd = { .length = 2 };
 
 /* fetch report descriptors */
 static const struct wacom_i2c_hid_cmd hid_report_descr_cmd = {
-        .registerIndex = offsetof(struct hid_desc,
-            wReportDescRegister), // 0x06
-        .opcode = 0x00,
-        .length = 2 };
+    .registerIndex = offsetof(struct hid_desc, wReportDescRegister), // 0x06
+    .opcode = 0x00,
+    .length = 2
+};
 
 /* commands */
-static const struct wacom_i2c_hid_cmd hid_get_report_cmd =    { WACOM_I2C_HID_CMD(0x02) };
-static const struct wacom_i2c_hid_cmd hid_set_power_cmd =   { WACOM_I2C_HID_CMD(0x08) };
+static const struct wacom_i2c_hid_cmd hid_get_report_cmd = { WACOM_I2C_HID_CMD(0x02) };
+static const struct wacom_i2c_hid_cmd hid_set_power_cmd = { WACOM_I2C_HID_CMD(0x08) };
 // opcode = 0x08, length=4, rindex= 0x10. wait=false.
 
 // 20220804: power_state for hid_set_power_cmd
@@ -162,18 +174,10 @@ static u8 greport_desc[] = {
         } \
     } while (0)
 
-
-// ret = i2c_hid_set_power(client, I2C_HID_PWR_ON);
-// __i2c_hid_command(client, &hid_set_power_cmd, power_state, 0, NULL, 0, NULL, 0);
-// opcode = 0x08, length=4, rindex= 0x10. wait=false. reportID = I2C_HID_PWR_ON/I2C_HID_PWR_OFF
-// reportType = 0;
-static int wacom_i2c_hid_command(struct i2c_client *client,
-        const struct wacom_i2c_hid_cmd *command, u8 reportID,
-        u8 reportType, u8 *args, int args_len,
-        unsigned char *buf_recv, int data_len)
+static int wacom_i2c_hid_command(struct i2c_client *client, const struct wacom_i2c_hid_cmd *command, u8 reportID, u8 reportType, u8 *args, int args_len, unsigned char *buf_recv, int data_len)
 {
     struct wacom_pencil *wpen = i2c_get_clientdata(client);
-    u8                   cmd_buf[0x20];
+    u8 cmd_buf[0x20];
     union wacom_command *cmd = (union wacom_command *)cmd_buf;
     int ret;
     struct i2c_msg msg[2];
@@ -187,7 +191,7 @@ static int wacom_i2c_hid_command(struct i2c_client *client,
     if (command == &hid_descr_cmd) {
         cmd->c.reg = wpen->wHIDDescRegister;
     } else {
-        u8  *hdesc_buffer = (u8*)&wpen->hdesc;
+        u8  *hdesc_buffer = (u8 *)&wpen->hdesc;
         cmd->data[0] = hdesc_buffer[registerIndex];
         cmd->data[1] = hdesc_buffer[registerIndex + 1];
     }
@@ -197,7 +201,7 @@ static int wacom_i2c_hid_command(struct i2c_client *client,
         cmd->c.reportTypeID = reportID | reportType << 4;
     }
 
-    if(args_len > 0) {
+    if (args_len > 0) {
         memcpy(cmd->data + length, args, args_len);
         length += args_len;
     }
@@ -218,13 +222,13 @@ static int wacom_i2c_hid_command(struct i2c_client *client,
     }
 
     ret = i2c_transfer(client->adapter, msg, msg_num);
-
-    if (ret != msg_num)
+    if (ret != msg_num) {
         return ret < 0 ? ret : -EIO;
+    }
 
     ret = 0;
 
-    if(data_len > 0) {
+    if (data_len > 0) {
         wacom_dbg("%s: recv=%*ph\n", __func__, data_len, buf_recv);
     }
 
@@ -232,8 +236,7 @@ static int wacom_i2c_hid_command(struct i2c_client *client,
 }
 
 #if 0
-static int wacom_get_report(struct i2c_client *client, u8 reportType,
-        u8 reportID, unsigned char *buf_recv, int data_len)
+static int wacom_get_report(struct i2c_client *client, u8 reportType, u8 reportID, unsigned char *buf_recv, int data_len)
 {
     struct wacom_pencil *wpen = i2c_get_clientdata(client);
     u8 args[3];
@@ -250,20 +253,19 @@ static int wacom_get_report(struct i2c_client *client, u8 reportType,
     args[args_len++] = readRegister >> 8;
 
     ret = wacom_i2c_hid_command(client, &hid_get_report_cmd, reportID,
-        reportType, args, args_len, buf_recv, data_len);
+    reportType, args, args_len, buf_recv, data_len);
     if (ret) {
         dev_err(&client->dev,
-            "failed to retrieve report from device.\n");
+        "failed to retrieve report from device.\n");
         return ret;
     }
 
     return 0;
 }
 
-
 static void wacom_i2c_print_report(struct i2c_client *client)
 {
-    u8      recv[0x10];
+    u8 recv[0x10];
 
     recv[0] = 0XFF;
     // reportType: HID_FEATURE_REPORT = 0x03 , HID_INPUT_REPORT: 0x01
@@ -353,11 +355,12 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
     struct input_dev *input = wpen->input;
     u8 *data = wpen->data;
     unsigned int x, y, pressure;
-    int tx,ty;
+    int tx, ty;
     unsigned char tsw, f1, f2, ers;
     int error;
 
-    if(input == NULL){
+    //wacom_dbg("entering %s\n", __func__);
+    if (input == NULL) {
         return IRQ_HANDLED;
     }
 
@@ -395,17 +398,19 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
     }
     if (1 == wpen->revert_y) {
         y =  wpen->features.y_max - y;
-        ty = 0x10000-ty;
+        ty = 0x10000 - ty;
     }
 
     wpen->suspend_irq_events++;
-    if(tsw) wpen->suspend_irq_tws++;
+    if (tsw) {
+        wpen->suspend_irq_tws++;
+    }
 
     /*printk("WACOM_IRQ:tws=%d,ers=%d,prox=0x%x,f1=%d,f2=%d,x=%d,y=%d,pre=%d,tx=%d,ty=%d,events=%d/%d,fix=%d\n",
         tsw, ers, wpen->prox, f1, f2, x, y, pressure, tx, ty, wpen->suspend_irq_events,
         wpen->suspend_irq_tws, wpen->need_fix_tws);*/
 
-    if(wpen->need_fix_tws && !wpen->suspend_irq_tws) {
+    if (wpen->need_fix_tws && !wpen->suspend_irq_tws) {
         wacom_dbg("wacom_report_irq: irq=%d,fix tsw to 1!", irq);
         //tsw  = 1;
         //pressure = 300; // slight touch!
@@ -415,8 +420,8 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
     }
 
 #if 0
-    if(!tsw || pressure==0) {
-        if(report_tsw) {
+    if (!tsw || pressure == 0) {
+        if (report_tsw) {
             report_tsw = 0;
         } else {
             //printk("WACOM_IRQ: abort hover-event!!\n");
@@ -436,6 +441,11 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
     input_report_abs(input, ABS_TILT_X, tx);
     input_report_abs(input, ABS_TILT_Y, ty);
     input_sync(input);
+    /* changed tower: add for pen data track. */
+    if (wpen->datatrack.initok) {
+        atomic_set(&(wpen->datatrack.state), 1);
+    }
+    /* changed end. */
 
 out:
     if (device_can_wakeup(&wpen->client->dev)) {
@@ -453,9 +463,8 @@ static irqreturn_t wacom_pendet_irq(int irq, void *dev_id)
     struct wacom_pencil *wpen = dev_id;
     int pendet_gpio_value = gpio_get_value(wpen->detect_gpio);
 
-    wacom_dbg("entering %s,gpio_value=%d,det_level=%d\n", __func__,
-        pendet_gpio_value, wpen->detect_level);
-    ebc_set_tp_power(pendet_gpio_value == wpen->detect_level);
+    wacom_dbg("entering %s,gpio_value=%d,det_level=%d\n", __func__, pendet_gpio_value, wpen->detect_level);
+    ebc_set_tp_power(pendet_gpio_value == wpen->detect_level, 50);
     // if (pendet_gpio_value) {
     //     irq_set_irq_type(wpen->pendet_irq, IRQ_TYPE_LEVEL_LOW);
     // } else {
@@ -594,8 +603,7 @@ static int wacom_query_device(struct wacom_pencil *wpen)
     features->y_max = get_unaligned_le16(&data[5]);
     features->pressure_max = get_unaligned_le16(&data[11]);
     features->fw_version = get_unaligned_le16(&data[13]);
-    wacom_dbg("Wacom source screen x_max:%d, y_max:%d, pressure:%d, fw:0x%x\n", features->x_max,
-        features->y_max, features->pressure_max, features->fw_version);
+    wacom_dbg("Wacom source screen x_max:%d, y_max:%d, pressure:%d, fw:%x\n", features->x_max, features->y_max, features->pressure_max, features->fw_version);
 
     if (wpen->swap_xy) {
         swap(features->x_max, features->y_max);
@@ -653,8 +661,7 @@ static int wacom_pen_init_detirq(struct i2c_client *client)
         return ret;
     }
 
-    ret = devm_request_threaded_irq(&client->dev, wpen->pendet_irq, NULL, wacom_pendet_irq,
-        IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING|IRQF_ONESHOT, "wacom-pendet", wpen);
+    ret = devm_request_threaded_irq(&client->dev, wpen->pendet_irq, NULL, wacom_pendet_irq, IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT, "wacom-pendet", wpen);
     if (ret < 0) {
         dev_err(&client->dev, "Could not register for %s interrupt, irq=%d, ret=%d\n", "wacom-pendet", wpen->pendet_irq, ret);
         return ret;
@@ -731,7 +738,7 @@ static int wacom_pen_of_probe(struct wacom_pencil *wpen)
         dev_err(&client->dev, "Bad HID register address: 0x%08x\n", hidRegister);
         return -ENODEV;
     }
-    wpen->wHIDDescRegister = cpu_to_le16(hidRegister);  // 20220804: 0x0001
+    wpen->wHIDDescRegister = cpu_to_le16(hidRegister);
     wpen->supply = devm_regulator_get(&client->dev, "pwr");
     if (wpen->supply) {
         dev_info(&client->dev, "wacom power supply = %dmv\n", regulator_get_voltage(wpen->supply));
@@ -900,12 +907,12 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long actio
 
     mutex_lock(&pen->fb_lock);
     if (action == EINK_NOTIFY_EVENT_SCREEN_OFF /*EBC_FB_BLANK*/) {
-        if(!pen->suspended) {
+        if (!pen->suspended) {
             pen->pen_suspend(pen);
             pen->suspended = true;
         }
     } else if (action == EINK_NOTIFY_EVENT_SCREEN_ON/*EBC_FB_UNBLANK*/) {
-        if(pen->suspended) {
+        if (pen->suspended) {
             pen->suspended = false;
             pen->pen_resume(pen);
         }
@@ -914,6 +921,94 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long actio
 
     return NOTIFY_OK;
 }
+
+/* changed tower: add for data track. */
+static void datatrack_timer(struct timer_list *t)
+{
+    struct wacom_datatrack *datatrack = from_timer(datatrack, t, datatrack_timer);
+    int state = atomic_read(&datatrack->state);
+    char data[64] = { 0 };
+    char *envp[] = { data, NULL };
+
+    if (state) {
+        snprintf(data, sizeof(data), "STATE=%s", "penactive");
+        kobject_uevent_env(&datatrack->dev->kobj, KOBJ_CHANGE, envp);
+        atomic_set(&datatrack->state, 0);
+        printk("report pen use event.\n");
+    }
+    mod_timer(&datatrack->datatrack_timer, jiffies + DATATRACKTIME);
+}
+
+static ssize_t datatrack_event_show(struct device *edev, struct device_attribute *attr, char *buf)
+{
+    struct wacom_datatrack *datatrack = (struct wacom_datatrack *)edev->driver_data;
+    int state = atomic_read(&datatrack->state);
+
+    return sprintf(buf, "%d\n", state);
+}
+
+static ssize_t datatrack_event_store(struct device *edev, struct device_attribute *attr, const char *buf, size_t count)
+{
+    char data[64] = { 0 };
+    char *envp[] = { data, NULL };
+
+    strcat(data, buf);
+    printk(KERN_WARNING "%s\n", data);
+    kobject_uevent_env(&edev->kobj, KOBJ_CHANGE, envp);
+
+    return count;
+}
+static DEVICE_ATTR(penused, S_IRUGO | S_IWUSR, datatrack_event_show, datatrack_event_store);
+
+static const struct attribute *datatrack_event_attr[] = {
+    &dev_attr_penused.attr,
+    NULL,
+};
+
+static const struct attribute_group datatrack_event_attr_group = {
+    .attrs = (struct attribute **)datatrack_event_attr,
+};
+
+static struct class datatrack_event_class = {
+    .name = "penused_event",
+    .owner = THIS_MODULE,
+};
+
+static int datatrack_uevent_init(struct wacom_datatrack *datatrack)
+{
+    int ret = 0;
+
+    ret = class_register(&datatrack_event_class);
+    if (ret < 0) {
+        printk(KERN_ERR "data track class register fail\n");
+        return ret;
+    }
+
+    datatrack->dev = device_create(&datatrack_event_class, NULL, MKDEV(0, 0), NULL, "event");
+    if (datatrack->dev) {
+        ret = sysfs_create_group(&datatrack->dev->kobj, &datatrack_event_attr_group);
+        if (ret < 0) {
+            printk(KERN_ERR "data track create event group fail!!!\n");
+            return ret;
+        }
+        datatrack->dev->driver_data = datatrack;
+    } else {
+        printk(KERN_ERR "data track create event device fail!!!\n");
+        ret = -1;
+        return ret;
+    }
+
+    return 0;
+}
+
+static void datatrack_uevent_uninit(struct wacom_datatrack *datatrack)
+{
+    device_destroy(&datatrack_event_class, MKDEV(0, 0));
+    class_destroy(&datatrack_event_class);
+    sysfs_remove_group(&datatrack->dev->kobj, &datatrack_event_attr_group);
+    printk(KERN_WARNING "%s!\n", __func__);
+}
+/* changed end. */
 
 static int wacom_pen_probe(struct i2c_client *client, const struct i2c_device_id *dev_id)
 {
@@ -951,10 +1046,6 @@ static int wacom_pen_probe(struct i2c_client *client, const struct i2c_device_id
         goto error_of_parase;
     }
 
-    // 20220804,hsl add.--test get descriptor OK.
-    //wacom_fetch_hid_descriptor(client);
-    //wacom_i2c_print_report(client);
-
     ret = wacom_pen_init_irq(client);
     if (ret) {
         goto error_of_parase;
@@ -982,12 +1073,21 @@ static int wacom_pen_probe(struct i2c_client *client, const struct i2c_device_id
     //     goto error_input;
     // }
 
+    /* changed tower: add for data track. */
+    timer_setup(&(wpen->datatrack.datatrack_timer), datatrack_timer, 0);
+    if (!datatrack_uevent_init(&wpen->datatrack)) {
+        atomic_set(&(wpen->datatrack.state), 0);
+        wpen->datatrack.initok = true;
+        mod_timer(&(wpen->datatrack.datatrack_timer), jiffies + DATATRACKTIME);
+    }
+    /* changed end. */
+
     return 0;
 
-//error_input:
-//    if (wpen->input) {
-//        input_free_device(wpen->input);
-//    }
+    //error_input:
+    //    if (wpen->input) {
+    //        input_free_device(wpen->input);
+    //    }
 error_irq_init:
     free_irq(client->irq, wpen);
     free_irq(wpen->pendet_irq, wpen);
@@ -1032,7 +1132,7 @@ static int wacom_pen_suspend(struct device *dev)
 
     wacom_dbg("entering %s, suspended=%d\n", __func__, wpen->suspended);
 
-    if(!wpen->suspended) { // screen is on.
+    if (!wpen->suspended) { // screen is on.
         //disable_irq(client->irq);
         if (device_may_wakeup(dev)) {
             enable_irq_wake(wpen->pendet_irq);
@@ -1050,16 +1150,16 @@ static int wacom_pen_resume(struct device *dev)
     struct i2c_client *client = to_i2c_client(dev);
     struct wacom_pencil *wpen = i2c_get_clientdata(client);
 
-    if(!wpen->suspended) {
+    if (!wpen->suspended) {
         //enable_irq(client->irq);
         if (device_may_wakeup(dev)) {
             disable_irq_wake(wpen->pendet_irq);
         }
 
         wacom_dbg("entering %s,irq=%d,det_irq=%d,wake_irq=%d,envents=%d,tws=%d\n", __func__,
-            client->irq, wpen->pendet_irq, pm_wakeup_irq, wpen->suspend_irq_events, wpen->suspend_irq_tws);
-        if(wpen->pendet_irq == pm_wakeup_irq && wpen->suspend_irq_events > 0
-            && !wpen->suspend_irq_tws) {
+        client->irq, wpen->pendet_irq, pm_wakeup_irq, wpen->suspend_irq_events, wpen->suspend_irq_tws);
+        if (wpen->pendet_irq == pm_wakeup_irq && wpen->suspend_irq_events > 0
+        && !wpen->suspend_irq_tws) {
             wpen->need_fix_tws = true;
         }
     }

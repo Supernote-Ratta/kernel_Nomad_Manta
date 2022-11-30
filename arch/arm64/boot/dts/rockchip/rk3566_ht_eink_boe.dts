@@ -78,7 +78,7 @@
             linux,input-type = <EV_KEY>;
             linux,code = <KEY_BACK>;
         };
-        #endif
+#endif
     };
 
     leds: gpio-leds {
@@ -133,9 +133,24 @@
         };
     };
 
-    pdmics: dummy-codec {
+    bt_sound: bt-sound {
         status = "okay";
-        compatible = "rockchip,dummy-codec";
+        compatible = "simple-audio-card";
+        simple-audio-card,format = "dsp_b";
+        simple-audio-card,bitclock-inversion = <1>;
+        simple-audio-card,mclk-fs = <256>;
+        simple-audio-card,name = "rockchip,bt";
+        simple-audio-card,cpu {
+            sound-dai = <&i2s2_2ch>;
+        };
+        sound2_master:simple-audio-card,codec {
+            sound-dai = <&bt_sco>;
+        };
+    };
+
+    bt_sco: bt-sco {
+        status = "okay";
+        compatible = "delta,dfbmcs320";
         #sound-dai-cells = <0>;
     };
 
@@ -149,6 +164,12 @@
         simple-audio-card,codec {
             sound-dai = <&pdmics>;
         };
+    };
+
+    pdmics: dummy-codec {
+        status = "okay";
+        compatible = "rockchip,dummy-codec";
+        #sound-dai-cells = <0>;
     };
 
     sdio_pwrseq: sdio-pwrseq {
@@ -184,7 +205,7 @@
         compatible = "bluetooth-platdata";
         clocks = <&rk817 1>;
         clock-names = "ext_clock";
-        wifi-bt-power-toggle;
+        //wifi-bt-power-toggle; //power is alawys on
         uart_rts_gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
         pinctrl-names = "default", "rts_gpio";
         pinctrl-0 = <&uart1m0_rtsn>, <&bt_reset_gpio>, <&bt_wake_gpio>, <&bt_irq_gpio>;
@@ -235,7 +256,7 @@
          >;
          default-brightness-level = <0>;
     };
-#else
+//#else
     backlight_warm: backlight-warm {
         status = "okay";
         compatible = "pwm-backlight";
@@ -275,7 +296,47 @@
          >;
        default-brightness-level = <0>;
      };
-#endif
+	 #else
+	    backlight_warm: backlight-warm {
+        status = "okay";
+        compatible = "pwm-backlight";
+        pwms = <&pwm1 0 25000 0>;
+        brightness-levels = <
+            0   9   18  60  100 100 100 100 101 101 101 101 101 101 102 102 102 102 103 103 103 103 
+            104 104 105 105 105 105 106 107 108 109 110 111 112 114 116 118 120 122 124 126
+            129 131 134 136 139 141 144 146 149 151 154 156 158 160 162 164 166 169 173 176
+            180 183 187 190 194 198 202 206 210 224 238 252 266 280 294 299 305 310 316 321
+            327 336 346 356 366 375 385 394 403 412 421 430 440 451 463 475 487 498 510 523
+            537 550 564 577 591 604 618 631 645 658 672 688 705 721 738 754 771 796 822 847
+            873 898 924 943 962 981 1000 1019 1038 1075 1113 1150 1188 1225 1263 1316 1370 1423 1477 1530
+            1584 1611 1639 1672 1695 1722 1750 1794 1839 1883 1927 1972 2016 2068 2120 2172 2224 2276 2328 2436
+            2545 2653 2761 2869 2978 3053 3129 3205 3281 3356 3432 3485 3539 3592 3646 3700 3754 3838 3922 4006
+            4091 4175 4260 4414 4568 4722 4876 5030 5184 5393 5603 5813 6023 6232 6442 6653 6865 7076 7287 7498 
+			7710 7920 8130 8340 8550 8760 8970 9241 9513 9785 10057 10328 10600 10600
+         >;
+         default-brightness-level = <0>;
+    };
+
+    backlight_cold: backlight-cold {
+        status = "okay";
+        compatible = "pwm-backlight";
+        pwms = <&pwm0 0 25000 0>;
+        brightness-levels = <
+            0   9   18  60  100 100 100 100 101 101 101 101 101 101 102 102 102 102 103 103 103 103
+            104 104 105 105 106 106 107 107 108 108 109 109 110 112 115 117 120 122 125 123
+            132 136 140 143 147 152 157 162 167 172 177 183 189 195 201 207 213 222 232 241
+            251 260 270 278 286 294 302 310 318 325 332 339 346 353 360 368 377 386 395 403
+            412 422 432 441 451 461 471 482 493 504 515 526 537 549 562 574 587 599 612 627
+            643 658 674 689 705 721 737 753 769 775 801 825 850 874 899 923 948 966 984 1002
+            1020 1038 1056 1086 1116 1146 1176 1206 1236 1270 1304 1341 1372 1406 1440 1475 1510 1545 1580 1615
+            1650 1678 1707 1735 1764 1792 1821 1870 1920 1969 2019 2068 2118 2159 2200 2241 2282 2323 2364 2452
+            2540 2628 2716 2804 2892 2955 3019 3083 3147 3210 3274 3343 3413 3482 3551 3620 3690 3762 3834 3906
+            3978 4050 4122 4254 4386 4518 4650 4782 4914 5090 5266 5442 5618 5794 5970 6216 6463 6709 6956 7202
+            7449 7674 7900 8125 8351 8576 8802 9101 9401 9701 10001 10300 10600 10600
+         >;
+       default-brightness-level = <0>;
+     };
+     #endif
 };
 
 &ebc {
@@ -919,6 +980,10 @@
     rockchip,clk-trcm = <1>;
     pinctrl-names = "default";
     pinctrl-0 = <&i2s1m0_sclktx &i2s1m0_lrcktx &i2s1m0_sdi0 &i2s1m0_sdo0>;
+};
+
+&i2s2_2ch {
+   status = "okay";
 };
 
 &spi1 {
