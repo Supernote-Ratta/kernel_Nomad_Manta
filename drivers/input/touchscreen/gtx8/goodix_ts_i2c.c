@@ -409,7 +409,6 @@ write_exit:
     return r;
 }
 
-
 /**
  * goodix_set_i2c_doze_mode - disable or enable doze mode
  * @dev: pointer to device data
@@ -777,7 +776,7 @@ static int goodix_wait_cfg_cmd_ready(struct goodix_ts_device *dev, u8 right_cmd,
 {
     int try_times = 0;
     u8 cmd_flag = 0;
-    u8 cmd_buf[3] = {0};
+    u8 cmd_buf[3] = { 0 };
     u16 command_reg = dev->reg.command;
     struct goodix_ts_cmd ts_cmd;
 
@@ -808,7 +807,7 @@ static int _do_goodix_send_config(struct goodix_ts_device *dev, struct goodix_ts
 {
     int r = 0;
     int try_times = 0;
-    u8 buf[3] = {0};
+    u8 buf[3] = { 0 };
     u16 command_reg = dev->reg.command;
     u16 cfg_reg = dev->reg.cfg_addr;
     struct goodix_ts_cmd ts_cmd;
@@ -1160,7 +1159,7 @@ exit:
  */
 int goodix_hw_reset(struct goodix_ts_device *dev)
 {
-    u8 data[2] = {0x00};
+    u8 data[2] = { 0x00 };
     int r = 0;
 
     ts_info("HW reset");
@@ -1253,7 +1252,7 @@ static void goodix_swap_coords(struct goodix_ts_device *dev, unsigned int *coor_
     }
 }
 
-#define GOODIX_KEY_STATE    0x10
+#define GOODIX_KEY_STATE 0x10
 static void goodix_parse_finger_nor(struct goodix_ts_device *dev, struct goodix_touch_data *touch_data, unsigned char *buf, int touch_num)
 {
     unsigned int id = 0, x = 0, y = 0, w = 0;
@@ -1356,7 +1355,7 @@ static void goodix_parse_finger_ys(struct goodix_ts_device *dev, struct goodix_t
     touch_data->touch_num = touch_num;
 }
 
-static unsigned int goodix_pen_btn_code[] = {BTN_STYLUS, BTN_STYLUS2};
+static unsigned int goodix_pen_btn_code[] = { BTN_STYLUS, BTN_STYLUS2 };
 static void goodix_parse_pen_nor(struct goodix_ts_device *dev, struct goodix_pen_data *pen_data, unsigned char *buf, int touch_num)
 {
     unsigned int id = 0;
@@ -1540,8 +1539,7 @@ static int goodix_touch_handler_nor(struct goodix_ts_device *dev, struct goodix_
             pre_pen_num = 0;
         } else {
             ts_event->event_type = EVENT_TOUCH;
-            goodix_parse_finger_nor(dev, touch_data,
-            buffer, touch_num);
+            goodix_parse_finger_nor(dev, touch_data, buffer, touch_num);
             pre_finger_num = touch_num;
         }
     }
@@ -1609,7 +1607,7 @@ static int goodix_hw_suspend(struct goodix_ts_device *dev)
 
     goodix_cmd_init(dev, &sleep_cmd, COMMAND_SLEEP, 0, dev->reg.command);
     if (sleep_cmd.initialized) {
-		ts_debug("sleep cmd reg:0x%x", sleep_cmd.cmd_reg);
+        ts_debug("sleep cmd reg:0x%x", sleep_cmd.cmd_reg);
         r = goodix_send_command(dev, &sleep_cmd);
         if (!r) {
             ts_info("Chip in sleep mode");
@@ -1639,12 +1637,11 @@ static int goodix_hw_set_idle(struct goodix_ts_device *dev)
     struct goodix_ts_cmd idle_cmd;
     int r = 0;
 
-    goodix_cmd_init(dev, &idle_cmd, 0x14/*idle-cmd*/, 0, dev->reg.command);
+    goodix_cmd_init(dev, &idle_cmd, 0x14 /*idle-cmd*/, 0, dev->reg.command);
     if (idle_cmd.initialized) {
         // 20220819: should be: reg:0x6f68, cmd: 0x14 0x00 0xec
         // log: [GTP-DBG][goodix_hw_set_idle:1646] idle_cmd reg:0x6f68, cmd(3)=0x14 0x00 0xec
-		ts_debug("idle_cmd reg:0x%x, cmd(%d)=0x%02x 0x%02x 0x%02x", idle_cmd.cmd_reg, 
-		    idle_cmd.length, idle_cmd.cmds[0], idle_cmd.cmds[1], idle_cmd.cmds[2]);
+        ts_debug("idle_cmd reg:0x%x, cmd(%d)=0x%02x 0x%02x 0x%02x", idle_cmd.cmd_reg, idle_cmd.length, idle_cmd.cmds[0], idle_cmd.cmds[1], idle_cmd.cmds[2]);
         r = goodix_send_command(dev, &idle_cmd);
         if (!r) {
             ts_info("Chip in idle mode");
@@ -1805,7 +1802,7 @@ MODULE_DEVICE_TABLE(of, i2c_matchs);
 #endif
 
 static const struct i2c_device_id i2c_id_table[] = {
-    {TS_DRIVER_NAME, 0},
+    { TS_DRIVER_NAME, 0 },
     {},
 };
 MODULE_DEVICE_TABLE(i2c, i2c_id_table);
