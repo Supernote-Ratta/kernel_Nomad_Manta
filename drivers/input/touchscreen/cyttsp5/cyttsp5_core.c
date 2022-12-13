@@ -32,7 +32,10 @@
 #include <linux/notifier.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/consumer.h>
-
+#ifdef CONFIG_FB
+#include <linux/fb.h>
+#include <linux/htfy_dbg.h>  // 20220720,hsl add.
+#endif
 static struct cyttsp5_core_data *priv_data;
 #define CY_CORE_STARTUP_RETRY_COUNT     3
 
@@ -5823,20 +5826,22 @@ static void cyttsp5_setup_early_suspend(struct cyttsp5_core_data *cd)
     register_early_suspend(&cd->es);
 }
 #endif
-#if 0 //defined(CONFIG_FB)
-static int fb_notifier_callback(struct notifier_block *self,
+#if 1 //defined(CONFIG_FB)
+static int cyttsp5_fb_notifier_callback(struct notifier_block *self,
                                 unsigned long event, void *data)
 {
     struct cyttsp5_core_data *cd =
         container_of(self, struct cyttsp5_core_data, fb_notifier);
     struct fb_event *evdata = data;
     int *blank;
+    //printk("cyttsp5_fb_notifier_callback :event=:%d blank:%d \n",event,*blank);
 
-    if (event != FB_EVENT_BLANK || !evdata) {
-        goto exit;
-    }
+    //if (event != FB_EVENT_BLANK || !evdata) {
+    //    goto exit;
+    //}
 
     blank = evdata->data;
+	/*
     if (*blank == FB_BLANK_UNBLANK) {
         dev_info(cd->dev, "%s: UNBLANK!\n", __func__);
         if (cd->fb_state != FB_ON) {
@@ -5848,6 +5853,23 @@ static int fb_notifier_callback(struct notifier_block *self,
         if (cd->fb_state != FB_OFF) {
             call_atten_cb(cd, CY_ATTEN_SUSPEND, 0);
             cd->fb_state = FB_OFF;
+        }
+    } else */
+    if (event == EINK_NOTIFY_TP_POWEROFF) {
+        /* 20220802: 如果落笔的时候关闭TP的电源，然后再上电。TP就会上报完整的 DOWN/UP，且上电
+         * 之后再上报 DOWN/UP. 这样再抬笔之后，TP的触摸就自动有效了。
+         * 20220817: 测试发现，按着TP落笔，如果进入sleep，TP会先中断，产生一个 touch_num=0的事件。
+         * 这时我们就可以过滤，抬笔后TP reset，上报的也是 touch_num =0的事件，知道抬手重新touch。
+         */
+       //printk("cyttsp5_fb_notifier_callback :EINK_NOTIFY_TP_POWEROFF cd->irq_disabled:%d \n",cd->irq_disabled);
+        if (!cd->irq_disabled) {
+            disable_irq(cd->irq);
+            cd->irq_disabled = 1;
+        }
+    } else if (EINK_NOTIFY_TP_POWERON == event) {
+        if (cd->irq_disabled) {
+            cd->irq_disabled = false;
+            enable_irq(cd->irq);
         }
     }
 
@@ -5861,8 +5883,8 @@ static void cyttsp5_setup_fb_notifier(struct cyttsp5_core_data *cd)
 
     cd->fb_state = FB_ON;
 
-    cd->fb_notifier.notifier_call = fb_notifier_callback;
-
+    cd->fb_notifier.notifier_call = cyttsp5_fb_notifier_callback;
+    htfy_ebc_register_notifier(&cd->fb_notifier);
     rc = fb_register_client(&cd->fb_notifier);
     if (rc) {
         dev_err(cd->dev, "Unable to register fb_notifier: %d\n", rc);
@@ -6090,7 +6112,11 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev, u16 irq
 //#ifdef CONFIG_HAS_EARLYSUSPEND
     //  cyttsp5_setup_early_suspend(cd);
 //#elif defined(CONFIG_FB)
-    //  cyttsp5_setup_fb_notifier(cd);
+#ifdef CONFIG_FB
+      cyttsp5_setup_fb_notifier(cd);
+#elif defined CONFIG_HAS_EARLYSUSPEND
+      cyttsp5_setup_early_suspend(cd);
+#endif
 //#endif
 
 #if NEED_SUSPEND_NOTIFIER
