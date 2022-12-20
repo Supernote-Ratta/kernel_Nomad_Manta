@@ -776,8 +776,21 @@
         sar-num = <0>;
     };
 
-    usbc0: et7303@4e {
+    usbc0: fusb30x@22 {
         status = "okay";
+        compatible = "fairchild,fusb302";
+        reg = <0x22>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&fusb0_int>;
+        //pinctrl-0 = <&fusb0_int>, <&fusb0_switch>;
+        //power-supply = <&vccio_sd>;
+        //vbus-5v-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+        int-n-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
+        //switch-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+    };
+
+    usbc1: et7303@4e {
+        status = "disabled";
         compatible = "etek,et7303";
         reg = <0x4e>;
         interrupt-parent = <&gpio0>;
@@ -1130,6 +1143,9 @@
         et7303_int: et7303-int {
             rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
         };
+        fusb0_int: fusb0-int {
+            rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+        };
     };
 
     wacom {
@@ -1228,13 +1244,13 @@
 &rockchip_suspend {
     status = "okay";
     rockchip,sleep-mode-config = <
-        (0
-        | RKPM_SLP_ARMOFF_LOGOFF
-        | RKPM_SLP_CENTER_OFF
-        | RKPM_SLP_HW_PLLS_OFF
-        | RKPM_SLP_PMUALIVE_32K
-        | RKPM_SLP_PMIC_LP
-        | RKPM_SLP_32K_PVTM
+		(0
+		 | RKPM_SLP_ARMOFF_LOGOFF
+		 | RKPM_SLP_CENTER_OFF
+		 | RKPM_SLP_HW_PLLS_OFF
+		 | RKPM_SLP_PMUALIVE_32K
+		 | RKPM_SLP_PMIC_LP
+		 | RKPM_SLP_32K_PVTM
         )
     >;
     rockchip,regulator-off-in-mem-lite =
