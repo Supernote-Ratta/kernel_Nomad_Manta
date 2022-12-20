@@ -824,7 +824,7 @@
         fingerprint,en-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
         fingerprint,touch-int-gpio = <&gpio0 RK_PC0 IRQ_TYPE_EDGE_RISING>;
         fingerprint,gpio_reset = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
-        status = "disabled";
+        status = "okay";
     };
 };
 
@@ -988,7 +988,7 @@
     pmuio2-supply = <&vcca1v8_pmu>;
     vccio1-supply = <&vccio_acodec>; // 1.8v
     vccio2-supply = <&vcc_1v8>;
-    vccio3-supply = <&vccio_sd>;
+    vccio3-supply = <&vccio_sd>; // 3.3v
     vccio4-supply = <&vcca1v8_pmu>;
     vccio5-supply = <&vcc_1v8>;
     vccio6-supply = <&vcc_3v3>;
