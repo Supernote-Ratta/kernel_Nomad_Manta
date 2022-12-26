@@ -364,7 +364,9 @@ static int cyttsp5_load_app_(struct device *dev, const u8 *fw, int fw_size)
         goto _cyttsp5_load_app_exit;
     }
 
-    cmd->request_stop_wd(dev);
+    if (!IS_ERR_OR_NULL(cmd->request_stop_wd)) {
+        cmd->request_stop_wd(dev);
+    }
 
     dev_info(dev, "%s: Send BL Loader Enter\n", __func__);
 #ifdef TTHE_TUNER_SUPPORT
@@ -1251,7 +1253,7 @@ static void cyttsp5_fw_and_config_upgrade(struct work_struct *work)
         return;
     }
 #endif
-    dev_err(dev, "%s: upgrade firmware from builtin\n", __func__); 
+    dev_err(dev, "%s: upgrade firmware from builtin\n", __func__);
 #ifdef CONFIG_TOUCHSCREEN_CYPRESS_CYTTSP5_BINARY_FW_UPGRADE
     if (!upgrade_firmware_from_builtin(dev)) {
         return;
