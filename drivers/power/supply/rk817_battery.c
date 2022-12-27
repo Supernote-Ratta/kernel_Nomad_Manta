@@ -107,7 +107,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 // 221028 1.Close some printk
 //        2.rsoc=100,(rsoc-dsoc)>20,when dsoc>90,dsoc increasing to fast.
 // 221124 1.printk -> DBG
-#define DRIVER_VERSION	"221124"
+// 221227 1.Add sleep current(current last 3bits,0.xxxmA"
+#define DRIVER_VERSION	"221227"
 
 #define SFT_SET_KB	1
 
@@ -2386,7 +2387,12 @@ static int rk817_battery_get_property(struct power_supply *psy,
 	//printk("%s psp =%d val->intval=%d\n",__func__,psp,val->intval);
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		val->intval = battery->current_avg * 1000;/*uA*/
+        //tanlq 221227 last 3bits for sleep current
+		if(battery->current_avg > 0){
+			val->intval = battery->current_avg * 1000+backlight_current;
+		}else{
+			val->intval = battery->current_avg * 1000-backlight_current;
+		}/*uA*/
 		if (battery->pdata->bat_mode == MODE_VIRTUAL)
 			val->intval = VIRTUAL_CURRENT * 1000;
 		break;
