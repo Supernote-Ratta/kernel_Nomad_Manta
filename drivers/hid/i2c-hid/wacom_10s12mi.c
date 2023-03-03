@@ -112,7 +112,7 @@ struct wacom_pencil {
 };
 
 /* debug option */
-static bool debug = true;
+static bool debug = false; //20230303,hsl.
 
 module_param(debug, bool, 0444);
 MODULE_PARM_DESC(debug, "print a lot of debug information");
