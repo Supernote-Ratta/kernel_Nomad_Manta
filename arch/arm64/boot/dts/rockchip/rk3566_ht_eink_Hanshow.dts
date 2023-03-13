@@ -20,6 +20,8 @@
 #include "rk3568-android.dtsi"
 #include "rk3566-eink.dtsi"
 
+#define TYPEC_fusb30x
+
 / {
     model = "Rockchip RK3566 EINK Hanshow 10.3 DVT1 Board II";
     compatible = "rockchip,rk3566-rk817-eink", "rockchip,rk3566";
@@ -776,6 +778,8 @@
         sar-num = <0>;
     };
 
+#ifdef TYPEC_fusb30x
+
     usbc0: fusb30x@22 {
         status = "okay";
         compatible = "fairchild,fusb302";
@@ -789,8 +793,10 @@
         //switch-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
     };
 
-    usbc1: et7303@4e {
-        status = "disabled";
+#else
+
+    usbc0: et7303@4e {
+        status = "okay";
         compatible = "etek,et7303";
         reg = <0x4e>;
         interrupt-parent = <&gpio0>;
@@ -806,6 +812,7 @@
             op-sink-microwatt = <10000000>;
         };
     };
+#endif
 
     ls_stk3x1x: light@48 {
         status = "disabled";
