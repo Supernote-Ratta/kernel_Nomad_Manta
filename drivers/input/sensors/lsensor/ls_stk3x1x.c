@@ -497,11 +497,11 @@ static void stk_als_ir_get_corr(int32_t als)
             printk(KERN_DEBUG "%s: stk als factor D=%d", __func__, ls_data->als_correct_factor);
         } else {
             ls_data->als_correct_factor = LIGHT_SLOPE_CWF;
-            printk(KERN_DEBUG "%s: stk als factor C=%d", __func__, ls_data->als_correct_factor);
+            //printk(KERN_DEBUG "%s: stk als factor C=%d", __func__, ls_data->als_correct_factor);
         }
     } else {
         ls_data->als_correct_factor = LIGHT_SLOPE_CWF;
-        printk(KERN_DEBUG "%s: stk als factor C=%d", __func__, ls_data->als_correct_factor);
+        //printk(KERN_DEBUG "%s: stk als factor C=%d", __func__, ls_data->als_correct_factor);
     }
 
     ls_data->ir_code = 0;
@@ -566,14 +566,14 @@ static ssize_t lux_value_show(struct class *cls, struct class_attribute *attr, c
             break;
         }
     }
-    printk("stk3x1x value:----retry: %d state: %d\n", j, sensor_read_reg(ls_data->client, STK_STATE_REG));
+    //printk("stk3x1x value:----retry: %d state: %d\n", j, sensor_read_reg(ls_data->client, STK_STATE_REG));
     value = ((rawvalue - ls_data->darkcalibration_value) < 0) ? 0 : (rawvalue - ls_data->darkcalibration_value);
     ls_data->ir_code = stk3x1x_get_ir_reading(ls_data->client, STK_IRS_IT_REDUCE);
     ircode = ls_data->ir_code;
     stk_als_ir_get_corr(value);
     result = (value * ls_data->als_correct_factor * ls_data->lightcalibration_value) / (1000 * 100);
     sensor_active(ls_data->client, 0, 0);
-    printk("stk3x1x value: ----ret:%u factor:%u value:%u ir:%u lightcali:%u darkcali:%u lightcaliref:%u----\n", result, ls_data->als_correct_factor, value, ircode, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
+    //printk("stk3x1x value: ----ret:%u factor:%u value:%u ir:%u lightcali:%u darkcali:%u lightcaliref:%u----\n", result, ls_data->als_correct_factor, value, ircode, ls_data->lightcalibration_value, ls_data->darkcalibration_value, ls_data->calibration_reference);
     len += sprintf(_buf, "%u\n", result);
     return len;
 }

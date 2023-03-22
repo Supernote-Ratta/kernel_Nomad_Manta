@@ -138,7 +138,7 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 		//printk("===============pwm_backlight_update_status:cold enable:%d bright:%d \n",pb->enabled,backlight_cold);
 	}
 	backlight_current = backlight_warm+backlight_cold;
-	if(backlight_current<0||backlight_current>280){
+	if(backlight_current<0||backlight_current>305){
 		backlight_current = 0;
 	}
 

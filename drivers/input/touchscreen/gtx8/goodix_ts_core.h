@@ -349,22 +349,15 @@ struct goodix_ts_hw_ops {
     int (*init)(struct goodix_ts_device *dev);
     int (*dev_confirm)(struct goodix_ts_device *ts_dev);
     int (*reset)(struct goodix_ts_device *dev);
-    int (*read)(struct goodix_ts_device *dev, unsigned int addr,
-    unsigned char *data, unsigned int len);
-    int (*write)(struct goodix_ts_device *dev, unsigned int addr,
-    unsigned char *data, unsigned int len);
-    int (*read_trans)(struct goodix_ts_device *dev, unsigned int addr,
-    unsigned char *data, unsigned int len);
-    int (*write_trans)(struct goodix_ts_device *dev, unsigned int addr,
-    unsigned char *data, unsigned int len);
+    int (*read)(struct goodix_ts_device *dev, unsigned int addr, unsigned char *data, unsigned int len);
+    int (*write)(struct goodix_ts_device *dev, unsigned int addr, unsigned char *data, unsigned int len);
+    int (*read_trans)(struct goodix_ts_device *dev, unsigned int addr, unsigned char *data, unsigned int len);
+    int (*write_trans)(struct goodix_ts_device *dev, unsigned int addr, unsigned char *data, unsigned int len);
     int (*send_cmd)(struct goodix_ts_device *dev, struct goodix_ts_cmd *cmd);
-    int (*send_config)(struct goodix_ts_device *dev,
-    struct goodix_ts_config *config);
+    int (*send_config)(struct goodix_ts_device *dev, struct goodix_ts_config *config);
     int (*read_config)(struct goodix_ts_device *dev, u8 *config_data, int size);
-    int (*read_version)(struct goodix_ts_device *dev,
-    struct goodix_ts_version *version);
-    int (*event_handler)(struct goodix_ts_device *dev,
-    struct goodix_ts_event *ts_event);
+    int (*read_version)(struct goodix_ts_device *dev, struct goodix_ts_version *version);
+    int (*event_handler)(struct goodix_ts_device *dev, struct goodix_ts_event *ts_event);
     int (*check_hw)(struct goodix_ts_device *dev);
     int (*suspend)(struct goodix_ts_device *dev);
     int (*resume)(struct goodix_ts_device *dev);
@@ -456,24 +449,15 @@ enum goodix_ext_priority {
 struct goodix_ext_module;
 /* external module's operations callback */
 struct goodix_ext_module_funcs {
-    int (*init)(struct goodix_ts_core *core_data,
-    struct goodix_ext_module *module);
-    int (*exit)(struct goodix_ts_core *core_data,
-    struct goodix_ext_module *module);
-    int (*before_reset)(struct goodix_ts_core *core_data,
-    struct goodix_ext_module *module);
-    int (*after_reset)(struct goodix_ts_core *core_data,
-    struct goodix_ext_module *module);
-    int (*before_suspend)(struct goodix_ts_core *core_data,
-    struct goodix_ext_module *module);
-    int (*after_suspend)(struct goodix_ts_core *core_data,
-    struct goodix_ext_module *module);
-    int (*before_resume)(struct goodix_ts_core *core_data,
-    struct goodix_ext_module *module);
-    int (*after_resume)(struct goodix_ts_core *core_data,
-    struct goodix_ext_module *module);
-    int (*irq_event)(struct goodix_ts_core *core_data,
-    struct goodix_ext_module *module);
+    int (*init)(struct goodix_ts_core *core_data, struct goodix_ext_module *module);
+    int (*exit)(struct goodix_ts_core *core_data, struct goodix_ext_module *module);
+    int (*before_reset)(struct goodix_ts_core *core_data, struct goodix_ext_module *module);
+    int (*after_reset)(struct goodix_ts_core *core_data, struct goodix_ext_module *module);
+    int (*before_suspend)(struct goodix_ts_core *core_data, struct goodix_ext_module *module);
+    int (*after_suspend)(struct goodix_ts_core *core_data, struct goodix_ext_module *module);
+    int (*before_resume)(struct goodix_ts_core *core_data, struct goodix_ext_module *module);
+    int (*after_resume)(struct goodix_ts_core *core_data, struct goodix_ext_module *module);
+    int (*irq_event)(struct goodix_ts_core *core_data, struct goodix_ext_module *module);
 };
 
 /*
@@ -666,7 +650,7 @@ static inline u32 checksum_be32(u8 *data, u32 size)
 
 //#define CONFIG_GOODIX_DEBUG
 /* log macro */
-#define ts_info(fmt, arg...)    pr_info("[GTP-INF][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
+#define ts_info(fmt, arg...)    do {} while (0) //pr_info("[GTP-INF][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #define ts_err(fmt, arg...)     pr_err("[GTP-ERR][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #define boot_log(fmt, arg...)   g_info(fmt, ##arg)
 #ifdef CONFIG_GOODIX_DEBUG

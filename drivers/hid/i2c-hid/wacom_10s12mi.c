@@ -110,7 +110,7 @@ struct wacom_pencil {
 };
 
 /* debug option */
-static bool debug = false;
+static bool debug = false; //20230303,hsl.
 
 module_param(debug, bool, 0444);
 MODULE_PARM_DESC(debug, "print a lot of debug information");
@@ -324,7 +324,8 @@ static int wacom_fetch_hid_descriptor(struct i2c_client *client)
 static int wacom_i2c_set_power(struct i2c_client *client, int power_state)
 {
     int ret;
-    wacom_dbg("entering %s: set state=%d\n", __func__, power_state);
+
+    dev_info(&client->dev, "%s: set state=%d\n", __func__, power_state);
 
     ret = wacom_i2c_hid_command(client, &hid_set_power_cmd, power_state,
         0, NULL, 0, NULL, 0);
@@ -343,8 +344,10 @@ static int wacom_chip_power(struct i2c_client *client)
         dev_err(&client->dev, "gpio_rst pin available\n");
         return -ENODEV;
     }
-
-    gpio_set_value(wpen->reset_gpio, !wpen->reset_level);
+    //gpio_direction_output(wpen->reset_gpio, wpen->reset_level);
+    //msleep(100);
+    gpio_direction_output(wpen->reset_gpio, !wpen->reset_level);
+    //msleep(100);
 
     return 0;
 }
@@ -643,9 +646,9 @@ static int get_hid_desc(struct wacom_pencil *wpen)
         return -EIO;
     }
 
-    dev_info(&client->dev, "******************************\n");
-    dev_info(&client->dev, "wacom firmware vesrsion:0x%x\n", hiddesc->wVersionID);
-    dev_info(&client->dev, "******************************\n");
+    wacom_dbg("******************************\n");
+    wacom_dbg("wacom firmware vesrsion:0x%x\n", hiddesc->wVersionID);
+    wacom_dbg("******************************\n");
 
     return 0;
 }
@@ -741,7 +744,7 @@ static int wacom_pen_of_probe(struct wacom_pencil *wpen)
     wpen->wHIDDescRegister = cpu_to_le16(hidRegister);
     wpen->supply = devm_regulator_get(&client->dev, "pwr");
     if (wpen->supply) {
-        dev_info(&client->dev, "wacom power supply = %dmv\n", regulator_get_voltage(wpen->supply));
+        wacom_dbg("wacom power supply = %dmv\n", regulator_get_voltage(wpen->supply));
         ret = regulator_enable(wpen->supply);
         if (ret < 0) {
             dev_err(&client->dev, "failed to enable wacom power supply!!!\n");
@@ -755,7 +758,7 @@ static int wacom_pen_of_probe(struct wacom_pencil *wpen)
         return -ENODEV;
     }
     wpen->reset_level = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
-    dev_info(&client->dev, "wacom reset level %d\n", wpen->reset_level);
+    wacom_dbg("wacom reset level %d\n", wpen->reset_level);
     ret = devm_gpio_request_one(&client->dev, wpen->reset_gpio, !wpen->reset_level ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW, "wacom-rst");
     if (ret < 0) {
         dev_err(&client->dev, "request gpio_rst pin failed!!!\n");
@@ -1015,7 +1018,7 @@ static int wacom_pen_probe(struct i2c_client *client, const struct i2c_device_id
     int ret = 0;
     struct wacom_pencil *wpen;
 
-   dev_info(&client->dev, "Pen probe called for i2c 0x%02x\n", client->addr);
+    wacom_dbg("Pen probe called for i2c 0x%02x\n", client->addr);
 
     if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
         dev_err(&client->dev, "check wacom i2c functionality error!!!\n");
@@ -1204,14 +1207,14 @@ static struct i2c_driver wacom_pen_driver = {
 
 static int __init wacom_pen_init(void)
 {
-    printk("wacom pen init.\n");
+    wacom_dbg("wacom pen init.\n");
     return i2c_add_driver(&wacom_pen_driver);
 }
 module_init(wacom_pen_init);
 
 static void __exit wacom_pen_exit(void)
 {
-    printk("wacom pen exit.\n");
+    wacom_dbg("wacom pen exit.\n");
     i2c_del_driver(&wacom_pen_driver);
 }
 module_exit(wacom_pen_exit);

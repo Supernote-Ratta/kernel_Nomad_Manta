@@ -366,7 +366,7 @@
     panel,fsl = <1>;
     panel,fbl = <4>;
     panel,fdl = <1404>;
-    panel,fel = <2>;
+    panel,fel = <1>;
     panel,mirror = <1>;
     panel,panel_16bit = <1>;
     panel,panel_color = <0>;
@@ -379,8 +379,10 @@
 
 // 20220523,hsl fix: 6*fb_size + 2*lcd_size + 512K 
 // 10.3: 6*2628288 + 2*657088 + 512*1024= 17608192 = 0X10CAE00
+// 20221201: add dither-error buffer: 17608192 + 2628288 = 20236480 = 0x134C8C0;
+// 20230213: for serria-C,dither-error-buf is short. 20236480 + 2628288 = 22864768 = 0x15CE380
 &display_reserved {
-    reg = <0x0 0x10900000 0x0 0x10d0000>;
+    reg = <0x0 0x10900000 0x0 0x15d0000>;
 };
 
 &cpu0 {
