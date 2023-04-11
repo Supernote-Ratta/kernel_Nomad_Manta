@@ -713,6 +713,12 @@ config TOUCHSCREEN_HP600
 	  To compile this driver as a module, choose M here: the
 	  module will be called hp680_ts_input.
 
+config TOUCHSCREEN_IQS360
+	tristate "IQS360 side slide panel support"
+	depends on I2C
+	help
+	  Say Y here to enable support for I2C connected IQS360 side slide panels.
+	  
 config TOUCHSCREEN_HP7XX
 	tristate "HP Jornada 7xx touchscreen"
 	depends on SA1100_JORNADA720_SSP
