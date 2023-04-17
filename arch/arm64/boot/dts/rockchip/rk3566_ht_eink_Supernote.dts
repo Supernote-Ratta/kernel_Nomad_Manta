@@ -724,7 +724,7 @@
         poll_delay_ms = <100>;
         power-off-in-suspend = <1>;
     };
-
+#if 0
     aw9610x_sar: pressure@12 {
         status = "disabled";
         compatible = "awinic,aw9610x_sar";
@@ -736,7 +736,7 @@
         channel_use_flag = <0x1f>;
         sar-num = <0>;
     };
-
+#endif
 #ifdef TYPEC_fusb30x
 
     usbc0: fusb30x@22 {
@@ -862,7 +862,7 @@
          pinctrl-names = "default";
          pinctrl-0 = <&slide_gpio>;
          //iqs360,reset-gpio = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
-         iqs360,irq-gpio = <&gpio3 RK_PA1 IRQ_TYPE_LEVEL_LOW>;
+         iqs360,irq-gpio = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
          iqs360,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
          //iqs360,panel-max-x = <1404>;
          //iqs360,panel-max-y = <1872>;
@@ -1114,9 +1114,9 @@
         stk3x1x_irq_gpio: stk3x1x-irq-gpio {
             rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO  &pcfg_pull_up>;// ALS2_INT_L
         };
-        aw9610x_irq_gpio: aw9610x-irq-gpio {
-            rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO  &pcfg_pull_up>;
-        };
+        //aw9610x_irq_gpio: aw9610x-irq-gpio {
+        //    rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO  &pcfg_pull_up>;
+        //};
     };
 
     typec {
@@ -1155,7 +1155,7 @@
 	
 	iqs360 {
         slide_gpio: slide-gpio {
-            rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;
+            rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
         };
     };
 };
