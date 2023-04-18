@@ -51,7 +51,7 @@
     };
 
     adc_keys: adc-keys {
-        status = "disabled";
+        status = "okay";
         compatible = "adc-keys";
         io-channels = <&saradc 0>;
         io-channel-names = "buttons";
@@ -96,14 +96,14 @@
             label = "led_r";
             retain-state-suspended;
         };
-#if 0
+
         led@2 {
             gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-charging-or-full";
             label = "led_g";
             default-state = "off";
         };
-#endif
+
     };
 
     hall_sensor: hall-wh2506d {
@@ -132,7 +132,7 @@
         simple-audio-card,mclk-fs = <256>;
 
         simple-audio-card,cpu {
-            sound-dai = <&i2s0_8ch>;
+            sound-dai = <&i2s1_8ch>;
         };
         simple-audio-card,codec {
             sound-dai = <&rk817_codec>;
@@ -200,88 +200,7 @@
         BT,wake_host_irq = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
     };
 
-#if 0
-    backlight_warm: backlight-warm {
-        status = "okay";
-        compatible = "pwm-backlight";
-        pwms = <&pwm1 0 25000 0>;
 
-        brightness-levels = <
-            0  0   0   0   18  100 100 100 100 101 101
-            101 102 102 102 103 103 104 105 105 106
-            106 107 108 113 118 125 133 141 150 155
-            160 165 173 181 190 198 206 215 235 255
-            275 300 325 350 371 392 415 436 457 480
-            505 530 555 581 608 635 663 691 720 770
-            820 870 910 950 990 1046 1103 1160 1276 1393
-            1510 1580 1650 1720 1813 1906 2000 2070 2140 2210
-            2456 2703 2950 3095 3240 3385 3503 3621 3750 3900
-            4050 4200 4490 4780 5070 5363 5656 5950 6300 6650
-            7000 7473 7946 8420 9146 9872 10600
-         >;
-         default-brightness-level = <0>;
-    };
-
-    backlight_cold: backlight-cold {
-        status = "okay";
-        compatible = "pwm-backlight";
-        pwms = <&pwm0 0 25000 0>;
-        brightness-levels = <
-            0 0 0 0 18 100  101 101 102 102 103
-            104 105 106 107 108 109 110 111 113 115
-            118 121 125 133 141 150 161 172 185 196
-            208 220 236 253 270 287 304 321 341 361
-            381 401 421 441 464 487 510 535 560 585
-            610 635 660 686 712 740 783 826 870 916
-            963 1010 1056 1103 1150 1220 1290 1360 1430 1500
-            1570 1640 1710 1780 1850 1920 1990 2090 2190 2290
-            2440 2590 2740 2880 3020 3160 3306 3453 3600 3756
-            3913 4070 4310 4550 4790 5030 5270 5510 5906 6269
-            6700 7200 7700 8200 9000 9800 10600
-         >;
-         default-brightness-level = <0>;
-    };
-#else
-    backlight_warm: backlight-warm {
-        status = "okay";
-        compatible = "pwm-backlight";
-        pwms = <&pwm1 0 25000 0>;
-        brightness-levels = <
-            0   18  100 100 101 101 101 102 102 103 103
-            104 105 105 106 108 110 112 116 120 124
-            129 134 139 144 149 154 158 162 166 173
-            180 187 194 202 210 238 266 294 305 316
-            327 346 366 385 403 421 440 463 487 510
-            537 564 591 618 645 672 705 738 771 822
-            873 924 962 1000 1038 1113 1188 1263 1370 1477
-            1584 1639 1695 1750 1839 1927 2016 2120 2224 2328
-            2545 2761 2978 3129 3281 3432 3539 3646 3754 3922
-            4091 4260 4568 4876 5184 5603 6023 6442 6865 7287
-            7710 8130 8550 8970 9513 10057 10600
-         >;
-         default-brightness-level = <0>;
-    };
-
-    backlight_cold: backlight-cold {
-        status = "okay";
-        compatible = "pwm-backlight";
-        pwms = <&pwm0 0 25000 0>;
-        brightness-levels = <
-            0   18  100 100 101 101 101 102 102 103 103
-            104 105 106 107 108 109 110 115 120 125
-            132 140 147 157 167 177 189 201 213 232
-            251 270 286 302 318 332 346 360 377 395
-            412 432 451 471 493 515 537 562 587 612
-            643 674 705 737 769 801 850 899 948 984
-            1020 1056 1116 1176 1236 1304 1372 1440 1510 1580
-            1650 1707 1764 1821 1920 2019 2118 2200 2282 2364
-            2540 2716 2892 3019 3147 3274 3413 3551 3690 3834
-            3978 4122 4386 4650 4914 5266 5618 5970 6463 6956
-            7449 7900 8351 8802 9401 10001 10600
-         >;
-       default-brightness-level = <0>;
-     };
-#endif
 };
 
 &ebc {
@@ -326,7 +245,7 @@
 // 20220523,hsl fix: 6*fb_size + 2*lcd_size + 512K 
 // 10.3: 6*2628288 + 2*657088 + 512*1024= 17608192 = 0X10CAE00
 &display_reserved {
-    reg = <0x0 0x10900000 0x0 0x10d0000>;
+    reg = <0x0 0x10900000 0x0 0x15d0000>;
 };
 
 &cpu0 {
@@ -677,12 +596,6 @@
 
         battery {
             compatible = "rk817,battery";
-#if 0
-            ocv_table = <
-                3400 3513 3578 3687 3734 3752 3763
-                3766 3771 3784 3804 3836 3885 3925
-                3962 4005 4063 4114 4169 4227 4303>;
-#endif
             ocv_table = <
                 3550 3673 3685 3716 3741 3763 3781
                 3795 3812 3833 3859 3906 3951 3992
@@ -836,7 +749,7 @@
          status = "disabled";
          pinctrl-names = "default";
          pinctrl-0 = <&tp_gpio>;
-         goodix,reset-gpio = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
+         goodix,reset-gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
          goodix,irq-gpio = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
          goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
          goodix,panel-max-x = <1404>;
@@ -895,6 +808,41 @@
             };
         };
     };
+	gt9xx@14 {
+		compatible = "goodix,gt9xx";
+		reg = <0x14>; 
+		status = "okay";
+		//interrupt-parent = <&msm_gpio>;
+		//interrupts = <13 0x2800>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&tsc_gpio>;
+        reset-gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+        irq-gpios  = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
+		irq-flags = <2>;
+
+		touchscreen-max-id = <11>;
+		touchscreen-size-x = <1872>;
+		touchscreen-size-y = <1404>;
+		touchscreen-max-w = <512>;
+		touchscreen-max-p = <512>;
+		touchscreen-key-map = <172>, <158>; /*KEY_HOMEPAGE=172, KEY_BACK=158，KEY_MENU=139*/
+		
+		goodix,slide-wakeup = <0>;
+		goodix,type-a-report = <0>;
+		goodix,driver-send-cfg = <1>;
+		goodix,resume-in-workqueue = <0>;
+		goodix,int-sync = <1>;
+		goodix,swap-x2y = <1>;
+		goodix,x2x = <1>;
+		goodix,y2y = <1>;
+		goodix,esd-protect = <1>;
+		goodix,auto-update-cfg = <0>;
+		goodix,power-off-sleep = <0>;
+		goodix,pen-suppress-finger = <0>;
+		goodix,cfg-group0 = [
+			47 50 07 7C 05 0A 05 00 01 0F 28 05 5F 46 03 05 00 00 00 00 00 00 08 00 00 00 00 8E 2E AB 65 67 D9 0B 00 00 01 B9 02 1C 00 00 00 00 00 03 00 00 00 00 00 46 78 94 C0 02 07 00 00 04 91 49 00 89 52 00 84 5B 00 7F 66 00 7D 71 00 7D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 04 05 06 07 08 09 0C 0D 0E 0F 10 11 14 15 16 17 18 19 1A FF FF FF FF FF FF FF FF FF 00 02 04 06 07 08 0A 0C 0D 0F 10 11 12 13 19 1B 1C 1E 1F 20 21 22 23 24 25 26 27 28 FF FF FF FF FF FF FF FF FF FF FF FF FF FF 7E 01
+		];
+	};
 };
 
 &i2c3 {
@@ -1009,7 +957,7 @@
 };
 
 &i2s1_8ch {
-    status = "disabled";
+    status = "okay";
     rockchip,clk-trcm = <1>;
     pinctrl-names = "default";
     pinctrl-0 = <&i2s1m0_sclktx &i2s1m0_lrcktx &i2s1m0_sdi0 &i2s1m0_sdo0>;

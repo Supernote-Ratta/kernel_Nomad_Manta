@@ -210,6 +210,7 @@ static int cyttsp5_i2c_probe(struct i2c_client *client, const struct i2c_device_
         rc = cyttsp5_i2c_read_default(&client->dev, buf, 16);
         if (rc < 0) {
             dev_err(dev, "%s, read_default rc=%d\n", __func__, rc);
+			pdata->core_pdata->init(pdata->core_pdata, 0, dev);
             return -ENODEV;
         }
     }
