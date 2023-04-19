@@ -23,6 +23,8 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/input/mt.h>
 #include "gt9xx.h"
+#include <linux/htfy_dbg.h>  // 20220720,hsl add.
+
 
 #define GOODIX_COORDS_ARR_SIZE	4
 #define PROP_NAME_SIZE		24
@@ -667,6 +669,8 @@ void gtp_int_output(struct goodix_ts_data *ts, int level)
 		else
 			dev_err(&ts->client->dev,
 				"Failed set int pin output low\n");
+		if (gpio_is_valid(ts->pdata->rst_gpio))
+			gpio_direction_output(ts->pdata->rst_gpio, 0);
 	} else {
 		if (ts->pinctrl.pinctrl)
 			pinctrl_select_state(ts->pinctrl.pinctrl,
@@ -676,6 +680,8 @@ void gtp_int_output(struct goodix_ts_data *ts, int level)
 		else
 			dev_err(&ts->client->dev,
 				"Failed set int pin output high\n");
+		if (gpio_is_valid(ts->pdata->rst_gpio))
+			gpio_direction_output(ts->pdata->rst_gpio, 1);
 	}
 }
 
@@ -2077,6 +2083,12 @@ static int gtp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		dev_info(&client->dev, "Failed create attributes file");
 		goto exit_powermanager;
 	}
+	ret = device_init_wakeup(&client->dev, true);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s: Error, device_init_wakeup rc:%d\n", __func__, ret);
+	}
+		enable_irq_wake(ts->client->irq);
+		//ts->client->irq_wake = 1;
 
 #ifdef CONFIG_TOUCHSCREEN_GT9XX_TOOL
 	init_wr_node(client);/*TODO judge return value */
@@ -2280,7 +2292,8 @@ static int gtp_fb_notifier_callback(struct notifier_block *noti,
 	struct goodix_ts_data *ts = container_of(noti,
 			struct goodix_ts_data, notifier);
 	int *blank;
-
+	dev_info(&ts->client->dev, " %s,blank=%d event:%d disable:%d\n", __func__, blank,event,ts->irq_disabled);
+/*
 	if (ev_data && ev_data->data && event == FB_EVENT_BLANK && ts) {
 		blank = ev_data->data;
 		if (*blank == FB_BLANK_UNBLANK ||
@@ -2297,6 +2310,28 @@ static int gtp_fb_notifier_callback(struct notifier_block *noti,
 			gtp_suspend(ts);
 		}
 	}
+*/
+	if (event == EINK_NOTIFY_EVENT_SCREEN_OFF) {
+		   /* 20220802: 如果落笔的时候关闭TP的电源，然后再上电。TP就会上报完整的 DOWN/UP，且上电
+			* 之后再上报 DOWN/UP. 这样再抬笔之后，TP的触摸就自动有效了。
+			* 20220817: 测试发现，按着TP落笔，如果进入sleep，TP会先中断，产生一个 touch_num=0的事件。
+			* 这时我们就可以过滤，抬笔后TP reset，上报的也是 touch_num =0的事件，知道抬手重新touch。
+			*/
+		  //printk("cyttsp5_fb_notifier_callback :EINK_NOTIFY_TP_POWEROFF cd->irq_disabled:%d \n",cd->irq_disabled);
+		   if (!ts->irq_disabled) {
+			   disable_irq(ts->client->irq);
+			   ts->irq_disabled = 1;
+		   }
+		   gtp_esd_off(ts);
+		   gtp_int_output(ts, 0);
+	   } else if (EINK_NOTIFY_EVENT_SCREEN_ON == event) {
+		   if (ts->irq_disabled) {
+			   ts->irq_disabled = false;
+			   enable_irq(ts->client->irq);
+		   }
+		   gtp_esd_on(ts);
+		   gtp_int_output(ts, 1);
+	   }
 
 	return 0;
 }
@@ -2363,6 +2398,7 @@ static int gtp_register_powermanager(struct goodix_ts_data *ts)
 #if defined(CONFIG_FB)
 	INIT_WORK(&ts->fb_notify_work, fb_notify_resume_work);
 	ts->notifier.notifier_call = gtp_fb_notifier_callback;
+	htfy_ebc_register_notifier(&ts->notifier);
 	ret = fb_register_client(&ts->notifier);
 	if (ret)
 		dev_err(&ts->client->dev,

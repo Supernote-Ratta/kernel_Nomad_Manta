@@ -678,7 +678,7 @@
         poll_delay_ms = <100>;
         power-off-in-suspend = <1>;
     };
-
+#if 0
     aw9610x_sar: pressure@12 {
         status = "disabled";
         compatible = "awinic,aw9610x_sar";
@@ -690,7 +690,7 @@
         channel_use_flag = <0x1f>;
         sar-num = <0>;
     };
-
+#endif
 #ifdef TYPEC_fusb30x
 
     usbc0: fusb30x@22 {
@@ -726,7 +726,7 @@
         };
     };
 #endif
-
+#if 0
     ls_stk3x1x: light@48 {
         status = "disabled";
         compatible = "ls_stk3x1x";
@@ -742,7 +742,7 @@
         poll_delay_ms = <150>;
         power-off-in-suspend = <1>;
     };
-
+#endif
     touchscreen: goodix-gtx8@5d {
          compatible = "goodix,gt9886";
          reg = <0x5d>;
@@ -1086,12 +1086,12 @@
         ltr578_irq_gpio: ltr578-irq-gpio {
             rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO  &pcfg_pull_up>;// ALS1_INT_L
         };
-        stk3x1x_irq_gpio: stk3x1x-irq-gpio {
-            rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO  &pcfg_pull_up>;// ALS2_INT_L
-        };
-        aw9610x_irq_gpio: aw9610x-irq-gpio {
-            rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO  &pcfg_pull_up>;
-        };
+        //stk3x1x_irq_gpio: stk3x1x-irq-gpio {
+        //    rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO  &pcfg_pull_up>;// ALS2_INT_L
+        //};
+        //aw9610x_irq_gpio: aw9610x-irq-gpio {
+        //    rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO  &pcfg_pull_up>;
+        //};
     };
 
     typec {
