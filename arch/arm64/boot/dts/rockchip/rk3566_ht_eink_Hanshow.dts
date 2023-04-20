@@ -125,14 +125,14 @@
     };
 
     rk817_sound: rk817-sound {
-        status = "okay";
+        status = "disabled";
         compatible = "simple-audio-card";
         simple-audio-card,format = "i2s";
         simple-audio-card,name = "rockchip,rk817-codec";
         simple-audio-card,mclk-fs = <256>;
 
         simple-audio-card,cpu {
-            sound-dai = <&i2s1_8ch>;
+            sound-dai = <&i2s0_8ch>;
         };
         simple-audio-card,codec {
             sound-dai = <&rk817_codec>;
@@ -657,7 +657,7 @@
             spk-volume = <3>;
             out-l2spk-r2hp;
             spk-ctl-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
-            status = "okay";
+            status = "disabled";
         };
     };
 };
@@ -957,7 +957,7 @@
 };
 
 &i2s1_8ch {
-    status = "okay";
+    status = "disabled";
     rockchip,clk-trcm = <1>;
     pinctrl-names = "default";
     pinctrl-0 = <&i2s1m0_sclktx &i2s1m0_lrcktx &i2s1m0_sdi0 &i2s1m0_sdo0>;
