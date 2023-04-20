@@ -3,10 +3,6 @@
  * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
  *
  */
- 
- /**
-  * �������ļ��� rk3566_ht_eink_boe.dts
- */
 
 /dts-v1/;
 
@@ -84,7 +80,7 @@
             linux,input-type = <EV_KEY>;
             linux,code = <KEY_BACK>;
         };
-        #endif
+#endif
     };
 
     leds: gpio-leds {
@@ -103,7 +99,6 @@
             label = "led_g";
             default-state = "off";
         };
-
     };
 
     hall_sensor: hall-wh2506d {
@@ -139,9 +134,24 @@
         };
     };
 
-    pdmics: dummy-codec {
+    bt_sound: bt-sound {
         status = "okay";
-        compatible = "rockchip,dummy-codec";
+        compatible = "simple-audio-card";
+        simple-audio-card,format = "dsp_b";
+        simple-audio-card,bitclock-inversion = <1>;
+        simple-audio-card,mclk-fs = <256>;
+        simple-audio-card,name = "rockchip,bt";
+        simple-audio-card,cpu {
+            sound-dai = <&i2s2_2ch>;
+        };
+        sound2_master:simple-audio-card,codec {
+            sound-dai = <&bt_sco>;
+        };
+    };
+
+    bt_sco: bt-sco {
+        status = "okay";
+        compatible = "delta,dfbmcs320";
         #sound-dai-cells = <0>;
     };
 
@@ -155,6 +165,12 @@
         simple-audio-card,codec {
             sound-dai = <&pdmics>;
         };
+    };
+
+    pdmics: dummy-codec {
+        status = "okay";
+        compatible = "rockchip,dummy-codec";
+        #sound-dai-cells = <0>;
     };
 
     sdio_pwrseq: sdio-pwrseq {
@@ -199,8 +215,6 @@
         BT,wake_gpio = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
         BT,wake_host_irq = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
     };
-
-
 };
 
 &ebc {
@@ -306,29 +320,7 @@
 &i2c0 {
     status = "okay";
 
-    vdd_cpu_disabled: syr827@41 {
-        status = "disabled";
-        compatible = "silergy,syr827";
-        reg = <0x41>;
-        vin-supply = <&vccsys>;
-        regulator-compatible = "fan53555-reg";
-        regulator-name = "vdd_cpu";
-        regulator-min-microvolt = <712500>;
-        regulator-max-microvolt = <1390000>;
-        regulator-init-microvolt = <900000>;
-        regulator-ramp-delay = <2300>;
-        fcs,suspend-voltage-selector = <0>;
-        regulator-initial-mode = <0x2>;
-        regulator-boot-on;
-        regulator-always-on;
-        regulator-state-mem {
-            regulator-on-in-suspend;
-            regulator-suspend-microvolt = <1100000>;
-            regulator-changeable-in-suspend;
-        };
-    };
-
-   vdd_cpu: tcs4525@1c {
+    vdd_cpu: tcs4525@1c {
         compatible = "tcs,tcs452x";
         reg = <0x1c>;
         vin-supply = <&vccsys>;
@@ -666,33 +658,7 @@
     status = "okay";
     clock-frequency = <400000>;
 
-    ls_ltr578: light@53 {
-        status = "disabled";
-        compatible = "ls_ltr578";
-        reg = <0x53>;
-        type = <SENSOR_TYPE_LIGHT>;
-        pinctrl-names = "default";
-        pinctrl-0 = <&ltr578_irq_gpio>;
-        irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
-        irq_enable = <0>;
-        poll_delay_ms = <100>;
-        power-off-in-suspend = <1>;
-    };
-#if 0
-    aw9610x_sar: pressure@12 {
-        status = "disabled";
-        compatible = "awinic,aw9610x_sar";
-        reg = <0x12>;
-        pinctrl-names = "default";
-        pinctrl-0 = <&aw9610x_irq_gpio>;
-        irq-gpio = <&gpio0 RK_PC7 IRQ_TYPE_LEVEL_LOW>;
-        aw9610x,using-firmware;
-        channel_use_flag = <0x1f>;
-        sar-num = <0>;
-    };
-#endif
 #ifdef TYPEC_fusb30x
-
     usbc0: fusb30x@22 {
         status = "okay";
         compatible = "fairchild,fusb302";
@@ -705,9 +671,7 @@
         int-n-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
         //switch-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
     };
-
 #else
-
     usbc0: et7303@4e {
         status = "okay";
         compatible = "etek,et7303";
@@ -726,23 +690,7 @@
         };
     };
 #endif
-#if 0
-    ls_stk3x1x: light@48 {
-        status = "disabled";
-        compatible = "ls_stk3x1x";
-        reg = <0x48>;
-        type = <SENSOR_TYPE_LIGHT>;
-        pinctrl-names = "default";
-        pinctrl-0 = <&stk3x1x_irq_gpio>;
-        irq-gpio = <&gpio0 RK_PA4 IRQ_TYPE_LEVEL_LOW>;
-        irq_enable = <0>;
-        als_threshold_high = <100>;
-        als_threshold_low = <10>;
-        als_ctrl_gain = <2>; /* 0:x1 1:x4 2:x16 3:x64 */
-        poll_delay_ms = <150>;
-        power-off-in-suspend = <1>;
-    };
-#endif
+
     touchscreen: goodix-gtx8@5d {
          compatible = "goodix,gt9886";
          reg = <0x5d>;
@@ -808,41 +756,41 @@
             };
         };
     };
-	gt9xx@14 {
-		compatible = "goodix,gt9xx";
-		reg = <0x14>; 
-		status = "okay";
-		//interrupt-parent = <&msm_gpio>;
-		//interrupts = <13 0x2800>;
+    gt9xx@14 {
+        compatible = "goodix,gt9xx";
+        reg = <0x14>; 
+        status = "okay";
+        //interrupt-parent = <&msm_gpio>;
+        //interrupts = <13 0x2800>;
         pinctrl-names = "default";
         pinctrl-0 = <&tsc_gpio>;
         reset-gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
         irq-gpios  = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
-		irq-flags = <2>;
+        irq-flags = <2>;
 
-		touchscreen-max-id = <11>;
-		touchscreen-size-x = <1872>;
-		touchscreen-size-y = <1404>;
-		touchscreen-max-w = <512>;
-		touchscreen-max-p = <512>;
-		touchscreen-key-map = <172>, <158>; /*KEY_HOMEPAGE=172, KEY_BACK=158，KEY_MENU=139*/
-		
-		goodix,slide-wakeup = <0>;
-		goodix,type-a-report = <0>;
-		goodix,driver-send-cfg = <1>;
-		goodix,resume-in-workqueue = <0>;
-		goodix,int-sync = <1>;
-		goodix,swap-x2y = <1>;
-		goodix,x2x = <1>;
-		goodix,y2y = <1>;
-		goodix,esd-protect = <1>;
-		goodix,auto-update-cfg = <0>;
-		goodix,power-off-sleep = <0>;
-		goodix,pen-suppress-finger = <0>;
-		goodix,cfg-group0 = [
-			47 50 07 7C 05 0A 05 00 01 0F 28 05 5F 46 03 05 00 00 00 00 00 00 08 00 00 00 00 8E 2E AB 65 67 D9 0B 00 00 01 B9 02 1C 00 00 00 00 00 03 00 00 00 00 00 46 78 94 C0 02 07 00 00 04 91 49 00 89 52 00 84 5B 00 7F 66 00 7D 71 00 7D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 04 05 06 07 08 09 0C 0D 0E 0F 10 11 14 15 16 17 18 19 1A FF FF FF FF FF FF FF FF FF 00 02 04 06 07 08 0A 0C 0D 0F 10 11 12 13 19 1B 1C 1E 1F 20 21 22 23 24 25 26 27 28 FF FF FF FF FF FF FF FF FF FF FF FF FF FF 7E 01
-		];
-	};
+        touchscreen-max-id = <11>;
+        touchscreen-size-x = <1872>;
+        touchscreen-size-y = <1404>;
+        touchscreen-max-w = <512>;
+        touchscreen-max-p = <512>;
+        touchscreen-key-map = <172>, <158>; /*KEY_HOMEPAGE=172, KEY_BACK=158，KEY_MENU=139*/
+
+        goodix,slide-wakeup = <0>;
+        goodix,type-a-report = <0>;
+        goodix,driver-send-cfg = <1>;
+        goodix,resume-in-workqueue = <0>;
+        goodix,int-sync = <1>;
+        goodix,swap-x2y = <1>;
+        goodix,x2x = <1>;
+        goodix,y2y = <1>;
+        goodix,esd-protect = <1>;
+        goodix,auto-update-cfg = <0>;
+        goodix,power-off-sleep = <0>;
+        goodix,pen-suppress-finger = <0>;
+        goodix,cfg-group0 = [
+            47 50 07 7C 05 0A 05 00 01 0F 28 05 5F 46 03 05 00 00 00 00 00 00 08 00 00 00 00 8E 2E AB 65 67 D9 0B 00 00 01 B9 02 1C 00 00 00 00 00 03 00 00 00 00 00 46 78 94 C0 02 07 00 00 04 91 49 00 89 52 00 84 5B 00 7F 66 00 7D 71 00 7D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 04 05 06 07 08 09 0C 0D 0E 0F 10 11 14 15 16 17 18 19 1A FF FF FF FF FF FF FF FF FF 00 02 04 06 07 08 0A 0C 0D 0F 10 11 12 13 19 1B 1C 1E 1F 20 21 22 23 24 25 26 27 28 FF FF FF FF FF FF FF FF FF FF FF FF FF FF 7E 01
+        ];
+    };
 };
 
 &i2c3 {
@@ -866,38 +814,6 @@
         revert_y = <1>;
         xy_exchange = <0>;
         wacom-support-wakeup;
-    };
-
-    huion: huion@08 {
-        status = "disabled";
-        compatible = "huion,hgtxx";
-        reg = <0x08>;
-        pinctrl-names = "default";
-        pinctrl-0 = <&emr_gpio>;
-        interrupt-parent = <&gpio0>;
-        touch-gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
-        reset-gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
-        huion,tp-size = <101>;
-        huion,max-x = <1404>;
-        huion,max-y = <1872>;
-        huion,configfile-num = <1>;
-        revert_x = <1>;
-        revert_y = <1>;
-        xy_exchange = <0>;
-        //wacom-support-wakeup;
-    };
-    hdx8801: hdx8801@11 {
-        status = "disabled";
-        compatible = "hdx8801_touch";
-        reg = <0x11>;
-        pinctrl-names = "default";
-        pinctrl-0 = <&emr_gpio>;
-        gpio_intr = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
-        gpio_rst = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
-        revert_x = <0>;
-        revert_y = <1>;
-        xy_exchange = <0>;
-        //hdx-support-wakeup;
     };
 
     tps65185: tps65185@68 {
@@ -963,23 +879,8 @@
     pinctrl-0 = <&i2s1m0_sclktx &i2s1m0_lrcktx &i2s1m0_sdi0 &i2s1m0_sdo0>;
 };
 
-&spi1 {
-    status = "okay";
-    max-freq = <48000000>;
-    dma-names = "tx", "rx";
-    pinctrl-names = "default", "high_speed";
-    pinctrl-0 = <&spi1m1_cs0 &spi1m1_pins>;
-    pinctrl-1 = <&spi1m1_cs0 &spi1m1_pins_hs>;
-
-    fingerprint: goodix_fp@0 {
-        compatible = "goodix,goodix-fp";//goodix,fingerprint";
-        //interrupt-parent = <&gpio0>;
-        reg = <0x00>;
-        spi-max-frequency = <24000000>;
-        goodix,gpio_irq = <&gpio0 RK_PC2 IRQ_TYPE_EDGE_RISING>;
-        goodix,gpio_reset = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;//hardware will opposite direction
-        status = "disabled";
-    };
+&i2s2_2ch {
+   status = "okay";
 };
 
 &spi3 {
@@ -1083,15 +984,6 @@
         hall_irq_gpio: hall-irq-gpio {
             rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO  &pcfg_pull_up>;
         };
-        ltr578_irq_gpio: ltr578-irq-gpio {
-            rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO  &pcfg_pull_up>;// ALS1_INT_L
-        };
-        //stk3x1x_irq_gpio: stk3x1x-irq-gpio {
-        //    rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO  &pcfg_pull_up>;// ALS2_INT_L
-        //};
-        //aw9610x_irq_gpio: aw9610x-irq-gpio {
-        //    rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO  &pcfg_pull_up>;
-        //};
     };
 
     typec {
@@ -1138,7 +1030,7 @@
     status = "okay";
     pmuio1-supply = <&vcc3v3_pmu>;
     pmuio2-supply = <&vcc3v3_pmu>;
-    vccio1-supply = <&vccio_acodec>;// 3.3v
+    vccio1-supply = <&vccio_acodec>;    // 3.3v
     vccio3-supply = <&vcc_3v3>;
     vccio4-supply = <&vcca1v8_pmu>;
     vccio5-supply = <&vcc_3v3>;
@@ -1199,13 +1091,13 @@
 &rockchip_suspend {
     status = "okay";
     rockchip,sleep-mode-config = <
-		(0
-		 | RKPM_SLP_ARMOFF_LOGOFF
-		 | RKPM_SLP_CENTER_OFF
-		 | RKPM_SLP_HW_PLLS_OFF
-		 | RKPM_SLP_PMUALIVE_32K
-		 | RKPM_SLP_PMIC_LP
-		 | RKPM_SLP_32K_PVTM
+        (0
+         | RKPM_SLP_ARMOFF_LOGOFF
+         | RKPM_SLP_CENTER_OFF
+         | RKPM_SLP_HW_PLLS_OFF
+         | RKPM_SLP_PMUALIVE_32K
+         | RKPM_SLP_PMIC_LP
+         | RKPM_SLP_32K_PVTM
         )
     >;
     rockchip,regulator-off-in-mem-lite =
