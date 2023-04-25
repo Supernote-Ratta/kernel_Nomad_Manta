@@ -5834,7 +5834,10 @@ static int cyttsp5_fb_notifier_callback(struct notifier_block *self,
         container_of(self, struct cyttsp5_core_data, fb_notifier);
     struct fb_event *evdata = data;
     int *blank;
-    //printk("cyttsp5_fb_notifier_callback :event=:%d blank:%d \n",event,*blank);
+    int rst_gpio = cd->cpdata->rst_gpio;
+    int irq_gpio = cd->cpdata->irq_gpio;
+
+    printk("cyttsp5_fb_notifier_callback :event=:%d blank:%d \n",event,*blank);
 
     //if (event != FB_EVENT_BLANK || !evdata) {
     //    goto exit;
@@ -5855,22 +5858,28 @@ static int cyttsp5_fb_notifier_callback(struct notifier_block *self,
             cd->fb_state = FB_OFF;
         }
     } else */
-    if (event == EINK_NOTIFY_TP_POWEROFF) {
+    //if (event == EINK_NOTIFY_TP_POWEROFF) {
+    if (event == EINK_NOTIFY_EVENT_SCREEN_OFF) {
         /* 20220802: 如果落笔的时候关闭TP的电源，然后再上电。TP就会上报完整的 DOWN/UP，且上电
          * 之后再上报 DOWN/UP. 这样再抬笔之后，TP的触摸就自动有效了。
          * 20220817: 测试发现，按着TP落笔，如果进入sleep，TP会先中断，产生一个 touch_num=0的事件。
          * 这时我们就可以过滤，抬笔后TP reset，上报的也是 touch_num =0的事件，知道抬手重新touch。
          */
+		//printk("cyttsp5_fb_notifier_callback :event=EINK_NOTIFY_TP_POWEROFF\n");
        //printk("cyttsp5_fb_notifier_callback :EINK_NOTIFY_TP_POWEROFF cd->irq_disabled:%d \n",cd->irq_disabled);
         if (!cd->irq_disabled) {
             disable_irq(cd->irq);
             cd->irq_disabled = 1;
         }
-    } else if (EINK_NOTIFY_TP_POWERON == event) {
+		gpio_set_value(rst_gpio, 0); //tanlq 230425
+    //} else if (EINK_NOTIFY_TP_POWERON == event) {
+    } else if (EINK_NOTIFY_EVENT_SCREEN_ON == event) {
+		//printk("cyttsp5_fb_notifier_callback :event=EINK_NOTIFY_TP_POWERON\n");
         if (cd->irq_disabled) {
             cd->irq_disabled = false;
             enable_irq(cd->irq);
         }
+		gpio_set_value(rst_gpio, 1); //tanlq 230425
     }
 
 exit:
