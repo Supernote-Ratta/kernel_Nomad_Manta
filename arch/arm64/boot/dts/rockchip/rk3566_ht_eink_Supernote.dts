@@ -3,10 +3,6 @@
  * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
  *
  */
- 
- /**
-  * �������ļ��� rk3566_ht_eink_boe.dts
- */
 
 /dts-v1/;
 
@@ -346,31 +342,10 @@
 &i2c0 {
     status = "okay";
 
-    vdd_cpu_disabled: syr827@41 {
-        status = "disabled";
+    vdd_cpu: syr827@41 {
+        status = "okay";
         compatible = "silergy,syr827";
         reg = <0x41>;
-        vin-supply = <&vccsys>;
-        regulator-compatible = "fan53555-reg";
-        regulator-name = "vdd_cpu";
-        regulator-min-microvolt = <712500>;
-        regulator-max-microvolt = <1390000>;
-        regulator-init-microvolt = <900000>;
-        regulator-ramp-delay = <2300>;
-        fcs,suspend-voltage-selector = <0>;
-        regulator-initial-mode = <0x2>;
-        regulator-boot-on;
-        regulator-always-on;
-        regulator-state-mem {
-            regulator-on-in-suspend;
-            regulator-suspend-microvolt = <1100000>;
-            regulator-changeable-in-suspend;
-        };
-    };
-
-   vdd_cpu: tcs4525@1c {
-        compatible = "tcs,tcs452x";
-        reg = <0x1c>;
         vin-supply = <&vccsys>;
         regulator-compatible = "fan53555-reg";
         regulator-name = "vdd_cpu";
