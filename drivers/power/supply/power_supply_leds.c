@@ -24,8 +24,11 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 	union power_supply_propval status;
 	unsigned long delay_on = 0;
 	unsigned long delay_off = 0;
+	union power_supply_propval status_dsoc;
 
 	if (power_supply_get_property(psy, POWER_SUPPLY_PROP_STATUS, &status))
+		return;
+	if (power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &status_dsoc))
 		return;
 
 	dev_dbg(&psy->dev, "%s %d\n", __func__, status.intval);
@@ -39,7 +42,15 @@ static void power_supply_update_bat_leds(struct power_supply *psy)
 			LED_FULL);
 		break;
 	case POWER_SUPPLY_STATUS_CHARGING:
+#ifdef CONFIG_RGB_LED_CHARGER
+    if(status_dsoc.intval>=20){
+#endif
 		led_trigger_event(psy->charging_full_trig, LED_FULL);
+#ifdef CONFIG_RGB_LED_CHARGER
+    }else{
+        led_trigger_event(psy->charging_full_trig, LED_OFF);
+	}
+#endif
 		led_trigger_event(psy->charging_trig, LED_FULL);
 		led_trigger_event(psy->full_trig, LED_OFF);
 		led_trigger_blink(psy->charging_blink_full_solid_trig,

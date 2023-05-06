@@ -695,4 +695,10 @@ config CHARGER_RK818
 	  If you say yes here you will get support for the charger of RK818 PMIC.
 	  This driver can give support for Rk818 Charger Interface.
 
+config RGB_LED_CHARGER
+	bool "Red_Yellow_Green leds driver for charge"
+	depends on MFD_RK808
+	default n
+	help
+	  Say Y if charge led has 3 colors.
 endif # POWER_SUPPLY
