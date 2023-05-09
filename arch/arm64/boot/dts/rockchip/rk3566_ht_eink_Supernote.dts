@@ -948,7 +948,7 @@
         poll_delay_ms = <20>;
         type = <SENSOR_TYPE_ACCEL>;
         power-off-in-suspend = <1>;
-        layout = <8>;
+        layout = <7>;
     };
 };
 
