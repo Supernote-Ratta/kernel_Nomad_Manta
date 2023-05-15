@@ -11,6 +11,7 @@
 #include <dt-bindings/input/rk-input.h>
 #include <dt-bindings/sensor-dev.h>
 #include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/usb/pd.h>
 #include "rk3566.dtsi"
 #include "rk3568-android.dtsi"
 #include "rk3566-eink.dtsi"
@@ -18,7 +19,7 @@
 //#define EINK10S 
 //#define EINKXK
 #define AOYI103
-#define TYPEC_fusb30x
+//#define TYPEC_fusb30x
 
 / {
     model = "Rockchip RK3566 EINK KloudNote2 10.3 Board";
@@ -634,7 +635,7 @@
             chrg_finish_cur = <300>;
             virtual_power = <0>;
             dc_det_adc = <0>;
-            extcon = <&usbc0>;
+            extcon = <&usb2phy0>;
             gate_function_disable = <1>;
         };
 
@@ -793,7 +794,7 @@
         pmicon-gpios  = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
     };
 
-#ifdef TYPEC_fusb30x
+#if 0 //def TYPEC_fusb30x
     usbc0: fusb30x@22 {
         status = "okay";
         compatible = "fairchild,fusb302";
@@ -801,12 +802,12 @@
         pinctrl-names = "default";
         pinctrl-0 = <&fusb0_int>;
         //pinctrl-0 = <&fusb0_int>, <&fusb0_switch>;
-        //power-supply = <&vccio_sd>;
+        power-supply = <&vccio_sd>;
         //vbus-5v-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
         int-n-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
         switch-gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_LOW>;
     };
-#else
+//#else
     usbc0: et7303@4e {
         status = "okay";
         compatible = "etek,et7303";
@@ -1217,12 +1218,12 @@
 
 &usb2phy0 {
     status = "okay";
-    extcon = <&usbc0>;
+    //extcon = <&usbc0>;
 };
 
 &usbdrd_dwc3 {
     status = "okay";
-    extcon = <&usbc0>;
+    //extcon = <&usbc0>;
 };
 
 &usbdrd30 {
