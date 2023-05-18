@@ -100,12 +100,12 @@
             retain-state-suspended;
         };
 
-        //led@3 {
-        //    gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
-        //    linux,default-trigger = "battery-full";
-         //   label = "led_b";
-         //   retain-state-suspended;
-        //};
+        led@3 {
+            gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
+            linux,default-trigger = "led-blue";
+            label = "led_b";
+            retain-state-suspended;
+        };
     };
 
     hall_sensor: hall-wh2506d {
