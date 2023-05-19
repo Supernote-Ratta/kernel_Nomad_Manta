@@ -17,7 +17,8 @@
 #include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <linux/power_supply.h>
-#include "../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
+//#include "../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
+#include <linux/htfy_dbg.h>
 
 #include "fusb302.h"
 
@@ -788,6 +789,9 @@ static void tcpc_alert(struct fusb30x_chip *chip, u32 *evt)
     if (interrupta & INTERRUPTA_TOGDONE) {
         *evt |= EVENT_CC;
         regmap_read(chip->regmap, FUSB_REG_STATUS1A, &val);
+        /* changed tower: add direction status. */
+        chip->direction_status = val & 0xFF;
+        /* changed end. */
         chip->cc_state = set_cc_state(val);
 
         regmap_update_bits(chip->regmap, FUSB_REG_CONTROL2, CONTROL2_TOGGLE, 0);
@@ -855,7 +859,7 @@ static void set_state_unattached(struct fusb30x_chip *chip)
     printk(KERN_INFO "CC connection has disconnected\n");
 
     if (chip->notify.is_cc_connected && CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_ACC) {
-        /* tower: try to switch audio digital phone */
+        /* changed tower: try to switch audio digital phone */
         if (chip->gpio_switch) {
             gpiod_set_value(chip->gpio_switch, 1);
         }
@@ -1056,7 +1060,7 @@ static enum tx_state policy_send_hardrst(struct fusb30x_chip *chip, u32 evt)
 {
     switch (chip->tx_state) {
         case 0:
-                    regmap_update_bits(chip->regmap, FUSB_REG_CONTROL3, CONTROL3_SEND_HARDRESET, CONTROL3_SEND_HARDRESET);
+            regmap_update_bits(chip->regmap, FUSB_REG_CONTROL3, CONTROL3_SEND_HARDRESET, CONTROL3_SEND_HARDRESET);
             chip->tx_state = tx_busy;
             chip->timer_state = T_BMC_TIMEOUT;
             fusb_timer_start(&chip->timer_state_machine, chip->timer_state);
@@ -1735,7 +1739,7 @@ static void fusb_state_attached_audio_acc(struct fusb30x_chip *chip, u32 evt)
     set_state(chip, disabled);
     regmap_update_bits(chip->regmap, FUSB_REG_MASK, MASK_M_COMP_CHNG, 0);
     printk(KERN_INFO "CC connected as Audio Accessory\n");
-    /* tower: try to switch audio analog phone */
+    /* changed tower: try to switch audio analog phone */
     if (chip->gpio_switch) {
         gpiod_set_value(chip->gpio_switch, 0);
     }
@@ -3182,7 +3186,82 @@ static void fusb302_work_func(struct work_struct *work)
     }
 }
 
-/* changed: tower for deep sleep type c poweroff and when screen on reinit cc.*/
+/* changed tower: create debug sys node for direction status. */
+struct typec_sysfs_entry {
+    struct attribute attr;
+    ssize_t (*show)(struct fusb30x_chip *, char *);
+    ssize_t (*store)(struct fusb30x_chip *, const char *, size_t);
+};
+
+static ssize_t typec_direction_show(struct fusb30x_chip *chip, char *buf)
+{
+    u8 positive = 0x30, negative = 0x28, mask = 0x38;
+    u8 status;
+
+    if (chip->direction_status & mask) {
+        u8 direction = chip->direction_status & mask;
+        if (positive == direction) {
+            printk("CC dir status: %x positive.\n", status);
+            return sprintf(buf, "%s\n", "positive");
+        } else if (negative == direction) {
+            printk("CC dir status: %x negative.\n", status);
+            return sprintf(buf, "%s\n", "negative");
+        }
+    } else {
+        printk("read typec state error!\n");
+        return sprintf(buf, "%s\n", "err");
+    }
+    return sprintf(buf, "%s\n", "not support");
+}
+
+static ssize_t htdebug_show(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+    struct fusb30x_chip *chip = container_of(kobj, struct fusb30x_chip, kobj);
+    struct typec_sysfs_entry *entry = container_of(attr, struct typec_sysfs_entry, attr);
+    ssize_t ret = 0;
+
+    if (entry->show) {
+        ret = entry->show(chip, buf);
+    }
+
+    return ret;
+}
+
+static ssize_t htdebug_store(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
+{
+    struct fusb30x_chip *chip = container_of(kobj, struct fusb30x_chip, kobj);
+    struct typec_sysfs_entry *entry = container_of(attr, struct typec_sysfs_entry, attr);
+    ssize_t ret = 0;
+
+    if (entry->store) {
+        ret = entry->store(chip, buf, count);
+    }
+
+    return ret;
+}
+
+static struct typec_sysfs_entry typecdir_entry = {
+    .attr = {.name = "typecdir", .mode = 0444},
+    .show = typec_direction_show,
+};
+
+static struct attribute *htdebug_attrs[] = {
+    &typecdir_entry.attr,
+    NULL,
+};
+
+static const struct sysfs_ops htdebug_ops = {
+    .show = &htdebug_show,
+    .store = &htdebug_store,
+};
+
+static struct kobj_type htdebug_ktype = {
+    .default_attrs = htdebug_attrs,
+    .sysfs_ops = &htdebug_ops,
+};
+/* changed end. */
+
+/* changed tower: for deep sleep type c poweroff and when screen on reinit cc.*/
 static int fb_notifier_callback(struct notifier_block *self, unsigned long action, void *data)
 {
     struct fusb30x_chip *chip = NULL;
@@ -3192,7 +3271,8 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long actio
 	    return NOTIFY_OK;
     }
     mutex_lock(&chip->fb_lock);
-    if (action == EBC_FB_UNBLANK) {
+    //if (action == EBC_FB_UNBLANK) // for rk ebc
+    if (action == FB_BLANK_UNBLANK) {  // for htfy ebc
         tcpm_init(chip);
         tcpm_set_rx_enable(chip, 0);
         chip->conn_state = unattached;
@@ -3386,7 +3466,15 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
     memset(&chip->fb_notify, 0, sizeof( struct notifier_block));
     chip->fb_notify.notifier_call = fb_notifier_callback;
     mutex_init(&chip->fb_lock);
-    ebc_register_notifier(&chip->fb_notify);
+    //ebc_register_notifier(&chip->fb_notify); //rk ebc dev driver
+    htfy_ebc_register_notifier(&chip->fb_notify);  //htfyun ebc dev driver
+    /* changed end. */
+    /* changed tower: create debug sys node for direction status. */
+    ret = kobject_init_and_add(&chip->kobj, &htdebug_ktype, NULL, "htdebug");
+    if (ret) {
+        printk("Create htdebug dir sysfs node error!\n");
+        return ret;
+    }
     /* changed end. */
 
     return 0;

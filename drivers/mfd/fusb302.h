@@ -562,6 +562,10 @@ struct fusb30x_chip {
     bool suspended;
     struct notifier_block fb_notify;
     struct mutex fb_lock;
+    /* changed tower: add for typec direction. */
+    struct kobject kobj;
+    u8 direction_status;
+    /* changed end. */
 };
 
 #endif /* FUSB302_H */
