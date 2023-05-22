@@ -43,6 +43,7 @@ extern int ht_ebc_dbg_bits;
 
 #define 	IDBG_WACOM 			(1<<16)
 #define 	IDBG_CHECK 			(1<<17)
+#define 	IDBG_DTH 			(1<<18)
 
 // __func__,  __LINE__,
 #define dbg_printk(bit, fmt, arg...) do {   \

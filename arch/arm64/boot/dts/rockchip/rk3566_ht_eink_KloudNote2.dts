@@ -184,6 +184,9 @@
     assigned-clocks = <&cru CPLL_333M>, <&cru DCLK_EBC>;
 	#ifdef EINKXK
     assigned-clock-rates = <34000000>, <34000000>;
+	#elif defined(AOYI103)
+	// stand: 46000000, increase 10%=50600000, set to 49M first.
+	assigned-clock-rates = <49000000>, <49000000>; 
 	#else
 	assigned-clock-rates = <34000000>, <34000000>;
 	#endif 
@@ -263,8 +266,8 @@
     panel,panel_color = <0>;
     panel,width-mm = <210>;
     panel,height-mm = <157>;
-    panel,dpi = <220>;
-    panel,vcom-mv = <1950>;
+    panel,dpi = <300>;
+    panel,vcom-mv = <1830>;
 #else
 	"Error:No EINK-PANEL defined!!"
 #endif 
@@ -273,14 +276,15 @@
 // 20220523,hsl fix: 6*fb_size + 2*lcd_size + 512K 
 // 10.3: 6*2628288 + 2*657088 + 512*1024= 17608192 = 0X10CAE00
 // EINKX: 4612800*6 + 2*1153216 + 512*1024 = 27676800 + 2306432 + 524288 = 30507520 = 1D18200
-// AOYI103: 3763200*6 + 2*940800 + 512*1024 = 22579200 + 1881600 + 524288 = 24985088 = 17D3E00
+// 20230213: for serria-C,dither-error-buf is short. 17608192 + 2628288*2 = 22864768 = 0x15CE380
+// OED103H: 8*3763200 + 940800*2 + 524288 = 994688 + 38063104 = 39057792 = 0x253F980
 &display_reserved {
 	#ifdef EINKXK
 	reg = <0x0 0x10900000 0x0 0x1D1A000>;
 	#elif defined(AOYI103)
-	reg = <0x0 0x10900000 0x0 0x2000000>;
+	reg = <0x0 0x10900000 0x0 0x2540000>;
 	#else 
-	reg = <0x0 0x10900000 0x0 0x10d0000>;
+	reg = <0x0 0x10900000 0x0 0x15d0000>;
 	#endif 
 };
 		
