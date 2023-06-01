@@ -795,7 +795,7 @@
         touchscreen-size-y = <1404>;
         touchscreen-max-w = <512>;
         touchscreen-max-p = <512>;
-        touchscreen-key-map = <172>, <158>; /*KEY_HOMEPAGE=172, KEY_BACK=158，KEY_MENU=139*/
+       //touchscreen-key-map = <172>, <158>; /*KEY_HOMEPAGE=172, KEY_BACK=158，KEY_MENU=139*/
 
         goodix,slide-wakeup = <0>;
         goodix,type-a-report = <0>;
