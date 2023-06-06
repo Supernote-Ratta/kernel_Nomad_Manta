@@ -20,6 +20,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
+#include <linux/suspend.h>
 
 #include "core.h"
 #include "card.h"
@@ -1215,6 +1216,9 @@ static int mmc_sd_suspend(struct mmc_host *host)
 {
 	int err;
 
+	if(mem_sleep_current == PM_SUSPEND_MEM_LITE){
+		return 0;
+	}
 	err = _mmc_sd_suspend(host);
 	if (!err) {
 		pm_runtime_disable(&host->card->dev);

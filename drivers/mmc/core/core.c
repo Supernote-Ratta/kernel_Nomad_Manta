@@ -1403,6 +1403,7 @@ int mmc_regulator_get_supply(struct mmc_host *mmc)
 
 	mmc->supply.vmmc = devm_regulator_get_optional(dev, "vmmc");
 	mmc->supply.vqmmc = devm_regulator_get_optional(dev, "vqmmc");
+	mmc->supply.gpio_power = devm_gpiod_get_optional(dev, "power", GPIOD_OUT_HIGH);
 
 	if (IS_ERR(mmc->supply.vmmc)) {
 		if (PTR_ERR(mmc->supply.vmmc) == -EPROBE_DEFER)
@@ -1420,6 +1421,12 @@ int mmc_regulator_get_supply(struct mmc_host *mmc)
 		if (PTR_ERR(mmc->supply.vqmmc) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 		dev_dbg(dev, "No vqmmc regulator found\n");
+	}
+	if (IS_ERR(mmc->supply.gpio_power)) {
+		dev_warn(dev, "Could not get named GPIO for power!\n");
+		mmc->supply.gpio_power = NULL;
+	} else {
+		gpiod_set_value(mmc->supply.gpio_power, 0);
 	}
 
 	return 0;

@@ -18,6 +18,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/pm.h>
 #include <linux/dma-direction.h>
+#include <linux/gpio.h>
 
 struct mmc_ios {
 	unsigned int	clock;			/* clock rate */
@@ -262,6 +263,7 @@ struct mmc_pwrseq;
 struct mmc_supply {
 	struct regulator *vmmc;		/* Card power supply */
 	struct regulator *vqmmc;	/* Optional Vccq supply */
+	struct gpio_desc *gpio_power;
 };
 
 struct mmc_ctx {

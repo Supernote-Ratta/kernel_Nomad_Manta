@@ -601,7 +601,7 @@
                 regulator-max-microvolt = <5400000>;
                 regulator-name = "boost";
                 regulator-state-mem {
-                    regulator-off-in-suspend;
+                    regulator-on-in-suspend;
                     regulator-changeable-in-suspend;
                 };
             };
@@ -609,8 +609,8 @@
             otg_switch: OTG_SWITCH {
                 regulator-name = "otg_switch";
                 regulator-state-mem {
-                    regulator-off-in-suspend;
-                    regulator-changeable-in-suspend;
+                    //regulator-off-in-suspend;
+                    //regulator-changeable-in-suspend;
                 };
             };
         };
@@ -692,7 +692,7 @@
 &i2c1 {
     status = "okay";
     clock-frequency = <400000>;
-
+#if 0
     ls_ltr578: light@53 {
         status = "disabled";
         compatible = "ls_ltr578";
@@ -705,7 +705,7 @@
         poll_delay_ms = <100>;
         power-off-in-suspend = <1>;
     };
-#if 0
+
     aw9610x_sar: pressure@12 {
         status = "disabled";
         compatible = "awinic,aw9610x_sar";
@@ -729,7 +729,7 @@
         //pinctrl-0 = <&fusb0_int>, <&fusb0_switch>;
         //power-supply = <&vccio_sd>;
         //vbus-5v-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
-        int-n-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
+        int-n-gpios = <&gpio0 RK_PC6 IRQ_TYPE_LEVEL_LOW>;
         //switch-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
     };
 
@@ -1089,9 +1089,9 @@
         hall_irq_gpio: hall-irq-gpio {
             rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO  &pcfg_pull_up>;
         };
-        ltr578_irq_gpio: ltr578-irq-gpio {
-            rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO  &pcfg_pull_up>;// ALS1_INT_L
-        };
+        //ltr578_irq_gpio: ltr578-irq-gpio {
+       //     rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO  &pcfg_pull_up>;// ALS1_INT_L
+       // };
         stk3x1x_irq_gpio: stk3x1x-irq-gpio {
             rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO  &pcfg_pull_up>;// ALS2_INT_L
         };
@@ -1222,10 +1222,10 @@
     >;
     rockchip,regulator-off-in-mem-lite =
         <&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
-        <&vccio_acodec>, <&dcdc_boost>, <&otg_switch>,
+        <&vccio_acodec>,
         <&sleep_sta_ctl>;
     rockchip,regulator-on-in-mem-lite =
-        <&vcc_ddr>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc_tp>, <&vccio_sd>, <&vcc3v3_pmu>;
+        <&vcc_ddr>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc_tp>, <&vccio_sd>, <&vcc3v3_pmu>, <&dcdc_boost>;
 
     rockchip,regulator-off-in-mem =
         <&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_tp>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
@@ -1266,6 +1266,7 @@
     card-detect-delay = <300>;//can wait the power is stabled.
     vmmc-supply = <&vccio_sd>;//the sdcard work power.
     vqmmc-supply = <&vccio_sd>;//the sdcard io power.
+	power-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
     pinctrl-names = "default";
     pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd>;
     cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;

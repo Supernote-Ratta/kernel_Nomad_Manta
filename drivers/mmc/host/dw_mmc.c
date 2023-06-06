@@ -1518,6 +1518,9 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				return;
 			}
 		}
+		if (!IS_ERR(mmc->supply.gpio_power)) {
+			gpiod_set_value(mmc->supply.gpio_power, 1);
+		}
 		set_bit(DW_MMC_CARD_NEED_INIT, &slot->flags);
 		regs = mci_readl(slot->host, PWREN);
 		regs |= (1 << slot->id);
@@ -1556,6 +1559,10 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		if (!IS_ERR(mmc->supply.vqmmc) && slot->host->vqmmc_enabled)
 			regulator_disable(mmc->supply.vqmmc);
+
+		if (!IS_ERR(mmc->supply.gpio_power)) {
+			gpiod_set_value(mmc->supply.gpio_power, 0);
+		}
 		slot->host->vqmmc_enabled = false;
 
 		regs = mci_readl(slot->host, PWREN);
