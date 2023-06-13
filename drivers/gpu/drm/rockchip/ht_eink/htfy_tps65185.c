@@ -997,6 +997,19 @@ static int tps65185_power_check(void *priv, int timeout)
     int err_pin_value = -1;
     struct papyrus_sess *sess = (struct papyrus_sess *)pmic_sess_data.drvpar;
 
+#if 0
+    if(timeout == 100){ // disable V3.3
+        sess->enable_reg_shadow = (0x80 | 0x10 | 0x0F);
+        papyrus_hw_setreg(sess, PAPYRUS_ADDR_ENABLE, sess->enable_reg_shadow);
+        return 0;
+    } 
+    if(timeout == 101){ // enable V3.3
+        sess->enable_reg_shadow = (0x80 | 0x30 | 0x0F);
+        papyrus_hw_setreg(sess, PAPYRUS_ADDR_ENABLE, sess->enable_reg_shadow);
+        return 0;
+    } 
+#endif 
+
     // Once a fault is detected,the PWR_GOOD and nINT pins are pulled low and the corresponding 
     // interrupt bit is set in the interrupt register.
     if (sess->error_pin != INVALID_GPIO){
