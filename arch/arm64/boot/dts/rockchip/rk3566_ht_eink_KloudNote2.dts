@@ -16,9 +16,15 @@
 #include "rk3568-android.dtsi"
 #include "rk3566-eink.dtsi"
 
+#define KLOUDNOTE_LOW
 //#define EINK10S 
 //#define EINKXK
+#ifdef KLOUDNOTE_LOW
+#define EINK10S
+#define TP_SMALL
+#else
 #define AOYI103
+#endif
 //#define TYPEC_fusb30x
 
 / {
@@ -725,8 +731,13 @@
         irq-flags = <2>;
 
         touchscreen-max-id = <11>;
+#ifdef TP_SMALL
+        touchscreen-size-x = <1872>;
+        touchscreen-size-y = <1404>;
+#else
         touchscreen-size-x = <2240>;
         touchscreen-size-y = <1680>;
+#endif
         touchscreen-max-w = <512>;
         touchscreen-max-p = <512>;
         touchscreen-key-map = <172>, <158>; /*KEY_HOMEPAGE=172, KEY_BACK=158£¬KEY_MENU=139*/
@@ -743,9 +754,15 @@
         goodix,auto-update-cfg = <0>;
         goodix,power-off-sleep = <0>;
         goodix,pen-suppress-finger = <0>;
+#ifdef TP_SMALL
+		goodix,cfg-group0 = [
+			65 50 07 7C 05 0A 05 00 01 0F 28 05 5F 46 03 05 00 00 00 00 00 00 08 00 00 00 00 90 30 CC 65 67 D9 0B 00 00 01 BB 02 1C 00 00 00 00 00 03 00 00 00 00 00 46 78 94 C0 02 07 00 00 04 91 49 00 89 52 00 84 5B 00 7F 66 00 7D 71 00 7D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 04 05 06 07 08 09 0C 0D 0E 0F 10 11 14 15 16 17 18 19 1A 1B 1C 1D 00 00 00 00 00 00 00 02 04 06 07 08 0A 0C 0D 0E 0F 10 11 12 13 14 19 1B 1C 1E 1F 20 21 22 23 24 25 26 27 28 29 2A 00 00 00 00 00 00 00 00 00 00 59 01
+		];
+#else
 		goodix,cfg-group0 = [
 			64 C0 08 90 06 0A 05 00 01 0F 28 05 5F 46 03 05 00 00 00 00 00 00 08 00 00 00 00 90 30 CC 65 67 D9 0B 00 00 01 BB 02 1D 00 00 00 00 00 03 00 00 00 00 00 46 78 94 C0 02 07 00 00 04 91 49 00 89 52 00 84 5B 00 7F 66 00 7D 71 00 7D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 04 05 06 07 08 09 0C 0D 0E 0F 10 11 14 15 16 17 18 19 1A 1B 1C 1D 00 00 00 00 00 00 00 02 04 06 07 08 0A 0C 0D 0E 0F 10 11 12 13 14 19 1B 1C 1E 1F 20 21 22 23 24 25 26 27 28 29 2A 00 00 00 00 00 00 00 00 00 00 D3 01
 		];
+#endif
     };
 };
 
