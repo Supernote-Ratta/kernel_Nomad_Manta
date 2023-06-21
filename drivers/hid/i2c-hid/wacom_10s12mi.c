@@ -30,6 +30,8 @@
 
 #include "../hid-ids.h"
 #include "i2c-hid.h"
+static int volatile pen_type_val = 0;
+static struct class *wacom_class;
 
 #define WACOM_CMD_QUERY0        0x04
 #define WACOM_CMD_QUERY1        0x00
@@ -381,6 +383,12 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
     f2 = data[3] & 0x10;
     x = le16_to_cpup((__le16 *)&data[4]);
     y = le16_to_cpup((__le16 *)&data[6]);
+	if (data[2] == 2)
+		/* G12 */
+		pen_type_val = 12;
+	else
+		/* G14 */
+		pen_type_val = 14;
     pressure = le16_to_cpup((__le16 *)&data[8]);
     tx = le16_to_cpup((__le16 *)&data[11]);
     ty = le16_to_cpup((__le16 *)&data[13]);
@@ -1170,6 +1178,18 @@ static int wacom_pen_resume(struct device *dev)
     return 0;
 }
 #endif
+// cat /sys/class/wacom/pen_type
+static ssize_t pen_type_show(struct class *cls,struct class_attribute *attr, char *_buf)
+{
+	return sprintf(_buf, "G%d", pen_type_val);
+}
+
+static ssize_t pen_type_store(struct class *cls,struct class_attribute *attr, const char *buf, size_t _count)
+{
+	 return _count;
+}
+
+static CLASS_ATTR_RW(pen_type);
 
 static const struct dev_pm_ops wacom_pen_pm = {
     SET_SYSTEM_SLEEP_PM_OPS(wacom_pen_suspend, wacom_pen_resume)
@@ -1207,7 +1227,12 @@ static struct i2c_driver wacom_pen_driver = {
 
 static int __init wacom_pen_init(void)
 {
+	int ret;
     wacom_dbg("wacom pen init.\n");
+	wacom_class = class_create(THIS_MODULE, "wacom");
+	ret =  class_create_file(wacom_class, &class_attr_pen_type);
+	if (ret)
+		wacom_dbg("Fail to create class pen_type.\n");
     return i2c_add_driver(&wacom_pen_driver);
 }
 module_init(wacom_pen_init);
