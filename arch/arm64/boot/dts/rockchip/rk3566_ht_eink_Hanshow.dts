@@ -16,7 +16,7 @@
 #include "rk3568-android.dtsi"
 #include "rk3566-eink.dtsi"
 
-//#define TYPEC_fusb30x
+#define TYPEC_fusb30x
 
 / {
     model = "Rockchip RK3566 EINK Hanshow 10.3 DVT1 Board II";
@@ -689,7 +689,7 @@
         //pinctrl-0 = <&fusb0_int>, <&fusb0_switch>;
         //power-supply = <&vccio_sd>;
         //vbus-5v-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
-        int-n-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
+        int-n-gpios = <&gpio0 RK_PC6 IRQ_TYPE_LEVEL_LOW>;
         //switch-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
     };
 #else
