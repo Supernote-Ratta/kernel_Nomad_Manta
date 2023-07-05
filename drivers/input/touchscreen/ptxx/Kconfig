@@ -1,0 +1,74 @@
+config TOUCHSCREEN_PARADE_LOADER
+	tristate "Parade TrueTouch Gen5 MultiTouch Loader"
+	depends on TOUCHSCREEN_PARADE
+	help
+	  Say Y here to enable Parade TrueTouch(tm) Standard Product
+	  Generation5 touchscreen controller FW Loader module.
+
+	  This module enables support for Firmware upgrade.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pt_loader.
+
+config TOUCHSCREEN_PARADE_PLATFORM_FW_UPGRADE
+	bool "FW upgrade from header file"
+	depends on TOUCHSCREEN_PARADE_LOADER
+	help
+	  Say Y here to include Parade TrueTouch(tm) Standard Product
+	  Generation5 device Firmware into driver.
+
+	  Need proper header file for this.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_PARADE_BINARY_FW_UPGRADE
+	bool "FW upgrade from binary file"
+	depends on TOUCHSCREEN_PARADE_LOADER
+	help
+	  Say Y here to include Parade TrueTouch(tm) Standard Product
+	  Generation5 device Firmware into kernel as binary blob.
+
+	  This should be enabled for manual FW upgrade support.
+
+	  If unsure, say Y.
+
+config TOUCHSCREEN_PARADE_PLATFORM_TTCONFIG_UPGRADE
+	bool "TT Configuration upgrade from header file"
+	depends on TOUCHSCREEN_PARADE_LOADER
+	help
+	  Say Y here to include Parade TrueTouch(tm) Standard Product
+	  Generation5 device TrueTouch Configuration into kernel itself.
+
+	  Need proper header file for this.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_PARADE_MANUAL_TTCONFIG_UPGRADE
+	bool "TT Configuration upgrade via SysFs"
+	depends on TOUCHSCREEN_PARADE_LOADER
+	help
+	  Say Y here to provide a SysFs interface to upgrade TrueTouch
+	  Configuration with a binary configuration file.
+
+	  Need proper binary version of config file for this
+	  feature.
+
+	  If unsure, say Y.
+
+config TOUCHSCREEN_PARADE_DEBUG_MDL
+	tristate "Parade TrueTouch Gen5 MultiTouch Debug Module"
+	depends on TOUCHSCREEN_PARADE
+	help
+	  Say Y here to enable Parade TrueTouch(tm) Standard Product
+	  Generation5 Debug module.
+
+	  This module adds support for verbose printing touch
+	  information.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pt_debug.
+
