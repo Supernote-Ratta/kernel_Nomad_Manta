@@ -1541,9 +1541,14 @@ config TOUCHSCREEN_HDX8801
 	help
 	  Say Y here if you have HDX8801 pen.
 	  If unsure, say N.
+	  
+config CYTTSP5_SLIDER_SUPPORT
+	bool "cyttsp5 slider"
+	depends on I2C
+	default n
 
-source "drivers/input/touchscreen/cyttsp5/Kconfig"
-
+source "drivers/input/touchscreen/cyttsp5_slider/Kconfig"
+source "drivers/input/touchscreen/cyttsp5_slider/Kconfig"
 source "drivers/input/touchscreen/gtx8/Kconfig"
 source "drivers/input/touchscreen/huiontablet/Kconfig"
 endif

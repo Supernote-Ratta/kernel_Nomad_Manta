@@ -787,6 +787,7 @@ int pt_detect(struct pt_core_platform_data *pdata,
 		/* Perform reset, wait for 100 ms and perform read */
 		pt_debug(dev, DL_WARN, "%s: Performing a reset\n",
 			__func__);
+        if (pdata->xres)
 		pdata->xres(pdata, dev);
 		msleep(100);
 		rc = read(dev, buf, 1);
@@ -883,6 +884,7 @@ static int pt_setup_power_by_gpio(struct pt_core_platform_data *pdata,
 		 * the RST GPIO to be an output so it will no longer float and
 		 * then force teh DUT into reset
 		 */
+		if(pdata->rst_gpio)
 		rc = gpio_direction_output(pdata->rst_gpio, 0);
 		if (rc < 0) {
 			pt_debug(dev, DL_ERROR,
@@ -890,6 +892,7 @@ static int pt_setup_power_by_gpio(struct pt_core_platform_data *pdata,
 				__func__, pdata->rst_gpio);
 		} else {
 			/* Force DUT into reset */
+			if(pdata->rst_gpio)
 			gpio_set_value(pdata->rst_gpio, 0);
 		}
 

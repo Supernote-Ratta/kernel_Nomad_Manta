@@ -108,7 +108,16 @@
         };
     };
 
-    hall_sensor: hall-wh2506d {
+    blepower: ble-power {
+        status = "okay";
+        compatible = "ble-power";
+        //pinctrl-names = "default";
+        //pinctrl-0 = <&ble_det_gpio>;
+        irq-gpio = <&gpio0 RK_PB7 IRQ_TYPE_EDGE_BOTH>;
+		power-gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+    };
+	
+	hall_sensor: hall-wh2506d {
         status = "okay";
         compatible = "hall-wh2506d";
         pinctrl-names = "default";
@@ -753,7 +762,7 @@
         };
     };
 #endif
-
+#if 0
     ls_stk3x1x: light@48 {
         status = "disabled";
         compatible = "ls_stk3x1x";
@@ -769,7 +778,7 @@
         poll_delay_ms = <150>;
         power-off-in-suspend = <1>;
     };
-
+#endif
     touchscreen: goodix-gtx8@5d {
          compatible = "goodix,gt9886";
          reg = <0x5d>;
@@ -804,7 +813,7 @@
 				parade,name = "pt_core";
 
 				parade,irq_gpio = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
-				parade,rst_gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>; //reset only can set for silde
+				//parade,rst_gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>; //reset only can set for silde
 				//parade,runfw_gpio = <64>;
 				parade,hid_desc_register = <1>;
 				/* 
@@ -1009,11 +1018,11 @@
         layout = <7>;
     };
     cyttsp5: slide@28 {
-		status = "disabled";
-        //status = "okay";
-        compatible = "cy,cyttsp5_i2c_adapter";
+		//status = "disabled";
+        status = "okay";
+        compatible = "cy,cyttsp5_i2c_silder";
         reg = <0x28>;
-        cy,adapter_id = "cyttsp5_i2c_adapter";
+        cy,adapter_id = "cyttsp5_i2c_silder";
         pinctrl-names = "default";
         pinctrl-0 = <&slide_gpio>;
         cytp-supply = <&vcc_tp>;
@@ -1237,13 +1246,22 @@
         //ltr578_irq_gpio: ltr578-irq-gpio {
        //     rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO  &pcfg_pull_up>;// ALS1_INT_L
        // };
-        stk3x1x_irq_gpio: stk3x1x-irq-gpio {
-            rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO  &pcfg_pull_up>;// ALS2_INT_L
-        };
+        //stk3x1x_irq_gpio: stk3x1x-irq-gpio {
+         //   rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO  &pcfg_pull_up>;// ALS2_INT_L
+        //};
         //aw9610x_irq_gpio: aw9610x-irq-gpio {
         //    rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO  &pcfg_pull_up>;
         //};
+
     };
+
+	//blepower {
+	//	ble_det_gpio: ble-det-gpio {
+	//		rockchip,pins =
+	//			<0 RK_PB7 RK_FUNC_GPIO  &pcfg_pull_none>,
+	//			<0 RK_PC0 RK_FUNC_GPIO  &pcfg_pull_none>;
+    //    };
+	//};
 
     typec {
         et7303_int: et7303-int {

@@ -843,7 +843,11 @@ static struct pt_core_platform_data *create_and_get_core_pdata(
      */
     reset_gpio = of_get_named_gpio(core_node, "parade,rst_gpio", 0);
     if (gpio_is_valid(reset_gpio)) {
+    printk("(gpio_is_valid(reset_gpio) \n");
         pdata->rst_gpio = reset_gpio;
+    }else{
+    printk("(gpio_is_valid(reset_gpio) =0 :%d\n");
+        pdata->rst_gpio = NULL;
     }
 	rc = of_property_read_u32(core_node, "parade,hid_desc_register",
 		&value);
@@ -962,7 +966,14 @@ static struct pt_core_platform_data *create_and_get_core_pdata(
 		pdata->level_irq_udelay, pdata->vendor_id, pdata->product_id,
 		pdata->flags, pdata->easy_wakeup_gesture);
 
-	pdata->xres = pt_xres;
+    if(pdata->rst_gpio){
+    	pdata->xres = pt_xres;
+    printk("pdata->xres = pt_xres \n");
+    }else{
+printk("pdata->xres = NULL \n");
+
+        pdata->xres = NULL;
+    }
 	pdata->init = pt_init;
 	pdata->power = pt_power;
 	pdata->detect = pt_detect;

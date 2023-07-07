@@ -8681,15 +8681,15 @@ static int pt_hw_soft_reset(struct pt_core_data *cd, int protect)
  ******************************************************************************/
 static int pt_hw_hard_reset(struct pt_core_data *cd)
 {
-	if (cd->cpdata->xres) {
-		cd->enum_status = ENUM_STATUS_START;
-		pt_debug(cd->dev, DL_DEBUG, "%s: Startup Status Reset\n",
-			__func__);
-		cd->cpdata->xres(cd->cpdata, cd->dev);
-		pt_debug(cd->dev, DL_WARN, "%s: executed HARD reset\n",
-			__func__);
-		return 0;
-	}
+	//if (cd->cpdata->xres) {
+	//	cd->enum_status = ENUM_STATUS_START;
+	//	pt_debug(cd->dev, DL_DEBUG, "%s: Startup Status Reset\n",
+	//		__func__);
+	//	cd->cpdata->xres(cd->cpdata, cd->dev);
+	//	pt_debug(cd->dev, DL_WARN, "%s: executed HARD reset\n",
+	//		__func__);
+	//	return 0;
+	//}
 	pt_debug(cd->dev, DL_ERROR,
 		"%s: FAILED to execute HARD reset\n", __func__);
 
@@ -14257,7 +14257,9 @@ static int pt_core_early_suspend(struct tp_device *tp_d)
         disable_irq(cd->irq);
         cd->irq_disabled = 1;
     }
-    gpio_direction_output(cd->cpdata->rst_gpio, 0);
+	if(cd->cpdata->rst_gpio){
+    	gpio_direction_output(cd->cpdata->rst_gpio, 0);
+	}
     gpio_direction_output(cd->cpdata->irq_gpio, 0);
     cd->is_suspend = 1;
 
@@ -16755,17 +16757,21 @@ static int pt_fb_notifier_callback(struct notifier_block *self,
        //printk("cyttsp5_fb_notifier_callback :EINK_NOTIFY_TP_POWEROFF cd->irq_disabled:%d \n",cd->irq_disabled);
 		pt_core_sleep(cd);
 		if (!cd->irq_disabled) {
-            disable_irq(cd->irq);
+            //disable_irq(cd->irq);
+            disable_irq_wake(cd->irq);
             cd->irq_disabled = 1;
         }
+		if(rst_gpio)
 		gpio_set_value(rst_gpio, 0); //tanlq 230425
     //} else if (EINK_NOTIFY_TP_POWERON == event) {
     } else if (EINK_NOTIFY_EVENT_SCREEN_ON == event) {
 		//printk("cyttsp5_fb_notifier_callback :event=EINK_NOTIFY_TP_POWERON\n");
         if (cd->irq_disabled) {
-            cd->irq_disabled = false;
-            enable_irq(cd->irq);
+            //enable_irq(cd->irq);
+			enable_irq_wake(cd->irq);
+			cd->irq_disabled = false;
         }
+		if(rst_gpio)
 		gpio_set_value(rst_gpio, 1); //tanlq 230425
 		pt_core_wake(cd);
     }
@@ -18596,11 +18602,13 @@ static ssize_t pt_drv_debug_store(struct device *dev,
 		break;
 	case PT_DRV_DBG_CORE_SET_XRES_LEVEL:		/* 222 */
 		if (input_data[1] == 0) {
+			if(pdata->core_pdata->rst_gpio)
 			gpio_set_value(pdata->core_pdata->rst_gpio, 0);
 			pt_debug(dev, DL_INFO,
 				"%s: Set TP reset GPIO to low\n",
 				__func__);
 		} else if (input_data[1] == 1) {
+			if(pdata->core_pdata->rst_gpio)
 			gpio_set_value(pdata->core_pdata->rst_gpio, 1);
 			pt_debug(dev, DL_INFO,
 				"%s: Set TP reset GPIO to high\n",

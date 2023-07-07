@@ -2,7 +2,7 @@
 #
 #  Touchscreen driver configuration
 #
-config TOUCHSCREEN_CYPRESS_CYTTSP5
+menuconfig TOUCHSCREEN_CYPRESS_CYTTSP5_SLIDER
 	tristate "Parade TrueTouch Gen5 Touchscreen Driver"
 	help
 	  Core driver for Parade TrueTouch(tm) Standard Product
@@ -15,9 +15,10 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyttsp5.
 
+if TOUCHSCREEN_CYPRESS_CYTTSP5_SLIDER
 config TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICETREE_SUPPORT
 	bool "Enable Device Tree support"
-	depends on TOUCHSCREEN_CYPRESS_CYTTSP5 && OF
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_SLIDER && OF
 	help
 	  Say Y here to enable support for device tree.
 
@@ -25,7 +26,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICETREE_SUPPORT
 
 config TOUCHSCREEN_CYPRESS_CYTTSP5_I2C
 	tristate "Parade TrueTouch Gen5 I2C"
-	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_SLIDER
 	select I2C
 	help
 	  Say Y here to enable I2C bus interface to Parade TrueTouch(tm)
@@ -38,7 +39,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_I2C
 
 config TOUCHSCREEN_CYPRESS_CYTTSP5_SPI
 	tristate "Parade TrueTouch Gen5 SPI"
-	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_SLIDER
 	select SPI
 	help
 	  Say Y here to enable SPI bus interface to Parade TrueTouch(tm)
@@ -74,7 +75,7 @@ endchoice
 
 config TOUCHSCREEN_CYPRESS_CYTTSP5_BUTTON
 	bool "Parade TrueTouch Gen5 MultiTouch CapSense Button"
-	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_SLIDER
 	help
 	  Say Y here to enable CapSense reporting on Parade TrueTouch(tm)
 	  Standard Product Generation5 touchscreen controller.
@@ -83,7 +84,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_BUTTON
 
 config TOUCHSCREEN_CYPRESS_CYTTSP5_PROXIMITY
 	bool "Parade TrueTouch Gen5 Proximity"
-	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_SLIDER
 	help
 	  Say Y here to enable proximity reporting on Parade TrueTouch(tm)
 	  Standard Product Generation5 touchscreen controller.
@@ -92,7 +93,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_PROXIMITY
 
 config TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICE_ACCESS
 	tristate "Parade TrueTouch Gen5 MultiTouch Device Access"
-	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_SLIDER
 	help
 	  Say Y here to enable Parade TrueTouch(tm) Standard Product
 	  Generation5 touchscreen controller device access module.
@@ -129,7 +130,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_TEST_DEVICE_ACCESS_API
 
 config TOUCHSCREEN_CYPRESS_CYTTSP5_LOADER
 	tristate "Parade TrueTouch Gen5 MultiTouch Loader"
-	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_SLIDER
 	help
 	  Say Y here to enable Parade TrueTouch(tm) Standard Product
 	  Generation5 touchscreen controller FW Loader module.
@@ -188,7 +189,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_MANUAL_TTCONFIG_UPGRADE
 
 config TOUCHSCREEN_CYPRESS_CYTTSP5_DEBUG_MDL
 	tristate "Parade TrueTouch Gen5 MultiTouch Debug Module"
-	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_SLIDER
 	help
 	  Say Y here to enable Parade TrueTouch(tm) Standard Product
 	  Generation5 Debug module.
@@ -200,5 +201,5 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_DEBUG_MDL
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyttsp5_debug.
-
+endif
           
