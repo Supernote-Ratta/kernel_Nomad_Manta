@@ -841,6 +841,7 @@
 				parade,panel_id_support = <0>;
 				/* 0:PIP, 1: Hybrid HID, 2: pure HID */
 				parade,protocol_mode = <0>;
+#if 0
 				parade,btn_keys = <172 /* KEY_HOMEPAGE */
 					   	   /* previously was KEY_HOME, new Android versions use KEY_HOMEPAGE */
 				               139 /* KEY_MENU */
@@ -851,7 +852,7 @@
 				               212 /* KEY_CAMERA */
 				               116>; /* KEY_POWER */
 				parade,btn_keys-tag = <0>;
-
+#endif
 				parade,mt {
 					parade,name = "pt_mt";
 
@@ -888,7 +889,7 @@
 
 					parade,vkeys_x = <720>;
 					parade,vkeys_y = <1280>;
-
+#if 0
 					parade,virtual_keys = /* KeyCode CenterX CenterY Width Height */
 						/* KEY_BACK */
 						<158 90 1360 160 180
@@ -898,6 +899,7 @@
 						172 450 1360 160 180
 						/* KEY SEARCH */
 						217 630 1360 160 180>;
+#endif
 				};
 			};
 		};
@@ -1035,6 +1037,7 @@
             cy,flags = <6>;
             /* CY_CORE_EWG_NONE */
             cy,easy_wakeup_gesture = <0>;
+#if 0
             cy,btn_keys = <172 /* KEY_HOMEPAGE */
 					   /* previously was KEY_HOME, new Android versions use KEY_HOMEPAGE */
 				       139 /* KEY_MENU */
@@ -1045,7 +1048,7 @@
 				       212 /* KEY_CAMERA */
 				       116>; /* KEY_POWER */
 			cy,btn_keys-tag = <0>;
-
+#endif
 			cy,mt {
 				cy,name = "cyttsp5_mt";
 
@@ -1076,7 +1079,7 @@
 
 				cy,vkeys_x = <720>;
 				cy,vkeys_y = <1280>;
-
+#if 0
 				cy,virtual_keys = /* KeyCode CenterX CenterY Width Height */
 					/* KEY_BACK */
 					<158 1360 90 160 180
@@ -1086,7 +1089,9 @@
 					172 1360 450 160 180
 					/* KEY SEARCH */
 					217 1360 630 160 180>;
+#endif
 			};
+#if 0
 
 			cy,btn {
 				cy,name = "cyttsp5_btn";
@@ -1102,6 +1107,7 @@
 					/* ABS_DISTANCE, CY_PROXIMITY_MIN_VAL, CY_PROXIMITY_MAX_VAL, 0, 0 */
 					<0x19 0 1 0 0>;
 			};
+#endif
         };
     };
 };

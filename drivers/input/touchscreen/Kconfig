@@ -1547,7 +1547,7 @@ config CYTTSP5_SLIDER_SUPPORT
 	depends on I2C
 	default n
 
-source "drivers/input/touchscreen/cyttsp5_slider/Kconfig"
+source "drivers/input/touchscreen/cyttsp5/Kconfig"
 source "drivers/input/touchscreen/cyttsp5_slider/Kconfig"
 source "drivers/input/touchscreen/gtx8/Kconfig"
 source "drivers/input/touchscreen/huiontablet/Kconfig"
