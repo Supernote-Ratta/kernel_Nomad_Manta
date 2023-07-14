@@ -1,0 +1,335 @@
+pt_core.c:1868:	if (!(cd->cpdata->flags & PT_CORE_FLAG_RESTORE_PARAMETERS))
+pt_core.c:1939:	if (!(cd->cpdata->flags & PT_CORE_FLAG_RESTORE_PARAMETERS))
+pt_core.c:2159:		&& cd->cpdata->irq_stat) {
+pt_core.c:2169:	if (cd->cpdata->irq_stat) {
+pt_core.c:2170:		if (cd->cpdata->irq_stat(cd->cpdata, cd->dev)
+pt_core.c:2175:		if (cd->cpdata->irq_stat(cd->cpdata, cd->dev)
+pt_core.c:3273:		if (!gpio_get_value(cd->cpdata->irq_gpio)) {
+pt_core.c:3750:		if (cd->cpdata->sett[PT_IC_GRPNUM_BTN_KEYS] == NULL)
+pt_core.c:3752:		else if (cd->cpdata->sett[PT_IC_GRPNUM_BTN_KEYS]->data == NULL)
+pt_core.c:3755:			num_defined_keys = cd->cpdata->sett
+pt_core.c:3759:			key_table = (u16 *)cd->cpdata->sett
+pt_core.c:8684:	//if (cd->cpdata->xres) {
+pt_core.c:8688:	//	cd->cpdata->xres(cd->cpdata, cd->dev);
+pt_core.c:10124:	rc = cd->cpdata->power(cd->cpdata, 0, cd->dev, 0);
+pt_core.c:10166:	else if (cd->cpdata->flags & PT_CORE_FLAG_POWEROFF_ON_SLEEP)
+pt_core.c:10168:	else if (cd->cpdata->flags & PT_CORE_FLAG_DEEP_STANDBY)
+pt_core.c:12305:	return cd->pdata->loader_pdata;
+pt_core.c:12583:	if (!(cd->cpdata->flags & PT_CORE_FLAG_RESTORE_PARAMETERS))
+pt_core.c:12987:	rc = cd->cpdata->power(cd->cpdata, 1, dev, 0);
+pt_core.c:13061:	if (!(cd->cpdata->flags & PT_CORE_FLAG_SKIP_RESUME)) {
+pt_core.c:13064:		else if (cd->cpdata->flags & PT_CORE_FLAG_POWEROFF_ON_SLEEP)
+pt_core.c:13066:		else if (cd->cpdata->flags & PT_CORE_FLAG_DEEP_STANDBY)
+pt_core.c:14104:	if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_RUNTIME)
+pt_core.c:14132:	if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_RUNTIME)
+pt_core.c:14194:	if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_SYS_SLEEP)
+pt_core.c:14245:	if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_SYS_SLEEP)
+pt_core.c:14260:    gpio_direction_output(cd->cpdata->rst_gpio, 0);
+pt_core.c:14261:    gpio_direction_output(cd->cpdata->irq_gpio, 0);
+pt_core.c:14273:    gpio_direction_input(cd->cpdata->irq_gpio);
+pt_core.c:16717:    int rst_gpio = cd->cpdata->rst_gpio;
+pt_core.c:16718:    int irq_gpio = cd->cpdata->irq_gpio;
+pt_core.c:16732:			if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_RUNTIME)
+pt_core.c:16744://			if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_RUNTIME)
+pt_core.c:18297:			cd->cpdata->setup_power(cd->cpdata,
+pt_core.c:18302:			cd->cpdata->setup_power(cd->cpdata,
+pt_core.c:18547:			cd->cpdata->flags = input_data[1];
+pt_core.c:18599:			gpio_set_value(pdata->core_pdata->rst_gpio, 0);
+pt_core.c:18604:			gpio_set_value(pdata->core_pdata->rst_gpio, 1);
+pt_core.c:19146:			cd->cpdata->irq_stat ?
+pt_core.c:19147:			(cd->cpdata->irq_stat(cd->cpdata, dev) ?
+pt_core.c:19150:			pdata->core_pdata->rst_gpio ?
+pt_core.c:19151:			(gpio_get_value(pdata->core_pdata->rst_gpio) ?
+pt_core.c:19778:		"Interrupt GPIO           ", pdata->core_pdata->irq_gpio,
+pt_core.c:19780:		pdata->core_pdata->irq_gpio ?
+pt_core.c:19781:			gpio_get_value(pdata->core_pdata->irq_gpio) : 0,
+pt_core.c:19782:		"Reset GPIO               ", pdata->core_pdata->rst_gpio,
+pt_core.c:19784:		pdata->core_pdata->rst_gpio ?
+pt_core.c:19785:			gpio_get_value(pdata->core_pdata->rst_gpio) : 0,
+pt_core.c:19786:		"DDI Reset GPIO           ", pdata->core_pdata->ddi_rst_gpio,
+pt_core.c:19788:		pdata->core_pdata->ddi_rst_gpio ?
+pt_core.c:19789:			gpio_get_value(pdata->core_pdata->ddi_rst_gpio) : 0,
+pt_core.c:19790:		"VDDI GPIO                ", pdata->core_pdata->vddi_gpio,
+pt_core.c:19792:		pdata->core_pdata->vddi_gpio ?
+pt_core.c:19793:			gpio_get_value(pdata->core_pdata->vddi_gpio) : 0,
+pt_core.c:19794:		"VCC GPIO                 ", pdata->core_pdata->vcc_gpio,
+pt_core.c:19796:		pdata->core_pdata->vcc_gpio ?
+pt_core.c:19797:			gpio_get_value(pdata->core_pdata->vcc_gpio) : 0,
+pt_core.c:19798:		"AVDD GPIO                ", pdata->core_pdata->avdd_gpio,
+pt_core.c:19800:		pdata->core_pdata->avdd_gpio ?
+pt_core.c:19801:			gpio_get_value(pdata->core_pdata->avdd_gpio) : 0,
+pt_core.c:19802:		"AVEE GPIO                ", pdata->core_pdata->avee_gpio,
+pt_core.c:19804:		pdata->core_pdata->avee_gpio ?
+pt_core.c:19805:			gpio_get_value(pdata->core_pdata->avee_gpio) : 0,
+pt_core.c:19806:		"Vendor ID                ", pdata->core_pdata->vendor_id,
+pt_core.c:19807:		"Product ID               ", pdata->core_pdata->product_id,
+pt_core.c:19808:		"Vkeys x                  ", pdata->mt_pdata->vkeys_x,
+pt_core.c:19809:		"Vkeys y                  ", pdata->mt_pdata->vkeys_y,
+pt_core.c:19810:		"Core data flags          ", pdata->core_pdata->flags,
+pt_core.c:19811:		"MT data flags            ", pdata->mt_pdata->flags,
+pt_core.c:19812:		"Loader data flags        ", pdata->loader_pdata->flags,
+pt_core.c:19814:			pdata->core_pdata->level_irq_udelay,
+pt_core.c:19816:			pdata->core_pdata->hid_desc_register,
+pt_core.c:19822:			pdata->core_pdata->easy_wakeup_gesture,
+pt_core.c:19824:			pdata->core_pdata->config_dut_generation ?
+pt_core.c:19825:			(pdata->core_pdata->config_dut_generation ==
+pt_core.c:19829:			pdata->core_pdata->watchdog_force_stop ?
+pt_core.c:19832:			pdata->core_pdata->panel_id_support);
+pt_core.c:20168:	if ((!pdata->core_pdata->rst_gpio) || (!pdata->core_pdata->xres)) {
+pt_core.c:21690:	if (!pdata || !pdata->core_pdata || !pdata->mt_pdata) {
+pt_core.c:21697:	if (pdata->core_pdata->flags & PT_CORE_FLAG_POWEROFF_ON_SLEEP) {
+pt_core.c:21698:		if (!pdata->core_pdata->power) {
+pt_core.c:21717:	cd->cpdata                     = pdata->core_pdata;
+pt_core.c:21743:	if (cd->cpdata->config_dut_generation == CONFIG_DUT_PIP2_CAPABLE) {
+pt_core.c:21746:	} else if (cd->cpdata->config_dut_generation == CONFIG_DUT_PIP1_ONLY) {
+pt_core.c:21755:	cd->watchdog_force_stop        = cd->cpdata->watchdog_force_stop;
+pt_core.c:21817:	cd->hid_core.hid_vendor_id = (cd->cpdata->vendor_id) ?
+pt_core.c:21818:		cd->cpdata->vendor_id : HID_VENDOR_ID;
+pt_core.c:21819:	cd->hid_core.hid_product_id = (cd->cpdata->product_id) ?
+pt_core.c:21820:		cd->cpdata->product_id : HID_APP_PRODUCT_ID;
+pt_core.c:21822:		cpu_to_le16(cd->cpdata->hid_desc_register);
+pt_core.c:21825:	cd->easy_wakeup_gesture = cd->cpdata->easy_wakeup_gesture;
+pt_core.c:21828:	cd->panel_id_support = cd->cpdata->panel_id_support;
+pt_core.c:21838:	if (cd->cpdata->protocol_mode != PT_PROTOCOL_MODE_UNKNOWN) {
+pt_core.c:21839:		cd->protocol_mode = cd->cpdata->protocol_mode;
+pt_core.c:21875:	if (!cd->cpdata->irq_stat) {
+pt_core.c:21883:	if (cd->cpdata->init) {
+pt_core.c:21885:		rc = cd->cpdata->init(cd->cpdata, PT_MT_POWER_ON, cd->dev);
+pt_core.c:21897:	if (cd->cpdata->setup_power) {
+pt_core.c:21899:		rc = cd->cpdata->setup_power(cd->cpdata,
+pt_core.c:21915:		if (cd->cpdata->detect) {
+pt_core.c:21917:			rc = cd->cpdata->detect(cd->cpdata, cd->dev,
+pt_core.c:21946:	if (cd->cpdata->setup_irq) {
+pt_core.c:21948:		rc = cd->cpdata->setup_irq(cd->cpdata, PT_MT_IRQ_REG, cd->dev);
+pt_core.c:21986:	if (cd->cpdata->irq_stat) {
+pt_core.c:22159:	if (cd->cpdata->setup_irq)
+pt_core.c:22160:		cd->cpdata->setup_irq(cd->cpdata, PT_MT_IRQ_FREE, dev);
+pt_core.c:22163:	if (cd->cpdata->init)
+pt_core.c:22164:		cd->cpdata->init(cd->cpdata, PT_MT_POWER_OFF, dev);
+pt_core.c:22165:	if (cd->cpdata->setup_power)
+pt_core.c:22166:		cd->cpdata->setup_power(cd->cpdata, PT_MT_POWER_OFF, dev);
+pt_core.c:22256:	if (cd->cpdata->setup_irq)
+pt_core.c:22257:		cd->cpdata->setup_irq(cd->cpdata, PT_MT_IRQ_FREE, dev);
+pt_core.c:22258:	if (cd->cpdata->init)
+pt_core.c:22259:		cd->cpdata->init(cd->cpdata, PT_MT_POWER_OFF, dev);
+pt_core.c:22260:	if (cd->cpdata->setup_power)
+pt_core.c:22261:		cd->cpdata->setup_power(cd->cpdata, PT_MT_POWER_OFF, dev);
+pt_pen.c:484:	if (!pdata || !pdata->pen_pdata) {
+pt_pen.c:490:	pen_pdata = pdata->pen_pdata;
+pt_pen.c:509:	if (pend->pdata->inp_dev_name)
+pt_pen.c:510:		pend->input->name = pend->pdata->inp_dev_name;
+Binary file pt_devtree.o matches
+pt_platform.c:188:	int rst_gpio = pdata->rst_gpio;
+pt_platform.c:190:	int ddi_rst_gpio = pdata->ddi_rst_gpio;
+pt_platform.c:193:		__func__, pdata->rst_gpio);
+pt_platform.c:230:	pdata->pinctrl = devm_pinctrl_get(dev);
+pt_platform.c:231:	if (IS_ERR_OR_NULL(pdata->pinctrl)) {
+pt_platform.c:234:		ret = PTR_ERR(pdata->pinctrl);
+pt_platform.c:238:	pdata->pins_active =
+pt_platform.c:239:	    pinctrl_lookup_state(pdata->pinctrl, "pmx_ts_active");
+pt_platform.c:240:	if (IS_ERR_OR_NULL(pdata->pins_active)) {
+pt_platform.c:242:		ret = PTR_ERR(pdata->pins_active);
+pt_platform.c:246:	pdata->pins_suspend =
+pt_platform.c:247:	    pinctrl_lookup_state(pdata->pinctrl, "pmx_ts_suspend");
+pt_platform.c:248:	if (IS_ERR_OR_NULL(pdata->pins_suspend)) {
+pt_platform.c:250:		ret = PTR_ERR(pdata->pins_suspend);
+pt_platform.c:254:	pdata->pins_release =
+pt_platform.c:255:	    pinctrl_lookup_state(pdata->pinctrl, "pmx_ts_release\n");
+pt_platform.c:256:	if (IS_ERR_OR_NULL(pdata->pins_release)) {
+pt_platform.c:258:		ret = PTR_ERR(pdata->pins_release);
+pt_platform.c:265:	devm_pinctrl_put(pdata->pinctrl);
+pt_platform.c:268:	pdata->pinctrl = NULL;
+pt_platform.c:269:	pdata->pins_release = NULL;
+pt_platform.c:270:	pdata->pins_suspend = NULL;
+pt_platform.c:271:	pdata->pins_active = NULL;
+pt_platform.c:293:	if (pdata->pinctrl && pdata->pins_active) {
+pt_platform.c:294:		ret = pinctrl_select_state(pdata->pinctrl, pdata->pins_active);
+pt_platform.c:322:	if (pdata->pinctrl && pdata->pins_suspend) {
+pt_platform.c:323:		ret = pinctrl_select_state(pdata->pinctrl, pdata->pins_suspend);
+pt_platform.c:351:	if (pdata->pinctrl) {
+pt_platform.c:352:		if (IS_ERR_OR_NULL(pdata->pins_release)) {
+pt_platform.c:353:			devm_pinctrl_put(pdata->pinctrl);
+pt_platform.c:354:			pdata->pinctrl = NULL;
+pt_platform.c:356:			ret = pinctrl_select_state(pdata->pinctrl,
+pt_platform.c:357:						   pdata->pins_release);
+pt_platform.c:396:	pdata->vcc = devm_regulator_get(dev, "vcc");
+pt_platform.c:397:	if (IS_ERR(pdata->vcc)) {
+pt_platform.c:398:		rc = PTR_ERR(pdata->vcc);
+pt_platform.c:403:	if (regulator_count_voltages(pdata->vcc) > 0) {
+pt_platform.c:404:		rc = regulator_set_voltage(pdata->vcc, PT_VCC_MIN_UV,
+pt_platform.c:413:	pdata->vddi = devm_regulator_get(dev, "vddi");
+pt_platform.c:414:	if (IS_ERR(pdata->vddi)) {
+pt_platform.c:415:		rc = PTR_ERR(pdata->vddi);
+pt_platform.c:421:	if (regulator_count_voltages(pdata->vddi) > 0) {
+pt_platform.c:422:		rc = regulator_set_voltage(pdata->vddi, PT_VDDI_MIN_UV,
+pt_platform.c:434:	devm_regulator_put(pdata->vddi);
+pt_platform.c:443:	if (regulator_count_voltages(pdata->vcc) > 0)
+pt_platform.c:444:		regulator_set_voltage(pdata->vcc, 0, PT_VCC_MAX_UV);
+pt_platform.c:446:	devm_regulator_put(pdata->vcc);
+pt_platform.c:479:	if (IS_ERR(pdata->vddi) || IS_ERR(pdata->vcc)) {
+pt_platform.c:485:		rc = regulator_enable(pdata->vddi);
+pt_platform.c:491:		rc = regulator_enable(pdata->vcc);
+pt_platform.c:508:		rc = gpio_direction_output(pdata->rst_gpio, 0);
+pt_platform.c:515:			gpio_set_value(pdata->rst_gpio, 0);
+pt_platform.c:521:		rc = regulator_disable(pdata->vcc);
+pt_platform.c:526:		rc = regulator_disable(pdata->vddi);
+pt_platform.c:558:	if (IS_ERR(pdata->vddi) || IS_ERR(pdata->vcc))
+pt_platform.c:568:	if (regulator_count_voltages(pdata->vddi) > 0)
+pt_platform.c:569:		regulator_set_voltage(pdata->vddi, 0, PT_VDDI_MAX_UV);
+pt_platform.c:570:	devm_regulator_put(pdata->vddi);
+pt_platform.c:572:	if (regulator_count_voltages(pdata->vcc) > 0)
+pt_platform.c:573:		regulator_set_voltage(pdata->vcc, 0, PT_VCC_MAX_UV);
+pt_platform.c:574:	devm_regulator_put(pdata->vcc);
+pt_platform.c:596:	int rst_gpio     = pdata->rst_gpio;
+pt_platform.c:597:	int irq_gpio     = pdata->irq_gpio;
+pt_platform.c:598:	int ddi_rst_gpio = pdata->ddi_rst_gpio;
+pt_platform.c:760:	return gpio_get_value(pdata->irq_gpio);
+pt_platform.c:790:		pdata->xres(pdata, dev);
+pt_platform.c:825:	int en_vcc  = pdata->vcc_gpio;
+pt_platform.c:826:	int en_vddi = pdata->vddi_gpio;
+pt_platform.c:827:	int en_avdd = pdata->avdd_gpio;
+pt_platform.c:828:	int en_avee = pdata->avee_gpio;
+pt_platform.c:841:		if (pdata->vddi_gpio) {
+pt_platform.c:859:		if (pdata->vcc_gpio) {
+pt_platform.c:886:		rc = gpio_direction_output(pdata->rst_gpio, 0);
+pt_platform.c:890:				__func__, pdata->rst_gpio);
+pt_platform.c:893:			gpio_set_value(pdata->rst_gpio, 0);
+pt_platform.c:900:		if (pdata->avdd_gpio) {
+pt_platform.c:920:		if (pdata->avee_gpio) {
+pt_platform.c:951:		if (pdata->vcc_gpio) {
+pt_platform.c:969:		if (pdata->avee_gpio) {
+pt_platform.c:987:		if (pdata->avdd_gpio) {
+pt_platform.c:1005:		if (pdata->vddi_gpio) {
+pt_platform.c:1051:	if (pdata->ddi_rst_gpio)
+pt_platform.c:1052:		gpio_set_value(pdata->ddi_rst_gpio, 0);
+pt_platform.c:1062:	if (on && pdata->rst_gpio) {
+pt_platform.c:1067:		rc = gpio_direction_input(pdata->rst_gpio);
+pt_platform.c:1071:				__func__, pdata->rst_gpio);
+pt_platform.c:1076:			gpio_set_value(pdata->rst_gpio, 1);
+pt_platform.c:1107:	if (pdata->rst_gpio)
+pt_platform.c:1108:		gpio_set_value(pdata->rst_gpio, 1);
+pt_platform.c:1111:	if (pdata->ddi_rst_gpio)
+pt_platform.c:1112:		gpio_set_value(pdata->ddi_rst_gpio, 1);
+pt_platform.c:1234:		if (pdata->irq_stat) {
+pt_platform.c:1237:				__func__, pdata->irq_gpio);
+pt_platform.c:1238:			cd->irq = gpio_to_irq(pdata->irq_gpio);
+pt_platform.c:1251:		if (pdata->level_irq_udelay > 0)
+pt_btn.c:414:	if (!pdata || !pdata->btn_pdata) {
+pt_btn.c:420:	btn_pdata = pdata->btn_pdata;
+pt_btn.c:439:	if (bd->pdata->inp_dev_name)
+pt_btn.c:440:		bd->input->name = bd->pdata->inp_dev_name;
+pt_loader.c:1001:			(ld->loader_pdata->flags
+pt_loader.c:1159:		return ld->loader_pdata->fw;
+pt_loader.c:1162:	fws = ld->loader_pdata->fws;
+pt_loader.c:1877:			(ld->loader_pdata->flags
+pt_loader.c:2005:	if (ld->loader_pdata->flags &
+pt_loader.c:2128:		return ld->loader_pdata->ttconfig;
+pt_loader.c:2131:	ttconfigs = ld->loader_pdata->ttconfigs;
+pt_loader.c:3635:		&& (ld->loader_pdata->flags
+pt_loader.c:5915:	if (!pdata || !pdata->loader_pdata) {
+pt_loader.c:5925:	ld->loader_pdata = pdata->loader_pdata;
+pt_devtree.c:370:	pdata = &ext_pdata->pdata;
+pt_devtree.c:372:	rc = get_inp_dev_name(dev_node, &pdata->inp_dev_name);
+pt_devtree.c:379:		pdata->flags = value;
+pt_devtree.c:383:		pdata->vkeys_x = value;
+pt_devtree.c:387:		pdata->vkeys_y = value;
+pt_devtree.c:390:	pdata->frmwrk = create_and_get_touch_framework(dev_node);
+pt_devtree.c:391:	if (pdata->frmwrk == NULL) {
+pt_devtree.c:394:	} else if (IS_ERR(pdata->frmwrk)) {
+pt_devtree.c:395:		rc = PTR_ERR(pdata->frmwrk);
+pt_devtree.c:399:	rc = setup_virtual_keys(dev_node, pdata->inp_dev_name,
+pt_devtree.c:400:			&ext_pdata->vkeys);
+pt_devtree.c:431:	free_touch_framework(mt_pdata->frmwrk);
+pt_devtree.c:433:	free_virtual_keys(&ext_mt_pdata->vkeys);
+pt_devtree.c:461:	rc = get_inp_dev_name(dev_node, &pdata->inp_dev_name);
+pt_devtree.c:512:	rc = get_inp_dev_name(dev_node, &pdata->inp_dev_name);
+pt_devtree.c:564:	rc = get_inp_dev_name(dev_node, &pdata->inp_dev_name);
+pt_devtree.c:568:	pdata->frmwrk = create_and_get_touch_framework(dev_node);
+pt_devtree.c:569:	if (pdata->frmwrk == NULL) {
+pt_devtree.c:572:	} else if (IS_ERR(pdata->frmwrk)) {
+pt_devtree.c:573:		rc = PTR_ERR(pdata->frmwrk);
+pt_devtree.c:598:	free_touch_framework(proximity_pdata->frmwrk);
+pt_devtree.c:641:	pdata_ptr[DEVICE_MT].pdata = (void **)&pdata->mt_pdata;
+pt_devtree.c:642:	pdata_ptr[DEVICE_BTN].pdata = (void **)&pdata->btn_pdata;
+pt_devtree.c:643:	pdata_ptr[DEVICE_PEN].pdata = (void **)&pdata->pen_pdata;
+pt_devtree.c:644:	pdata_ptr[DEVICE_PROXIMITY].pdata = (void **)&pdata->prox_pdata;
+pt_devtree.c:838:        pdata->irq_gpio = irq_gpio;
+pt_devtree.c:847:        pdata->rst_gpio = reset_gpio;
+pt_devtree.c:850:        pdata->rst_gpio = -2;
+pt_devtree.c:856:	pdata->hid_desc_register = value;
+pt_devtree.c:865:		pdata->ddi_rst_gpio = value;
+pt_devtree.c:869:		pdata->vddi_gpio = value;
+pt_devtree.c:873:		pdata->vcc_gpio = value;
+pt_devtree.c:877:		pdata->avdd_gpio = value;
+pt_devtree.c:881:		pdata->avee_gpio = value;
+pt_devtree.c:885:		pdata->level_irq_udelay = value;
+pt_devtree.c:889:		pdata->vendor_id = value;
+pt_devtree.c:893:		pdata->product_id = value;
+pt_devtree.c:897:		pdata->flags = value;
+pt_devtree.c:902:		pdata->easy_wakeup_gesture = (u8)value;
+pt_devtree.c:907:		pdata->config_dut_generation = (u8)value;
+pt_devtree.c:911:		pdata->config_dut_generation = CONFIG_DUT_PIP2_CAPABLE;
+pt_devtree.c:918:			pdata->watchdog_force_stop = true;
+pt_devtree.c:920:			pdata->watchdog_force_stop = false;
+pt_devtree.c:924:		pdata->watchdog_force_stop = false;
+pt_devtree.c:930:		pdata->panel_id_support = (u8)value;
+pt_devtree.c:934:		pdata->panel_id_support = PT_PANEL_ID_DISABLE;
+pt_devtree.c:940:		pdata->protocol_mode = (u8)value;
+pt_devtree.c:944:		pdata->protocol_mode = PT_PROTOCOL_MODE_UNKNOWN;
+pt_devtree.c:951:		pdata->sett[i] = create_and_get_touch_setting(core_node,
+pt_devtree.c:953:		if (IS_ERR(pdata->sett[i])) {
+pt_devtree.c:954:			rc = PTR_ERR(pdata->sett[i]);
+pt_devtree.c:956:		} else if (pdata->sett[i] == NULL)
+pt_devtree.c:964:		pdata->irq_gpio, pdata->rst_gpio,
+pt_devtree.c:965:		pdata->hid_desc_register,
+pt_devtree.c:966:		pdata->level_irq_udelay, pdata->vendor_id, pdata->product_id,
+pt_devtree.c:967:		pdata->flags, pdata->easy_wakeup_gesture);
+pt_devtree.c:969:    if(pdata->rst_gpio){
+pt_devtree.c:970:    	pdata->xres = pt_xres;
+pt_devtree.c:971:    printk("pdata->xres = pt_xres \n");
+pt_devtree.c:973:printk("pdata->xres = NULL \n");
+pt_devtree.c:975:        pdata->xres = NULL;
+pt_devtree.c:977:	pdata->init = pt_init;
+pt_devtree.c:978:	pdata->power = pt_power;
+pt_devtree.c:979:	pdata->detect = pt_detect;
+pt_devtree.c:980:	pdata->irq_stat = pt_irq_stat;
+pt_devtree.c:981:	pdata->setup_power = pt_setup_power;
+pt_devtree.c:982:	pdata->setup_irq = pt_setup_irq;
+pt_devtree.c:988:		free_touch_setting(pdata->sett[i]);
+pt_devtree.c:1013:		free_touch_setting(core_pdata->sett[i]);
+pt_devtree.c:1060:		pdata->core_pdata = create_and_get_core_pdata(core_node);
+pt_devtree.c:1061:		if (IS_ERR(pdata->core_pdata)) {
+pt_devtree.c:1062:			rc = PTR_ERR(pdata->core_pdata);
+pt_devtree.c:1085:			free_core_pdata(pdata->core_pdata);
+pt_devtree.c:1098:		pdata->loader_pdata = &_pt_loader_platform_data;
+pt_devtree.c:1136:		free_core_pdata(pdata->core_pdata);
+pt_proximity.c:591:	for (i = 0; i < NUM_SIGNALS(pd->pdata->frmwrk); i++) {
+pt_proximity.c:592:		signal = PARAM_SIGNAL(pd->pdata->frmwrk, i);
+pt_proximity.c:595:				PARAM_MIN(pd->pdata->frmwrk, i),
+pt_proximity.c:596:				PARAM_MAX(pd->pdata->frmwrk, i),
+pt_proximity.c:597:				PARAM_FUZZ(pd->pdata->frmwrk, i),
+pt_proximity.c:598:				PARAM_FLAT(pd->pdata->frmwrk, i));
+pt_proximity.c:670:	if (!pdata ||  !pdata->prox_pdata) {
+pt_proximity.c:676:	prox_pdata = pdata->prox_pdata;
+pt_proximity.c:695:	if (pd->pdata->inp_dev_name)
+pt_proximity.c:696:		pd->input->name = pd->pdata->inp_dev_name;
+pt_mt_common.c:32:#define MT_PARAM_SIGNAL(md, sig_ost) PARAM_SIGNAL(md->pdata->frmwrk, sig_ost)
+pt_mt_common.c:33:#define MT_PARAM_MIN(md, sig_ost) PARAM_MIN(md->pdata->frmwrk, sig_ost)
+pt_mt_common.c:34:#define MT_PARAM_MAX(md, sig_ost) PARAM_MAX(md->pdata->frmwrk, sig_ost)
+pt_mt_common.c:35:#define MT_PARAM_FUZZ(md, sig_ost) PARAM_FUZZ(md->pdata->frmwrk, sig_ost)
+pt_mt_common.c:36:#define MT_PARAM_FLAT(md, sig_ost) PARAM_FLAT(md->pdata->frmwrk, sig_ost)
+pt_mt_common.c:151:	if (md->pdata->flags & PT_MT_FLAG_FLIP) {
+pt_mt_common.c:176:	if (md->pdata->flags & PT_MT_FLAG_INV_X) {
+pt_mt_common.c:185:	if (md->pdata->flags & PT_MT_FLAG_INV_Y) {
+pt_mt_common.c:204:		md->pdata->flags & PT_MT_FLAG_INV_X ? "true" : "false",
+pt_mt_common.c:205:		md->pdata->flags & PT_MT_FLAG_INV_Y ? "true" : "false",
+pt_mt_common.c:382:		if (md->pdata->flags & PT_MT_FLAG_NO_TOUCH_ON_LO)
+pt_mt_common.c:737:	if (md->pdata->flags & PT_MT_FLAG_VKEYS) {
+pt_mt_common.c:738:		max_x_tmp = md->pdata->vkeys_x;
+pt_mt_common.c:739:		max_y_tmp = md->pdata->vkeys_y;
+pt_mt_common.c:746:	if (md->pdata->flags & PT_MT_FLAG_FLIP) {
+pt_mt_common.c:756:	for (i = 0; i < NUM_SIGNALS(md->pdata->frmwrk); i++) {
+pt_mt_common.c:862:	if (!pdata || !pdata->mt_pdata) {
+pt_mt_common.c:868:	mt_pdata = pdata->mt_pdata;
+pt_mt_common.c:888:	if (md->pdata->inp_dev_name)
+pt_mt_common.c:889:		md->input->name = md->pdata->inp_dev_name;

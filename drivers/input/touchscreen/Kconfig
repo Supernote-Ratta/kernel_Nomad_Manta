@@ -1551,4 +1551,5 @@ source "drivers/input/touchscreen/cyttsp5/Kconfig"
 source "drivers/input/touchscreen/cyttsp5_slider/Kconfig"
 source "drivers/input/touchscreen/gtx8/Kconfig"
 source "drivers/input/touchscreen/huiontablet/Kconfig"
+source "drivers/input/touchscreen/ptxx/Kconfig"
 endif

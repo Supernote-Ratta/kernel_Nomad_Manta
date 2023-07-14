@@ -36,13 +36,19 @@
 #define PT_AUTO_LOAD_FOR_CORRUPTED_FW 1
 #define PT_LOADER_FW_UPGRADE_RETRY_COUNT 3
 
-#define PT_FW_UPGRADE \
-	(defined(CONFIG_TOUCHSCREEN_PARADE_PLATFORM_FW_UPGRADE) \
+#if (defined(CONFIG_TOUCHSCREEN_PARADE_PLATFORM_FW_UPGRADE) \
 	|| defined(CONFIG_TOUCHSCREEN_PARADE_BINARY_FW_UPGRADE))
+#define PT_FW_UPGRADE (1)
+#else
+#define PT_FW_UPGRADE (0)
+#endif
 
-#define PT_TTCONFIG_UPGRADE \
-	(defined(CONFIG_TOUCHSCREEN_PARADE_PLATFORM_TTCONFIG_UPGRADE) \
+#if (defined(CONFIG_TOUCHSCREEN_PARADE_PLATFORM_TTCONFIG_UPGRADE) \
 	|| defined(CONFIG_TOUCHSCREEN_PARADE_MANUAL_TTCONFIG_UPGRADE))
+#define PT_TTCONFIG_UPGRADE (1)
+#else
+#define PT_TTCONFIG_UPGRADE (0)
+#endif
 
 /* Timeout values in ms. */
 #define PT_LDR_REQUEST_EXCLUSIVE_TIMEOUT		3000
@@ -164,6 +170,8 @@ enum UPDATE_FW_STATUS {
 	UPDATE_FW_CHECK_SUM_ERROR        = 236,
 	UPDATE_FW_NO_PLATFORM_DATA       = 237,
 	UPDATE_FW_NOT_SUPPORTED_FILE_NO  = 238,
+	UPDATE_FW_FILE_TOO_LARGE         = 239,
+	UPDATE_FW_SIZE_MISMATCH_HEADER   = 240,
 	UPDATE_FW_UNDEFINED_ERROR        = 255,
 	UPDATE_FW_INCREMENT              = 300,
 	UPDATE_FW_INCREMENT_BY_1         = 301,
@@ -1242,11 +1250,16 @@ retry_bl:
 			fw->img, fw->size, &ld->update_fw_status);
 
 		/* An extra BL may be needed if default PID was wrong choice */
-		if ((cd->panel_id_support & PT_PANEL_ID_BY_SYS_INFO) &&
-				!rc && !ld->si && retry--) {
+		if ((cd->panel_id_support &
+		     (PT_PANEL_ID_BY_SYS_INFO | PT_PANEL_ID_BY_MFG_DATA)) &&
+		    !rc && !ld->si && retry--) {
 			pt_debug(dev, DL_WARN, "%s: ATM - An extra BL may be needed\n",
 				__func__);
-			/* Panel_ID coming from sysinfo, ensure we have it */
+			/*
+			 * Panel_ID coming from sysinfo, ensure we have it. This
+			 * is not necessary if to get panel ID from MFG block,
+			 * but still keep it there since no obvious risk.
+			 */
 			ld->si = cmd->request_sysinfo(dev);
 			goto retry_bl;
 		}
@@ -1311,7 +1324,7 @@ static int _pt_pip1_bl_from_file(struct device *dev)
 		pt_debug(dev, DL_ERROR,
 			"%s: Firmware format is invalid\n", __func__);
 		_pt_update_write_file_status(dev, &ld->update_fw_status,
-					     UPDATE_FW_INVALID_FW_IMAGE);
+					     UPDATE_FW_SIZE_MISMATCH_HEADER);
 		goto exit;
 	}
 
@@ -1360,7 +1373,7 @@ static void _pt_firmware_cont(const struct firmware *fw, void *context)
 		pt_debug(dev, DL_ERROR,
 			"%s: Firmware format is invalid\n", __func__);
 		_pt_update_write_file_status(dev, &ld->update_fw_status,
-					     UPDATE_FW_INVALID_FW_IMAGE);
+					     UPDATE_FW_SIZE_MISMATCH_HEADER);
 		goto pt_firmware_cont_release_exit;
 	}
 
@@ -1703,8 +1716,9 @@ retry_bl:
 	if (index != MAX_FILE_NAMES) {
 		_pt_firmware_cont_builtin(fw_entry, dev);
 		/* An extra BL may be needed if default PID was wrong choice */
-		if ((cd->panel_id_support & PT_PANEL_ID_BY_SYS_INFO) &&
-				!ld->si && retry--) {
+		if ((cd->panel_id_support &
+		     (PT_PANEL_ID_BY_SYS_INFO | PT_PANEL_ID_BY_MFG_DATA)) &&
+		    !ld->si && retry--) {
 			pt_debug(dev, DL_WARN, "%s: ATM - An extra BL may be needed\n",
 				__func__);
 			/* Free allocated memory */
@@ -1715,7 +1729,11 @@ retry_bl:
 			index = 0;
 			mutex_unlock(&cd->firmware_class_lock);
 
-			/* Panel_ID coming from sysinfo, ensure we have it */
+			/*
+			 * Panel_ID coming from sysinfo, ensure we have it. This
+			 * is not necessary if to get panel ID from MFG block,
+			 * but still keep it there since no obvious risk.
+			 */
 			ld->si = cmd->request_sysinfo(dev);
 			goto retry_bl;
 		}
@@ -3266,7 +3284,7 @@ static int pt_pip2_write_file(struct device *dev, const struct firmware *fw,
 				"%s: Firmware image(%d) is over size(%d)\n",
 					__func__, fw_size, max_file_size);
 			_pt_update_write_file_status(
-			    dev, update_status, UPDATE_FW_INVALID_FW_IMAGE);
+			    dev, update_status, UPDATE_FW_FILE_TOO_LARGE);
 			goto exit_close_file;
 		}
 
@@ -3584,7 +3602,7 @@ static int _pt_pip2_update_fw(struct device *dev, const struct firmware *fw,
 		 */
 		mutex_lock(&cd->system_lock);
 		/* Speed up the timeouts when finding the protocol */
-		cd->pip_cmd_timeout_default = PT_HID_CMD_DEFAULT_TIMEOUT;
+		cd->pip_cmd_timeout_default = PT_FW_EXIT_BOOT_MODE_TIMEOUT;
 		cd->protocol_mode = PT_PROTOCOL_MODE_HID;
 		mutex_unlock(&cd->system_lock);
 		ret = cmd->request_pip2_get_mode_sysmode(dev,
@@ -3749,7 +3767,7 @@ static void _pt_pip2_write_file_cont(const struct firmware *fw, void *context)
 				"%s: Firmware format is invalid\n", __func__);
 			_pt_update_write_file_status(
 			    dev, &ld->write_file_status,
-			    UPDATE_FW_INVALID_FW_IMAGE);
+			    UPDATE_FW_SIZE_MISMATCH_HEADER);
 			goto exit_release;
 		}
 	}
@@ -3852,7 +3870,7 @@ static void _pt_pip2_firmware_cont(const struct firmware *fw,
 				 "%s: Firmware format is invalid\n", __func__);
 			_pt_update_write_file_status(
 			    dev, &ld->update_fw_status,
-			    UPDATE_FW_INVALID_FW_IMAGE);
+			    UPDATE_FW_SIZE_MISMATCH_HEADER);
 			goto pt_firmware_cont_release_exit;
 		}
 	}
@@ -3954,7 +3972,7 @@ static int _pt_pip2_update_fw_from_builtin(struct device *dev)
 			pt_debug(dev, DL_ERROR,
 				"%s: Firmware format is invalid\n", __func__);
 			_pt_update_write_file_status(dev, &ld->update_fw_status,
-				UPDATE_FW_INVALID_FW_IMAGE);
+				UPDATE_FW_SIZE_MISMATCH_HEADER);
 			ret = -EINVAL;
 			goto exit_release_fw;
 		}
@@ -4030,7 +4048,7 @@ static int _pt_pip2_update_fw_from_us(struct device *dev)
 				"%s: Firmware format is invalid\n", __func__);
 			_pt_update_write_file_status(
 			    dev, &ld->update_fw_status,
-			    UPDATE_FW_INVALID_FW_IMAGE);
+			    UPDATE_FW_SIZE_MISMATCH_HEADER);
 			goto exit;
 		}
 	}
@@ -5491,6 +5509,14 @@ static ssize_t pt_fw_status_(struct device *dev, char *buf, int status)
 		ret = sprintf(buf,
 			"ERROR: %d - Not supported file number\n", status);
 		break;
+	case UPDATE_FW_FILE_TOO_LARGE:
+		ret = sprintf(buf,
+			"ERROR: %d - FW file is too large\n", status);
+		break;
+	case UPDATE_FW_SIZE_MISMATCH_HEADER:
+		ret = sprintf(buf,
+			"ERROR: %d - FW size mismatch with header\n", status);
+		break;
 	case UPDATE_FW_UNDEFINED_ERROR:
 	default:
 		ret = sprintf(buf, "ERROR: %d - Unknown error\n", status);
@@ -5498,7 +5524,6 @@ static ssize_t pt_fw_status_(struct device *dev, char *buf, int status)
 	}
 	return ret;
 }
-
 
 /*******************************************************************************
  * FUNCTION: pt_update_fw_status_show
@@ -5588,7 +5613,7 @@ static ssize_t pt_pip2_get_last_error_show(struct device *dev,
 	}
 
 	/* Get and log the last error(s) */
-	//rc = _pt_pip2_log_last_error(dev, read_buf);
+	rc = _pt_pip2_log_last_error(dev, read_buf);
 
 exit_release:
 	cmd->release_exclusive(dev);
@@ -5722,7 +5747,7 @@ static int pt_loader_probe(struct device *dev, void **data)
 	ld = kzalloc(sizeof(*ld), GFP_KERNEL);
 	if (!ld) {
 		rc = -ENOMEM;
-		goto error_alloc_data_failed;
+		goto error_alloc_ld_data;
 	}
 
 #if PT_FW_UPGRADE
@@ -5739,7 +5764,7 @@ static int pt_loader_probe(struct device *dev, void **data)
 		pip2_data = kzalloc(sizeof(*pip2_data), GFP_KERNEL);
 		if (!pip2_data) {
 			rc = -ENOMEM;
-			goto error_alloc_data_failed;
+			goto error_alloc_pip2_data;
 		}
 		pip2_data->dev = dev;
 		ld->pip2_data = pip2_data;
@@ -5992,10 +6017,11 @@ remove_files:
 	device_remove_file(dev, &dev_attr_update_fw_status);
 #endif /* CONFIG_TOUCHSCREEN_PARADE_BINARY_FW_UPGRADE */
 
-	kfree(ld->pip2_data);
-	kfree(ld);
-error_alloc_data_failed:
 error_no_pdata:
+	kfree(ld->pip2_data);
+error_alloc_pip2_data:
+	kfree(ld);
+error_alloc_ld_data:
 	pt_debug(dev, DL_ERROR, "%s failed.\n", __func__);
 	return rc;
 }

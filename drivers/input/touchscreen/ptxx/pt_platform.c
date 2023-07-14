@@ -482,6 +482,8 @@ static int pt_setup_power_by_regulator(struct pt_core_platform_data *pdata,
 	}
 
 	if (on == PT_MT_POWER_ON) {
+		pt_debug(dev, DL_INFO,
+			"%s: ATM - Enable regulator\n", __func__);
 		rc = regulator_enable(pdata->vddi);
 		if (rc) {
 			pt_debug(dev, DL_ERROR,
@@ -509,7 +511,7 @@ static int pt_setup_power_by_regulator(struct pt_core_platform_data *pdata,
 		if (rc < 0) {
 			pt_debug(dev, DL_ERROR,
 				"%s: Output Setup ERROR: RST GPIO %d\n",
-				__func__, rst_gpio);
+				__func__, pdata->rst_gpio);
 		} else {
 			/* Force DUT into reset */
 			gpio_set_value(pdata->rst_gpio, 0);
@@ -518,6 +520,8 @@ static int pt_setup_power_by_regulator(struct pt_core_platform_data *pdata,
 		/* Record the time XRES was enabled */
 		*time = 0;
 	} else {
+		pt_debug(dev, DL_INFO,
+			"%s: ATM - Disable regulator\n", __func__);
 		rc = regulator_disable(pdata->vcc);
 		if (rc) {
 			pt_debug(dev, DL_ERROR,

@@ -113,11 +113,15 @@ struct configuration {
 	u32 cm_min_max_table_btn[TABLE_BUTTON_MAX_SIZE];
 	u32 cp_min_max_table_btn[TABLE_BUTTON_MAX_SIZE];
 	u32 cm_min_max_table_sensor[TABLE_SENSOR_MAX_SIZE];
+	u32 cm_min_max_table_delta_col[TABLE_SENSOR_MAX_SIZE];
+	u32 cm_min_max_table_delta_row[TABLE_SENSOR_MAX_SIZE];
 	u32 cp_min_max_table_rx[TABLE_RX_MAX_SIZE];
 	u32 cp_min_max_table_tx[TABLE_TX_MAX_SIZE];
 	u32 cm_min_max_table_btn_size;
 	u32 cp_min_max_table_btn_size;
 	u32 cm_min_max_table_sensor_size;
+	u32 cm_min_max_table_delta_col_size;
+	u32 cm_min_max_table_delta_row_size;
 	u32 cp_min_max_table_rx_size;
 	u32 cp_min_max_table_tx_size;
 	u32 cp_max_delta_button_percent;
@@ -127,8 +131,8 @@ struct configuration {
 	u32 cm_max_table_gradient_rows_percent_size;
 	u32 cm_excluding_row_edge;
 	u32 cm_excluding_col_edge;
-	u32 rx_num;
-	u32 tx_num;
+	u32 row_num;
+	u32 col_num;
 	u32 btn_num;
 	u32 cm_enabled;
 	u32 cp_enabled;
@@ -187,6 +191,8 @@ enum case_order {
 	MAX_BUTTON,
 	PER_ELEMENT_MIN_MAX_RX,
 	PER_ELEMENT_MIN_MAX_TX,
+	PER_ELEMENT_MIN_MAX_DELTA_COL,
+	PER_ELEMENT_MIN_MAX_DELTA_ROW,
 	CASE_ORDER_MAX,
 };
 
@@ -308,6 +314,8 @@ struct cmcp_data {
 
 	int32_t tx_num;
 	int32_t rx_num;
+	int32_t col_num;
+	int32_t row_num;
 	int32_t btn_num;
 };
 
@@ -321,6 +329,8 @@ struct result {
 	bool cm_sensor_validation_pass;
 	bool cm_sensor_row_delta_pass;
 	bool cm_sensor_col_delta_pass;
+	bool cm_sensor_per_element_row_delta_pass;
+	bool cm_sensor_per_element_col_delta_pass;
 	bool cm_sensor_gd_row_pass;
 	bool cm_sensor_gd_col_pass;
 	bool cm_sensor_calibration_pass;
@@ -409,22 +419,39 @@ static int cmcp_check_config_fw_match(struct device *dev,
 {
 	struct pt_device_access_data *dad
 		= pt_get_device_access_data(dev);
-	int32_t tx_num = dad->configs->tx_num;
-	int32_t rx_num = dad->configs->rx_num;
+	int32_t col_num, row_num;
 	int32_t button_num = dad->configs->btn_num;
 	int ret = 0;
 
-	if (tx_num != dad->si->sensing_conf_data.tx_num) {
-		pt_debug(dev, DL_ERROR,
-			"%s: TX number mismatch! CSV=%d DUT=%d\n",
-			__func__, tx_num, dad->si->sensing_conf_data.tx_num);
+	if (!dad->configs->is_valid_or_not) {
+		pt_debug(dev, DL_ERROR, "%s: Config file is invalid\n",
+			 __func__);
 		ret = -EINVAL;
 	}
 
-	if (rx_num != dad->si->sensing_conf_data.rx_num) {
+	/*
+	 * Add X_IS_TX bit in X_ORG. This is supported for all DUTs with PIP
+	 * version 1.4 or greater (001-82649 *Q).
+	 */
+	if (dad->si->sensing_conf_data.origin_x & 0x02) {
+		col_num = dad->si->sensing_conf_data.tx_num;
+		row_num = dad->si->sensing_conf_data.rx_num;
+	} else {
+		col_num = dad->si->sensing_conf_data.rx_num;
+		row_num = dad->si->sensing_conf_data.tx_num;
+	}
+
+	if (dad->configs->col_num != col_num) {
 		pt_debug(dev, DL_ERROR,
-			"%s: RX number mismatch! CSV=%d DUT=%d\n",
-			__func__, rx_num, dad->si->sensing_conf_data.rx_num);
+			"%s: Col number mismatch! CSV=%d DUT=%d\n",
+			__func__, dad->configs->col_num, col_num);
+		ret = -EINVAL;
+	}
+
+	if (dad->configs->row_num != row_num) {
+		pt_debug(dev, DL_ERROR,
+			"%s: Row number mismatch! CSV=%d DUT=%d\n",
+			__func__, dad->configs->row_num, row_num);
 		ret = -EINVAL;
 	}
 
@@ -459,10 +486,11 @@ static int validate_cm_test_results(struct device *dev,
 	struct configuration *configuration, struct cmcp_data *cmcp_info,
 	struct result *result, bool *pass, int test_item)
 {
-	int32_t tx_num = cmcp_info->tx_num;
-	int32_t rx_num = cmcp_info->rx_num;
+	struct pt_device_access_data *dad = pt_get_device_access_data(dev);
+	int32_t col_num = cmcp_info->col_num;
+	int32_t row_num = cmcp_info->row_num;
 	int32_t button_num =  cmcp_info->btn_num;
-	uint32_t sensor_num = tx_num * rx_num;
+	uint32_t sensor_num = col_num * row_num;
 	int32_t *cm_sensor_data = cmcp_info->cm_data_panel;
 	int32_t cm_button_delta;
 	int32_t cm_sensor_calibration;
@@ -473,6 +501,7 @@ static int validate_cm_test_results(struct device *dev,
 	int32_t *cm_sensor_row_delta = cmcp_info->cm_sensor_row_delta;
 	int ret = 0;
 	int i, j;
+	bool threshold_exist;
 
 	pt_debug(dev, DL_INFO, "%s: start\n", __func__);
 
@@ -484,12 +513,12 @@ static int validate_cm_test_results(struct device *dev,
 		result->cm_sensor_validation_pass = true;
 
 	for (i = 0; i < sensor_num; i++) {
-		int row = i % rx_num;
-		int col = i / rx_num;
+		int row = i / col_num;
+		int col = i % col_num;
 		int32_t cm_sensor_min =
-		  configuration->cm_min_max_table_sensor[(row*tx_num+col)*2];
+		  configuration->cm_min_max_table_sensor[(row*col_num+col)*2];
 		int32_t cm_sensor_max =
-		  configuration->cm_min_max_table_sensor[(row*tx_num+col)*2+1];
+		  configuration->cm_min_max_table_sensor[(row*col_num+col)*2+1];
 		if ((cm_sensor_data[i] < cm_sensor_min) ||
 		    (cm_sensor_data[i] > cm_sensor_max)) {
 			pt_debug(dev, DL_WARN,
@@ -538,12 +567,18 @@ static int validate_cm_test_results(struct device *dev,
 	result->cm_sensor_delta_pass = true;
 
 	/* Check each row Cm data with neighbor for difference */
-	for (i = 0; i < tx_num; i++) {
-		for (j = 1; j < rx_num; j++) {
+	threshold_exist =
+	    dad->test_field_array[PER_ELEMENT_MIN_MAX_DELTA_ROW].exist_or_not;
+	for (i = 0; i < col_num; i++) {
+		for (j = 1; j < row_num; j++) {
 			int32_t cm_sensor_row_diff =
-				ABS(cm_sensor_data[i * rx_num + j] -
-				cm_sensor_data[i * rx_num + j - 1]);
-			cm_sensor_row_delta[i * rx_num + j - 1] =
+				ABS(cm_sensor_data[j * col_num + i] -
+				cm_sensor_data[(j-1) * col_num + i]);
+			int32_t cm_row_delta_min =
+		configuration->cm_min_max_table_delta_row[(j*col_num+i)*2];
+			int32_t cm_row_delta_max =
+		configuration->cm_min_max_table_delta_row[(j*col_num+i)*2+1];
+			cm_sensor_row_delta[(j-1) * col_num + i] =
 				cm_sensor_row_diff;
 			if (cm_sensor_row_diff >
 			    configuration->cm_range_limit_row) {
@@ -554,16 +589,32 @@ static int validate_cm_test_results(struct device *dev,
 					configuration->cm_range_limit_row);
 				result->cm_sensor_row_delta_pass = false;
 			}
+			if (threshold_exist &&
+				(cm_sensor_row_diff > cm_row_delta_max ||
+				cm_sensor_row_diff < cm_row_delta_min)) {
+				pt_debug(dev, DL_DEBUG,
+					"%s: Sensor[%d,%d]:%d (%d,%d)\n",
+					"Cm sensor row per-element test",
+					j, i, cm_sensor_row_diff,
+					cm_row_delta_min, cm_row_delta_max);
+				result->cm_sensor_row_delta_pass = false;
+			}
 		}
 	}
 
 	/* Check each column Cm data with neighbor for difference */
-	for (i = 1; i < tx_num; i++) {
-		for (j = 0; j < rx_num; j++) {
+	threshold_exist =
+	    dad->test_field_array[PER_ELEMENT_MIN_MAX_DELTA_COL].exist_or_not;
+	for (i = 1; i < col_num; i++) {
+		for (j = 0; j < row_num; j++) {
 			int32_t cm_sensor_col_diff =
-				ABS((int)cm_sensor_data[i * rx_num + j] -
-				(int)cm_sensor_data[(i - 1) * rx_num + j]);
-			cm_sensor_column_delta[(i - 1) * rx_num + j] =
+			    ABS((int)cm_sensor_data[j * col_num + i] -
+				(int)cm_sensor_data[j * col_num + i - 1]);
+			int32_t cm_col_delta_min =
+		configuration->cm_min_max_table_delta_col[(j*col_num+i)*2];
+			int32_t cm_col_delta_max =
+		configuration->cm_min_max_table_delta_col[(j*col_num+i)*2+1];
+			cm_sensor_column_delta[j * col_num + i - 1] =
 				cm_sensor_col_diff;
 			if (cm_sensor_col_diff >
 			    configuration->cm_range_limit_col) {
@@ -572,6 +623,16 @@ static int validate_cm_test_results(struct device *dev,
 					"Cm sensor column range limit test",
 					j, i, cm_sensor_col_diff,
 					configuration->cm_range_limit_col);
+				result->cm_sensor_col_delta_pass = false;
+			}
+			if (threshold_exist &&
+				(cm_sensor_col_diff > cm_col_delta_max ||
+				cm_sensor_col_diff < cm_col_delta_min)) {
+				pt_debug(dev, DL_DEBUG,
+					"%s: Sensor[%d,%d]:%d (%d,%d)\n",
+					"Cm sensor column per-element test",
+					j, i, cm_sensor_col_diff,
+					cm_col_delta_min, cm_col_delta_max);
 				result->cm_sensor_col_delta_pass = false;
 			}
 		}
@@ -1071,17 +1132,16 @@ static void fill_gd_sensor_table(struct gd_sensor *head, int32_t index,
  *  function calculate_gradient_col() & calculate_gradient_row().
  *
  * PARAMETERS:
- *  *head                - pointer to gd_sensor structure
- *   index               - index of row or column
- *   cm_max              - maximum of cm
- *   cm_min              - minmum of cm
- *   cm_ave              - average of cm
- *   cm_max_exclude_edge - maximum of cm without edge data
- *   cm_min_exclude_edge - minmum of cm without edge data
- *   cm_ave_exclude_edge - average of cm without edge data
+ *  *gd_sensor_col      - pointer to gd_sensor_col structure
+ *  *gd_sensor_row      - pointer to gd_sensor_row structure
+ *   col_num            - number of col
+ *   row_num            - number of row
+ *   cm_sensor_data     - pointer to cm sensor data array
+ *   exclude_row_edge   - flag to exclude row edge(1:exclude; 0:include)
+ *   exclude_col_edge   - flag to exclude column edge(1:exclude; 0:include)
  ******************************************************************************/
 static void calculate_gd_info(struct gd_sensor *gd_sensor_col,
-	struct gd_sensor *gd_sensor_row, int tx_num, int rx_num,
+	struct gd_sensor *gd_sensor_row, int col_num, int row_num,
 	int32_t *cm_sensor_data, int cm_excluding_row_edge,
 	int cm_excluding_col_edge)
 {
@@ -1095,25 +1155,25 @@ static void calculate_gd_info(struct gd_sensor *gd_sensor_col,
 	int i;
 	int j;
 
-	/*calculate all the gradient related info for column*/
-	for (i = 0; i < tx_num; i++) {
-		/*re-initialize for a new col*/
-		cm_max = cm_sensor_data[i * rx_num];
+	/*calculate all the gradient related info for row*/
+	for (i = 0; i < row_num; i++) {
+		/*re-initialize for a new row*/
+		cm_max = cm_sensor_data[i * col_num];
 		cm_min = cm_max;
 		cm_ave = 0;
-		cm_max_exclude_edge = cm_sensor_data[i * rx_num + 1];
+		cm_max_exclude_edge = cm_sensor_data[i * col_num + 1];
 		cm_min_exclude_edge = cm_max_exclude_edge;
 		cm_ave_exclude_edge = 0;
 
-		for (j = 0; j < rx_num; j++) {
-			cm_data = cm_sensor_data[i * rx_num + j];
+		for (j = 0; j < col_num; j++) {
+			cm_data = cm_sensor_data[i * col_num + j];
 			if (cm_data > cm_max)
 				cm_max = cm_data;
 			if (cm_data < cm_min)
 				cm_min = cm_data;
 			cm_ave += cm_data;
 			/*calculate exclude edge data*/
-			if ((j > 0) && (j < (rx_num-1))) {
+			if ((j > 0) && (j < (col_num-1))) {
 				if (cm_data > cm_max_exclude_edge)
 					cm_max_exclude_edge = cm_data;
 				if (cm_data < cm_min_exclude_edge)
@@ -1121,33 +1181,32 @@ static void calculate_gd_info(struct gd_sensor *gd_sensor_col,
 				cm_ave_exclude_edge += cm_data;
 			}
 		}
-		cm_ave /= rx_num;
-		cm_ave_exclude_edge /= (rx_num-2);
-		fill_gd_sensor_table(gd_sensor_col, i, cm_max, cm_min, cm_ave,
+		cm_ave /= col_num;
+		cm_ave_exclude_edge /= (col_num-2);
+		fill_gd_sensor_table(gd_sensor_row, i, cm_max, cm_min, cm_ave,
 		cm_max_exclude_edge, cm_min_exclude_edge, cm_ave_exclude_edge);
 	}
-
-	calculate_gradient_col(gd_sensor_col, tx_num, cm_excluding_row_edge,
+	calculate_gradient_row(gd_sensor_row, row_num, cm_excluding_row_edge,
 		 cm_excluding_col_edge);
 
-	/*calculate all the gradient related info for row*/
-	for (j = 0; j < rx_num; j++) {
-		/*re-initialize for a new row*/
+	/*calculate all the gradient related info for col*/
+	for (j = 0; j < col_num; j++) {
+		/*re-initialize for a new col*/
 		cm_max = cm_sensor_data[j];
 		cm_min = cm_max;
 		cm_ave = 0;
-		cm_max_exclude_edge = cm_sensor_data[rx_num + j];
+		cm_max_exclude_edge = cm_sensor_data[col_num + j];
 		cm_min_exclude_edge = cm_max_exclude_edge;
 		cm_ave_exclude_edge = 0;
-		for (i = 0; i < tx_num; i++) {
-			cm_data = cm_sensor_data[i * rx_num + j];
+		for (i = 0; i < row_num; i++) {
+			cm_data = cm_sensor_data[i * col_num + j];
 			if (cm_data > cm_max)
 				cm_max = cm_data;
 			if (cm_data < cm_min)
 				cm_min = cm_data;
 			cm_ave += cm_data;
 			/*calculate exclude edge data*/
-			if ((i >  0) && (i < (tx_num-1))) {
+			if ((i >  0) && (i < (row_num-1))) {
 				if (cm_data > cm_max_exclude_edge)
 					cm_max_exclude_edge = cm_data;
 				if (cm_data < cm_min_exclude_edge)
@@ -1155,12 +1214,12 @@ static void calculate_gd_info(struct gd_sensor *gd_sensor_col,
 				cm_ave_exclude_edge += cm_data;
 			}
 		}
-		cm_ave /= tx_num;
-		cm_ave_exclude_edge /= (tx_num-2);
-		fill_gd_sensor_table(gd_sensor_row, j, cm_max, cm_min, cm_ave,
+		cm_ave /= row_num;
+		cm_ave_exclude_edge /= (row_num-2);
+		fill_gd_sensor_table(gd_sensor_col, j, cm_max, cm_min, cm_ave,
 		cm_max_exclude_edge, cm_min_exclude_edge, cm_ave_exclude_edge);
 	}
-	calculate_gradient_row(gd_sensor_row, rx_num, cm_excluding_row_edge,
+	calculate_gradient_col(gd_sensor_col, col_num, cm_excluding_row_edge,
 		 cm_excluding_col_edge);
 }
 
@@ -1211,11 +1270,23 @@ static int  pt_get_cmcp_info(struct pt_device_access_data *dad,
 	int rx_num;
 	int btn_num;
 	int rc = 0;
+	int index;
 	int i;
 
 	dev = dad->dev;
 	cmcp_info->tx_num = dad->si->sensing_conf_data.tx_num;
 	cmcp_info->rx_num = dad->si->sensing_conf_data.rx_num;
+	/*
+	 * Add X_IS_TX bit in X_ORG. This is supported for all DUTs with PIP
+	 * version 1.4 or greater (001-82649 *Q).
+	 */
+	if (dad->si->sensing_conf_data.origin_x & 0x02) {
+		cmcp_info->col_num = cmcp_info->tx_num;
+		cmcp_info->row_num = cmcp_info->rx_num;
+	} else {
+		cmcp_info->col_num = cmcp_info->rx_num;
+		cmcp_info->row_num = cmcp_info->tx_num;
+	}
 	cmcp_info->btn_num = dad->si->num_btns;
 
 	tx_num = cmcp_info->tx_num;
@@ -1247,24 +1318,41 @@ static int  pt_get_cmcp_info(struct pt_device_access_data *dad,
 		pt_debug(dev, DL_ERROR, "Get CM Panel not supported\n");
 		goto exit;
 	}
+	/*
+	 * Unify CM data array according to X_IS_TX bit in X_ORG with format:
+	 * ROW0COL0, ROW0COL1,...,ROW1COL0, ROW1COL1,...
+	 */
 	if (cm_data_panel != NULL) {
-		for (i = 0; i < tx_num * rx_num;  i++) {
-			cm_data_panel[i] =
-			10*(dad->ic_buf[CM_PANEL_DATA_OFFSET+i*2] + 256
-			* dad->ic_buf[CM_PANEL_DATA_OFFSET+i*2+1]);
-			pt_debug(dev, DL_DEBUG,
-				"cm_data_panel[%d]=%d\n",
-				i, cm_data_panel[i]);
-			cm_ave_data_panel += cm_data_panel[i];
+		if (dad->si->sensing_conf_data.origin_x & 0x02) {
+			for (i = 0; i < tx_num * rx_num;  i++) {
+				index = (i % rx_num) * tx_num + i / rx_num;
+				cm_data_panel[index] =
+				10*(dad->ic_buf[CM_PANEL_DATA_OFFSET+i*2] + 256
+				* dad->ic_buf[CM_PANEL_DATA_OFFSET+i*2+1]);
+				pt_debug(dev, DL_DEBUG,
+					 "cm_data_panel[%d]=%d\n", index,
+					 cm_data_panel[index]);
+				cm_ave_data_panel += cm_data_panel[index];
+			}
+		} else {
+			for (i = 0; i < tx_num * rx_num;  i++) {
+				cm_data_panel[i] =
+				10*(dad->ic_buf[CM_PANEL_DATA_OFFSET+i*2] + 256
+				* dad->ic_buf[CM_PANEL_DATA_OFFSET+i*2+1]);
+				pt_debug(dev, DL_DEBUG,
+					"cm_data_panel[%d]=%d\n",
+					i, cm_data_panel[i]);
+				cm_ave_data_panel += cm_data_panel[i];
+			}
 		}
 		cm_ave_data_panel /= (tx_num * rx_num);
 		cmcp_info->cm_ave_data_panel = cm_ave_data_panel;
 	}
 
 	/* Calculate gradient panel sensor column/row here */
-	calculate_gd_info(gd_sensor_col, gd_sensor_row, tx_num, rx_num,
-		cm_data_panel, 1, 1);
-	for (i = 0; i < tx_num; i++) {
+	calculate_gd_info(gd_sensor_col, gd_sensor_row, cmcp_info->col_num,
+			  cmcp_info->row_num, cm_data_panel, 1, 1);
+	for (i = 0; i < cmcp_info->col_num; i++) {
 		pt_debug(dev, DL_DEBUG,
 			"i=%d max=%d,min=%d,ave=%d, gradient=%d\n", i,
 			gd_sensor_col[i].cm_max,
@@ -1273,7 +1361,7 @@ static int  pt_get_cmcp_info(struct pt_device_access_data *dad,
 			gd_sensor_col[i].gradient_val);
 	}
 
-	for (i = 0; i < rx_num; i++) {
+	for (i = 0; i < cmcp_info->row_num; i++) {
 		pt_debug(dev, DL_DEBUG,
 			"i=%d max=%d,min=%d,ave=%d, gradient=%d\n", i,
 			gd_sensor_row[i].cm_max,
@@ -2129,6 +2217,8 @@ static int save_engineering_data(struct device *dev, char *out_buf, int index,
 {
 	int i;
 	int j;
+	int col_num = cmcp_info->col_num;
+	int row_num = cmcp_info->row_num;
 	int tx_num = cmcp_info->tx_num;
 	int rx_num = cmcp_info->rx_num;
 	int btn_num = cmcp_info->btn_num;
@@ -2136,6 +2226,7 @@ static int save_engineering_data(struct device *dev, char *out_buf, int index,
 	uint32_t fw_revision_control;
 	uint32_t fw_config_ver;
 	char device_id[20] = {0};
+	bool threshold_exist;
 	struct pt_device_access_data *dad
 		= pt_get_device_access_data(dev);
 
@@ -2198,7 +2289,7 @@ static int save_engineering_data(struct device *dev, char *out_buf, int index,
 
 		if ((test_item & CM_PANEL) == CM_PANEL) {
 			/*print CM_DATA_ROW*/
-			for (i = 0; i < rx_num; i++) {
+			for (i = 0; i < row_num; i++) {
 				index = print_silicon_id(out_buf, &device_id[0],
 							index);
 				index = prepare_print_string(out_buf,
@@ -2206,9 +2297,9 @@ static int save_engineering_data(struct device *dev, char *out_buf, int index,
 							index);
 				index = prepare_print_data(out_buf, &i,
 							index, 1);
-				for (j = 0; j < tx_num; j++)
+				for (j = 0; j < col_num; j++)
 					index = prepare_print_data(out_buf,
-					&cmcp_info->cm_data_panel[j*rx_num+i],
+					&cmcp_info->cm_data_panel[i*col_num+j],
 					index, 1);
 				index = prepare_print_string(out_buf,
 					"\n", index);
@@ -2221,7 +2312,7 @@ static int save_engineering_data(struct device *dev, char *out_buf, int index,
 				index = prepare_print_string(out_buf,
 					 ",Sensor Cm Validation,CM_MAX_GRADIENT_COLS_PERCENT,",
 					index);
-				for (i = 0; i < tx_num; i++) {
+				for (i = 0; i < col_num; i++) {
 					char tmp_buf[10] = {0};
 
 					scnprintf(tmp_buf, 10, "%d.%d,",
@@ -2239,7 +2330,7 @@ static int save_engineering_data(struct device *dev, char *out_buf, int index,
 				index = prepare_print_string(out_buf,
 			",Sensor Cm Validation,CM_MAX_GRADIENT_ROWS_PERCENT,",
 					index);
-				for (i = 0; i < rx_num; i++) {
+				for (i = 0; i < row_num; i++) {
 					char tmp_buf[10] = {0};
 
 					scnprintf(tmp_buf, 10, "%d.%d,",
@@ -2253,7 +2344,7 @@ static int save_engineering_data(struct device *dev, char *out_buf, int index,
 
 				if (!dad->cmcp_range_check) {
 					/*print CM_DELTA_COLUMN*/
-					for (i = 0; i < rx_num; i++) {
+					for (i = 0; i < row_num; i++) {
 						index = print_silicon_id(
 							out_buf,
 							&device_id[0], index);
@@ -2267,10 +2358,10 @@ static int save_engineering_data(struct device *dev, char *out_buf, int index,
 						index = prepare_print_data(
 							out_buf,
 							&tmp, index, 1);
-					for (j = 1; j < tx_num; j++)
+					for (j = 1; j < col_num; j++)
 						index = prepare_print_data(
 						out_buf,
-			&cmcp_info->cm_sensor_column_delta[(j-1)*rx_num+i],
+			&cmcp_info->cm_sensor_column_delta[i*col_num+j-1],
 						index, 1);
 						index = prepare_print_string(
 								out_buf,
@@ -2286,14 +2377,14 @@ static int save_engineering_data(struct device *dev, char *out_buf, int index,
 								index);
 					index = prepare_print_data(out_buf,
 								&tmp, index, 1);
-					for (j = 0; j < tx_num; j++)
+					for (j = 0; j < col_num; j++)
 						index = prepare_print_data(
 								out_buf,
 								&tmp, index, 1);
 					index = prepare_print_string(out_buf,
 								"\n", index);
 
-					for (i = 1; i < rx_num; i++) {
+					for (i = 1; i < row_num; i++) {
 						index = print_silicon_id(
 								out_buf,
 								&device_id[0],
@@ -2305,10 +2396,10 @@ static int save_engineering_data(struct device *dev, char *out_buf, int index,
 						index = prepare_print_data(
 								out_buf, &i,
 								index, 1);
-					for (j = 0; j < tx_num; j++)
+					for (j = 0; j < col_num; j++)
 						index = prepare_print_data(
 							out_buf,
-				&cmcp_info->cm_sensor_row_delta[j*rx_num+i-1],
+			&cmcp_info->cm_sensor_row_delta[(i-1)*col_num+j],
 							index, 1);
 						index = prepare_print_string(
 							out_buf,
@@ -2800,16 +2891,56 @@ static int save_engineering_data(struct device *dev, char *out_buf, int index,
 					"\n", index);
 
 				/*print cm max limit*/
-				for (i = 0; i < rx_num; i++) {
+				for (i = 0; i < row_num; i++) {
 					index = prepare_print_string(out_buf,
 						",Sensor Cm Validation,MAX_LIMITS,CM_DATA_ROW",
 						index);
 					index = prepare_print_data(out_buf,
 						&i, index, 1);
-					for (j = 0; j < tx_num; j++)
+					for (j = 0; j < col_num; j++)
 						index = prepare_print_data(
 							out_buf,
-		&configuration->cm_min_max_table_sensor[i*tx_num*2+j*2+1],
+		&configuration->cm_min_max_table_sensor[i*col_num*2+j*2+1],
+							index, 1);
+					index = prepare_print_string(out_buf,
+						"\n", index);
+				}
+
+				/*print cm delta column limit*/
+				threshold_exist =
+	dad->test_field_array[PER_ELEMENT_MIN_MAX_DELTA_COL].exist_or_not;
+				for (i = 0; i < row_num; i++) {
+					if (!threshold_exist)
+						break;
+					index = prepare_print_string(out_buf,
+						",Sensor Cm Validation,MAX_LIMITS,DELTA_COLUMNS_ROW",
+						index);
+					index = prepare_print_data(out_buf,
+						&i, index, 1);
+					for (j = 0; j < col_num; j++)
+						index = prepare_print_data(
+							out_buf,
+		&configuration->cm_min_max_table_delta_col[i*col_num*2+j*2+1],
+							index, 1);
+					index = prepare_print_string(out_buf,
+						"\n", index);
+				}
+
+				threshold_exist =
+	dad->test_field_array[PER_ELEMENT_MIN_MAX_DELTA_ROW].exist_or_not;
+				/*print cm delta row limit*/
+				for (i = 0; i < row_num; i++) {
+					if (!threshold_exist)
+						break;
+					index = prepare_print_string(out_buf,
+						",Sensor Cm Validation,MAX_LIMITS,DELTA_ROWS_ROW",
+						index);
+					index = prepare_print_data(out_buf,
+						&i, index, 1);
+					for (j = 0; j < col_num; j++)
+						index = prepare_print_data(
+							out_buf,
+		&configuration->cm_min_max_table_delta_row[i*col_num*2+j*2+1],
 							index, 1);
 					index = prepare_print_string(out_buf,
 						"\n", index);
@@ -2834,16 +2965,55 @@ static int save_engineering_data(struct device *dev, char *out_buf, int index,
 
 			if ((test_item & CM_PANEL) == CM_PANEL) {
 				/*print cm min limit*/
-				for (i = 0; i < rx_num; i++) {
+				for (i = 0; i < row_num; i++) {
 					index = prepare_print_string(out_buf,
 						",Sensor Cm Validation,MIN_LIMITS,CM_DATA_ROW",
 						index);
 					index = prepare_print_data(out_buf, &i,
 						index, 1);
-					for (j = 0; j < tx_num; j++)
+					for (j = 0; j < col_num; j++)
 						index = prepare_print_data(
 							out_buf,
-		&configuration->cm_min_max_table_sensor[i*tx_num*2 + j*2],
+		&configuration->cm_min_max_table_sensor[i*col_num*2 + j*2],
+							index, 1);
+					index = prepare_print_string(out_buf,
+						"\n", index);
+				}
+				/*print cm delta column min limit*/
+				threshold_exist =
+	dad->test_field_array[PER_ELEMENT_MIN_MAX_DELTA_COL].exist_or_not;
+				for (i = 0; i < row_num; i++) {
+					if (!threshold_exist)
+						break;
+					index = prepare_print_string(out_buf,
+						",Sensor Cm Validation,MIN_LIMITS,DELTA_COLUMNS_ROW",
+						index);
+					index = prepare_print_data(out_buf,
+						&i, index, 1);
+					for (j = 0; j < col_num; j++)
+						index = prepare_print_data(
+							out_buf,
+		&configuration->cm_min_max_table_delta_col[i*col_num*2 + j*2],
+							index, 1);
+					index = prepare_print_string(out_buf,
+						"\n", index);
+				}
+
+				/*print cm delta row min limit*/
+				threshold_exist =
+	dad->test_field_array[PER_ELEMENT_MIN_MAX_DELTA_ROW].exist_or_not;
+				for (i = 0; i < row_num; i++) {
+					if (!threshold_exist)
+						break;
+					index = prepare_print_string(out_buf,
+						",Sensor Cm Validation,MIN_LIMITS,DELTA_ROWS_ROW",
+						index);
+					index = prepare_print_data(out_buf,
+						&i, index, 1);
+					for (j = 0; j < col_num; j++)
+						index = prepare_print_data(
+							out_buf,
+		&configuration->cm_min_max_table_delta_row[i*col_num*2 + j*2],
 							index, 1);
 					index = prepare_print_string(out_buf,
 						"\n", index);
@@ -3516,8 +3686,9 @@ static void cmcp_get_configuration_info(struct device *dev,
 static void cmcp_get_basic_info(struct device *dev,
 	struct test_case_field *field_array, struct configuration *config)
 {
-	u32 tx_num = 0;
+	u32 col_num = 0, row_num = 0;
 	u32 index = 0;
+	bool threshold_exist;
 
 	config->is_valid_or_not = 1; /* Set to valid by default */
 	config->cm_enabled = 0;
@@ -3533,12 +3704,12 @@ static void cmcp_get_basic_info(struct device *dev,
 		pt_debug(dev, DL_INFO,
 			"%s: Find CM and CP thresholds\n", __func__);
 
-		config->rx_num =
+		config->row_num =
 			field_array[PER_ELEMENT_MIN_MAX_TABLE_SENSOR].line_num;
-		tx_num =
+		col_num =
 		(field_array[PER_ELEMENT_MIN_MAX_TABLE_SENSOR].data_num >> 1)
 			/field_array[PER_ELEMENT_MIN_MAX_TABLE_SENSOR].line_num;
-		config->tx_num = tx_num;
+		config->col_num = col_num;
 
 		config->btn_num =
 		field_array[PER_ELEMENT_MIN_MAX_TABLE_BUTTON].data_num >> 1;
@@ -3547,6 +3718,10 @@ static void cmcp_get_basic_info(struct device *dev,
 			field_array[PER_ELEMENT_MIN_MAX_TABLE_BUTTON].data_num;
 		config->cm_min_max_table_sensor_size =
 			field_array[PER_ELEMENT_MIN_MAX_TABLE_SENSOR].data_num;
+		config->cm_min_max_table_delta_col_size =
+			field_array[PER_ELEMENT_MIN_MAX_DELTA_COL].data_num;
+		config->cm_min_max_table_delta_row_size =
+			field_array[PER_ELEMENT_MIN_MAX_DELTA_ROW].data_num;
 		config->cp_min_max_table_rx_size =
 			field_array[PER_ELEMENT_MIN_MAX_RX].data_num;
 		config->cp_min_max_table_tx_size =
@@ -3573,36 +3748,38 @@ static void cmcp_get_basic_info(struct device *dev,
 		index++)
 			pt_debug(dev, DL_DEBUG, "%d\n",
 			config->cm_max_table_gradient_rows_percent[index]);
-			pt_debug(dev, DL_DEBUG, "%d\n",
-				config->cm_range_limit_row);
-			pt_debug(dev, DL_DEBUG, "%d\n",
-				config->cm_range_limit_col);
-			pt_debug(dev, DL_DEBUG, "%d\n",
-				config->cm_min_limit_cal);
-			pt_debug(dev, DL_DEBUG, "%d\n",
-				config->cm_max_limit_cal);
-			pt_debug(dev, DL_DEBUG, "%d\n",
-				config->cm_max_delta_sensor_percent);
-			pt_debug(dev, DL_DEBUG, "%d\n",
-				config->cm_max_delta_button_percent);
+		pt_debug(dev, DL_DEBUG, "%d\n", config->cm_range_limit_row);
+		pt_debug(dev, DL_DEBUG, "%d\n", config->cm_range_limit_col);
+		pt_debug(dev, DL_DEBUG, "%d\n", config->cm_min_limit_cal);
+		pt_debug(dev, DL_DEBUG, "%d\n", config->cm_max_limit_cal);
+		pt_debug(dev, DL_DEBUG, "%d\n",
+			 config->cm_max_delta_sensor_percent);
+		pt_debug(dev, DL_DEBUG, "%d\n",
+			 config->cm_max_delta_button_percent);
 		for (index = 0;
 		index < config->cm_min_max_table_btn_size; index++)
 			pt_debug(dev, DL_DEBUG, "%d\n",
 				config->cm_min_max_table_btn[index]);
-		for (index = 0;
-			index < config->cm_min_max_table_sensor_size; index++)
+		for (index = 0; index < config->cm_min_max_table_sensor_size;
+		     index++)
 			pt_debug(dev, DL_DEBUG, "%d\n",
 				config->cm_min_max_table_sensor[index]);
+		for (index = 0; index < config->cm_min_max_table_delta_col_size;
+		     index++)
 			pt_debug(dev, DL_DEBUG, "%d\n",
-				config->cp_max_delta_sensor_rx_percent);
+				config->cm_min_max_table_delta_col[index]);
+		for (index = 0; index < config->cm_min_max_table_delta_row_size;
+		     index++)
 			pt_debug(dev, DL_DEBUG, "%d\n",
-				config->cp_max_delta_sensor_tx_percent);
-			pt_debug(dev, DL_DEBUG, "%d\n",
-				config->cp_max_delta_button_percent);
-			pt_debug(dev, DL_DEBUG, "%d\n",
-				config->min_button);
-			pt_debug(dev, DL_DEBUG, "%d\n",
-				config->max_button);
+				 config->cm_min_max_table_delta_row[index]);
+		pt_debug(dev, DL_DEBUG, "%d\n",
+			 config->cp_max_delta_sensor_rx_percent);
+		pt_debug(dev, DL_DEBUG, "%d\n",
+			 config->cp_max_delta_sensor_tx_percent);
+		pt_debug(dev, DL_DEBUG, "%d\n",
+			 config->cp_max_delta_button_percent);
+		pt_debug(dev, DL_DEBUG, "%d\n", config->min_button);
+		pt_debug(dev, DL_DEBUG, "%d\n", config->max_button);
 
 		for (index = 0;
 		index < config->cp_min_max_table_btn_size; index++)
@@ -3624,6 +3801,63 @@ static void cmcp_get_basic_info(struct device *dev,
 			config->is_valid_or_not = 0;
 			pt_debug(dev, DL_ERROR, "Invalid mutual data length\n");
 		}
+
+		/* Invalid CM Delta Column threshold */
+		threshold_exist =
+		    field_array[PER_ELEMENT_MIN_MAX_DELTA_COL].exist_or_not;
+		if (!threshold_exist)
+			goto skip_cm_delta_col;
+
+		if ((field_array[PER_ELEMENT_MIN_MAX_DELTA_COL].data_num >>
+		1) % field_array[PER_ELEMENT_MIN_MAX_DELTA_COL].line_num) {
+			config->is_valid_or_not = 0;
+			pt_debug(dev, DL_ERROR, "Invalid mutual data length\n");
+		}
+		row_num = field_array[PER_ELEMENT_MIN_MAX_DELTA_COL].line_num;
+		if (config->row_num != row_num) {
+			config->is_valid_or_not = 0;
+			pt_debug(dev, DL_ERROR,
+				"Row number mismatch, Expect=%d, Delta_col=%d\n",
+				config->row_num, row_num);
+		}
+		col_num =
+		    (field_array[PER_ELEMENT_MIN_MAX_DELTA_COL].data_num >> 1) /
+		    row_num;
+		if (config->col_num != col_num) {
+			config->is_valid_or_not = 0;
+			pt_debug(dev, DL_ERROR,
+			    "Col number mismatch, Expect=%d, Delta_col=%d\n",
+			    config->col_num, col_num);
+		}
+
+skip_cm_delta_col:
+		/* Invalid CM Delta Row threshold */
+		threshold_exist =
+		    field_array[PER_ELEMENT_MIN_MAX_DELTA_ROW].exist_or_not;
+		if (!threshold_exist)
+			goto exit;
+
+		if ((field_array[PER_ELEMENT_MIN_MAX_DELTA_ROW].data_num >>
+		1) % field_array[PER_ELEMENT_MIN_MAX_DELTA_ROW].line_num) {
+			config->is_valid_or_not = 0;
+			pt_debug(dev, DL_ERROR, "Invalid mutual data length\n");
+		}
+		row_num = field_array[PER_ELEMENT_MIN_MAX_DELTA_ROW].line_num;
+		if (config->row_num != row_num) {
+			config->is_valid_or_not = 0;
+			pt_debug(dev, DL_ERROR,
+				"Row number mismatch, Expect=%d, Delta_row=%d\n",
+				config->row_num, row_num);
+		}
+		col_num =
+		    (field_array[PER_ELEMENT_MIN_MAX_DELTA_ROW].data_num >> 1) /
+		    row_num;
+		if (config->col_num != col_num) {
+			config->is_valid_or_not = 0;
+			pt_debug(dev, DL_ERROR,
+			    "Col number mismatch, Expect=%d, Delta_row=%d\n",
+			    config->col_num, col_num);
+		}
 	} else {
 		if (!config->cm_enabled)
 			pt_debug(dev, DL_ERROR,
@@ -3635,26 +3869,27 @@ static void cmcp_get_basic_info(struct device *dev,
 				"%s: Miss CP thresholds or CP data format is wrong!\n",
 				__func__);
 
-		config->rx_num = 0;
-		config->tx_num = 0;
+		config->row_num = 0;
+		config->col_num = 0;
 		config->btn_num = 0;
 		config->is_valid_or_not = 0;
 	}
 
+exit:
 	pt_debug(dev, DL_DEBUG,
 		"%s:\n"
 		"Input file is %s!\n"
 		"CM test: %s\n"
 		"CP test: %s\n"
-		"rx_num is %d\n"
-		"tx_num is %d\n"
+		"row_num is %d\n"
+		"col_num is %d\n"
 		"btn_num is %d\n",
 		__func__,
 		config->is_valid_or_not == 1 ? "VALID" : "!!! INVALID !!!",
 		config->cm_enabled == 1 ? "Found" : "Not found",
 		config->cp_enabled == 1 ? "Found" : "Not found",
-		config->rx_num,
-		config->tx_num,
+		config->row_num,
+		config->col_num,
 		config->btn_num);
 }
 
@@ -3722,6 +3957,10 @@ static void cmcp_test_case_field_init(struct test_case_field *test_field_array,
 				&configs->cp_min_max_table_rx[0], 0, 0, 0},
 		{"PER_ELEMENT_MIN_MAX_TX", 22, TEST_CASE_TYPE_MUL,
 				&configs->cp_min_max_table_tx[0], 0, 0, 0},
+		{"PER_ELEMENT_MIN_MAX_DELTA_COL", 29, TEST_CASE_TYPE_MUL_LINES,
+			&configs->cm_min_max_table_delta_col[0], 0, 0, 0},
+		{"PER_ELEMENT_MIN_MAX_DELTA_ROW", 29, TEST_CASE_TYPE_MUL_LINES,
+			&configs->cm_min_max_table_delta_row[0], 0, 0, 0},
 	};
 
 	memcpy(test_field_array, test_case_field_array,

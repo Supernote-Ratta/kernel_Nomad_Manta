@@ -112,7 +112,7 @@
 #define PT_MAX_ELEN 100
 #endif
 
-#define PT_STATUS_STR_LEN (50)
+#define PT_STATUS_STR_LEN (100)
 
 /*
  * The largest PIP message is the PIP2 FILE_WRITE which has:
@@ -215,7 +215,8 @@ enum PT_PIP_REPORT_ID {
 	PT_PIP_NON_HID_RESPONSE_ID         = 0x1F,
 	PT_PIP_NON_HID_COMMAND_ID          = 0x2F,
 	PT_PIP_BL_RESPONSE_REPORT_ID       = 0x30,
-	PT_PIP_BL_COMMAND_REPORT_ID        = 0x40
+	PT_PIP_BL_COMMAND_REPORT_ID        = 0x40,
+	PT_PIP_FW_DEBUG_DATA_REPORT_ID     = 0x45
 };
 
 enum PT_HID_REPORT_ID {
@@ -260,6 +261,7 @@ enum PT_HID_REPORT_ID {
 #define PIP1_SYSINFO_MAX_BTN                       8
 
 #define PIP1_SENSOR_DATA_MODE_DP_COUNT            25
+#define PIP1_FW_DBG_DATA_FORMAT_ID_OFFSET         6
 
 #define HID_SYSINFO_TTDATA_OFFSET                  6
 #define HID_SYSINFO_SENSING_OFFSET                34
@@ -274,6 +276,7 @@ enum PT_HID_REPORT_ID {
 #define PT_REQUEST_ENUM_TIMEOUT                 4000
 #define PT_GET_HID_DESCRIPTOR_TIMEOUT            500
 #define PT_HID_GET_REPORT_DESCRIPTOR_TIMEOUT     500
+#define PT_HID_MULTI_RSP_DEFAULT_TIMEOUT         250
 #define PT_HID_CMD_DEFAULT_TIMEOUT               500
 #define PT_PIP_CMD_DEFAULT_TIMEOUT              2000
 #define PT_PIP1_CMD_DEFAULT_TIMEOUT             1000
@@ -405,8 +408,8 @@ enum PT_HID_REPORT_ID {
 #define PT_DRV_DBG_STOP_WD                   105
 #define PT_DRV_DBG_START_WD                  106
 #define PT_DRV_DBG_TTHE_TUNER_EXIT           107
-#define	PT_DRV_DBG_TTHE_BUF_CLEAN            108
-#define	PT_DRV_DBG_CLEAR_PARM_LIST           110
+#define PT_DRV_DBG_TTHE_BUF_CLEAN            108 /* depricated */
+#define PT_DRV_DBG_CLEAR_PARM_LIST           110
 #define PT_DRV_DBG_FORCE_BUS_READ            111
 #define PT_DRV_DBG_CLEAR_CAL_DATA            112
 #define PT_DUT_DBG_REPORT_DESC               113
@@ -442,6 +445,8 @@ enum PT_HID_REPORT_ID {
 #define PT_DRV_DBG_CORE_SET_XRES_LEVEL       222
 #define PT_DRV_DBG_CORE_ENTER_BL_METHOD      223
 #define PT_DRV_DBG_DUAL_MCU_AVAILABLE        224
+#define PT_DRV_DBG_HID_MULTI_RSP_TIMEOUT     225
+#define PT_DRV_DBG_PIP_WAIT_MODE             226
 
 #ifdef TTDL_PTVIRTDUT_SUPPORT
 #define PT_DRV_DBG_SET_HW_DETECT             298
@@ -484,6 +489,10 @@ enum PT_HID_REPORT_ID {
 #define HID_PT_TCH_COL_USAGE_PG           0x000D0004
 #define HID_PT_BTN_COL_USAGE_PG           0xFF010020
 #define HID_PT_PEN_COL_USAGE_PG           0x000D0020
+#define HID_PT_PIP3_CMD_USAGE_PG          0xFF030003
+#define HID_PEN_GETSET_FEATURE_USAGE_PG   0x000D0038
+#define HID_PEN_DIAGNOSE_USAGE_PG         0x000D0080
+#define HID_PEN_SET_TRANSDUCER_USAGE_PG   0x000D00A6
 
 #define PANEL_ID_NOT_ENABLED	0xFF
 
@@ -553,6 +562,12 @@ enum hid_command {
 	HID_CMD_VENDOR         = 0xE,
 };
 
+enum hid_cmd_report_type {
+	INPUT_REPORT        = 0x01,
+	OUTPUT_REPORT       = 0x02,
+	FEATURE_REPORT      = 0x03,
+};
+
 enum PIP1_cmd_type {
 	PIP1_CMD_TYPE_FW,
 	PIP1_CMD_TYPE_BL,
@@ -593,6 +608,7 @@ enum PIP1_CMD_ID {
 	PIP1_CMD_ID_GET_SELF_TEST_RESULT        = 0x27,
 	PIP1_CMD_ID_CALIBRATE_IDACS             = 0x28,
 	PIP1_CMD_ID_INITIALIZE_BASELINES        = 0x29,
+	PIP1_CMD_ID_FW_DEBUG_MODE               = 0x2F,
 	PIP1_CMD_ID_EXEC_PANEL_SCAN             = 0x2A,
 	PIP1_CMD_ID_RETRIEVE_PANEL_SCAN         = 0x2B,
 	PIP1_CMD_ID_START_SENSOR_DATA_MODE      = 0x2C,
@@ -641,7 +657,7 @@ enum PIP2_CMD_ID {
 };
 
 enum PIP2_STATUS_EXEC_RUNNING {
-	PIP2_STATUS_BOOT_EXEC           = 0x00,
+	PIP2_STATUS_BL_EXEC             = 0x00,
 	PIP2_STATUS_APP_EXEC            = 0x01,
 };
 
@@ -653,7 +669,8 @@ enum PIP2_FW_SYSTEM_MODE {
 	FW_SYS_MODE_TEST                = 0x03,
 	FW_SYS_MODE_DEEP_STANDBY        = 0x04,
 	FW_SYS_MODE_SECONDARY_IMAGE     = 0x05,
-	FW_SYS_MODE_MAX                 = FW_SYS_MODE_SECONDARY_IMAGE,
+	FW_SYS_MODE_UTILITY_IMAGE       = 0x06,
+	FW_SYS_MODE_MAX                 = FW_SYS_MODE_UTILITY_IMAGE,
 	FW_SYS_MODE_UNDEFINED           = FW_SYS_MODE_MAX + 1,
 };
 
@@ -744,8 +761,9 @@ enum PIP2_RSP_ERR {
 #define PIP2_FILE_IOCTL_CODE_FILE_STATS		3
 #define PIP2_FILE_IOCTL_CODE_FILE_CRC		4
 
-struct pip2_cmd_response_structure {
+struct pip_cmd_response_structure {
 	u8 id;
+	u8 pip_minor_ver;
 	u16 response_len;
 	u32 response_time_min;
 	u32 response_time_max;
@@ -762,6 +780,20 @@ struct pip2_cmd_response_structure {
 #define HID_RESP_CMD_ID_OFFSET             (7)
 #define HID_RESP_STATUS_OFFSET             (8)
 #define HID_RESP_SENSOR_DATA_OFFSET        (10)
+
+/* HID response offset in payload */
+#define HID_PAYLOAD_RESP_SEQ_OFFSET        (2)
+#define HID_PAYLOAD_RESP_CMD_ID_OFFSET     (3)
+#define HID_PAYLOAD_RESP_STATUS_OFFSET     (4)
+
+/* HID asynchronous report offset */
+#define HID_FW_DBG_DATA_TIMESTAMP_OFFSET   (8)
+#define HID_FW_DBG_DATA_FORMAT_ID_OFFSET   (10)
+
+/* PIP3 GET_DATA_BLOCK response offset in payload */
+#define HID_PAYLOAD_RESP_EBID_OFFSET       (5)
+#define HID_PAYLOAD_RESP_ARL_OFFSET        (6)
+#define HID_PAYLOAD_RESP_DATA_OFFSET       (8)
 
 /*
  * Calculate the memory to store whole packets for PIP embedded HID response.
@@ -803,42 +835,42 @@ struct pip2_cmd_response_structure {
  */
 #define HID_BUF_OP_BUFFER_SIZE             (10 * PT_MAX_PRBUF_SIZE)
 
-/* PURE HID command IDs */
-enum PURE_HID_CMD_ID {
-	HID_CMD_ID_NULL                        = 0x00,
-	HID_CMD_ID_STATUS                      = 0x01,
-	HID_CMD_ID_SWITCH_IMAGE                = 0x04,
-	HID_CMD_ID_VERSION                     = 0x07,
-	HID_CMD_ID_VERIFY_CONFIG_BLOCK_CRC     = 0x20,
-	HID_CMD_ID_GET_CONFIG_ROW_SIZE         = 0x21,
-	HID_CMD_ID_READ_DATA_BLOCK             = 0x22,
-	HID_CMD_ID_WRITE_DATA_BLOCK            = 0x23,
-	HID_CMD_ID_GET_DATA_STRUCTURE          = 0x24,
-	HID_CMD_ID_LOAD_SELF_TEST_PARAM        = 0x25,
-	HID_CMD_ID_RUN_SELF_TEST               = 0x26,
-	HID_CMD_ID_GET_SELF_TEST_RESULT        = 0x27,
-	HID_CMD_ID_CALIBRATE_IDACS             = 0x28,
-	HID_CMD_ID_INITIALIZE_BASELINES        = 0x29,
-	HID_CMD_ID_EXEC_PANEL_SCAN             = 0x2A,
-	HID_CMD_ID_RETRIEVE_PANEL_SCAN         = 0x2B,
-	HID_CMD_ID_START_SENSOR_DATA_MODE      = 0x2C,
-	HID_CMD_ID_STOP_SENSOR_DATA_MODE       = 0x2D,
-	HID_CMD_ID_START_TRACKING_HEATMAP_MODE = 0x2E,
-	HID_CMD_ID_CALIBRATE_DEVICE_EXTENDED   = 0x30,
-	HID_CMD_ID_START_BOOTLOADER            = 0x31,
-	HID_CMD_ID_GET_SYSINFO                 = 0x32,
-	HID_CMD_ID_SUSPEND_SCANNING            = 0x33,
-	HID_CMD_ID_RESUME_SCANNING             = 0x34,
-	HID_CMD_ID_GET_PARAM                   = 0x35,
-	HID_CMD_ID_SET_PARAM                   = 0x36,
-	HID_CMD_ID_GET_NOISE_METRICS           = 0x37,
-	HID_CMD_ID_ENTER_EASYWAKE_STATE        = 0x39,
-	HID_CMD_ID_SET_DBG_PARAMETER           = 0x3A,
-	HID_CMD_ID_GET_DBG_PARAMETER           = 0x3B,
-	HID_CMD_ID_SET_DDI_REG                 = 0x3C,
-	HID_CMD_ID_GET_DDI_REG                 = 0x3D,
-	HID_CMD_ID_REALTIME_SIGNAL_MODE        = 0x3E,
-	HID_CMD_ID_END                         = 0x7F,
+/* PIP3 command IDs */
+enum PIP3_CMD_ID {
+	PIP3_CMD_ID_NULL                        = 0x00,
+	PIP3_CMD_ID_STATUS                      = 0x01,
+	PIP3_CMD_ID_SWITCH_IMAGE                = 0x04,
+	PIP3_CMD_ID_VERSION                     = 0x07,
+	PIP3_CMD_ID_VERIFY_CONFIG_BLOCK_CRC     = 0x20,
+	PIP3_CMD_ID_GET_CONFIG_ROW_SIZE         = 0x21,
+	PIP3_CMD_ID_GET_DATA_BLOCK              = 0x22,
+	PIP3_CMD_ID_SET_DATA_BLOCK              = 0x23,
+	PIP3_CMD_ID_GET_DATA_STRUCTURE          = 0x24,
+	PIP3_CMD_ID_LOAD_SELF_TEST_PARAM        = 0x25,
+	PIP3_CMD_ID_RUN_SELF_TEST               = 0x26,
+	PIP3_CMD_ID_GET_SELF_TEST_RESULT        = 0x27,
+	PIP3_CMD_ID_INITIALIZE_BASELINES        = 0x29,
+	PIP3_CMD_ID_EXEC_PANEL_SCAN             = 0x2A,
+	PIP3_CMD_ID_RETRIEVE_PANEL_SCAN         = 0x2B,
+	PIP3_CMD_ID_START_SENSOR_DATA_MODE      = 0x2C,
+	PIP3_CMD_ID_STOP_SENSOR_DATA_MODE       = 0x2D,
+	PIP3_CMD_ID_START_TRACKING_HEATMAP_MODE = 0x2E,
+	PIP3_CMD_ID_FW_DEBUG_MODE               = 0x2F,
+	PIP3_CMD_ID_CALIBRATE_DEVICE_EXTENDED   = 0x30,
+	PIP3_CMD_ID_START_BOOTLOADER            = 0x31,
+	PIP3_CMD_ID_GET_SYSINFO                 = 0x32,
+	PIP3_CMD_ID_SUSPEND_SCANNING            = 0x33,
+	PIP3_CMD_ID_RESUME_SCANNING             = 0x34,
+	PIP3_CMD_ID_GET_PARAM                   = 0x35,
+	PIP3_CMD_ID_SET_PARAM                   = 0x36,
+	PIP3_CMD_ID_GET_NOISE_METRICS           = 0x37,
+	PIP3_CMD_ID_ENTER_EASYWAKE_STATE        = 0x39,
+	PIP3_CMD_ID_SET_DBG_PARAMETER           = 0x3A,
+	PIP3_CMD_ID_GET_DBG_PARAMETER           = 0x3B,
+	PIP3_CMD_ID_SET_DDI_REG                 = 0x3C,
+	PIP3_CMD_ID_GET_DDI_REG                 = 0x3D,
+	PIP3_CMD_ID_REALTIME_SIGNAL_MODE        = 0x3E,
+	PIP3_CMD_ID_END                         = 0x7F,
 };
 
 /* PURE HID and PIP1 command ID MAP */
@@ -888,7 +920,14 @@ enum pt_mode {
 	PT_MODE_BOOTLOADER      = 1,
 	PT_MODE_OPERATIONAL     = 2,
 	PT_MODE_SECONDARY_IMAGE = 3,
+	PT_MODE_UTILITY_IMAGE   = 4,
 	PT_MODE_IGNORE          = 255,
+};
+
+enum pt_fw_category_id {
+	PT_TOUCH_FW         = 0,
+	PT_PROGRAMMER_FW    = 1,
+	PT_UTILITY_FW       = 2,
 };
 
 enum pt_img_id {
@@ -904,6 +943,12 @@ enum pt_protocol_mode {
 	PT_PROTOCOL_MODE_UNKNOWN      = 255,
 };
 
+/* FW Debug data format ID */
+enum pt_fw_debug_data_format_id {
+	PT_DATA_BINARY         = 0,
+	PT_DATA_ASCII          = 1,
+};
+
 struct pt_dut_status {
 	enum PIP2_FW_SYSTEM_MODE fw_system_mode;
 	enum pt_mode mode;
@@ -913,6 +958,7 @@ struct pt_dut_status {
 enum PT_ENTER_BL_METHOD {
 	PT_ENTER_BL_BY_RESET_PIN       = 0,
 	PT_ENTER_BL_BY_COMMAND         = 1,
+	PT_ENTER_BL_BY_RST_UTIL        = 2,
 };
 
 enum PT_ENTER_BL_RESULT {
@@ -1088,6 +1134,21 @@ struct pt_pip2_version {
 	__le16 chip_rev;
 } __packed;
 
+/* Struct to cast over PIP3.3 VERSION response */
+struct pt_pip3_version_full {
+	u8 status_code;
+	u8 pip_version_lsb;
+	u8 pip_version_msb;
+	u8 fw_version_lsb;
+	u8 fw_version_msb;
+	__le32 fw_revctrl;
+	u8 fw_category;
+	u8 fw_uid;
+	__le16 chip_rev;
+	__le16 chip_id;
+	u8 chip_uid[PT_UID_SIZE];
+} __packed;
+
 struct pt_sensing_conf_data_dev {
 	u8 electrodes_x;
 	u8 electrodes_y;
@@ -1118,6 +1179,7 @@ struct pt_ttdata {
 	u16 jtag_id_l;
 	u16 jtag_id_h;
 	u8 mfg_id[PT_NUM_MFGID];
+	u8 fw_category_id;
 	u16 chip_rev;
 	u16 chip_id;
 	u8 uid[PT_UID_SIZE];
@@ -1228,6 +1290,19 @@ struct pt_touch {
 	int hdr[PT_TCH_NUM_HDR];
 	int abs[PT_TCH_NUM_ABS];
 };
+
+/* Report ID for USI PEN feature report */
+#define	HID_REPORTID_ERROR				10
+#define	HID_REPORTID_GETSET_COLOR8		11
+#define	HID_REPORTID_GETSET_WIDTH		12
+#define	HID_REPORTID_GETSET_STYLE		13
+#define	HID_REPORTID_DIAGNOSE			14
+#define	HID_REPORTID_GETSET_BUTTONS		15
+#define	HID_REPORTID_GET_FIRMWARE		16
+#define	HID_REPORTID_GET_PROTOCOL		17
+#define	HID_REPORTID_GETSET_VENDOR		18
+#define	HID_REPORTID_SET_TRANSDUCER		19
+#define	HID_REPORTID_GETSET_COLOR24		20
 
 enum pt_pen_abs {	/* for ordering within the extracted pen data array */
 	PT_PEN_X,	/* X */
@@ -1400,6 +1475,7 @@ struct pt_hid_core {
 	u16 hid_max_input_len;
 	u16 hid_max_output_len;
 	u8 hid_protocol_ver;
+	u8 pip_minor_ver;
 };
 
 #define PT_HID_MAX_REPORTS                   20
@@ -1670,6 +1746,12 @@ enum pt_err_gpio_type {
 	PT_ERR_GPIO_MAX_TYPE         = PT_ERR_GPIO_BL_RETRY_PACKET,
 };
 
+enum pt_util_rst_state {
+	UTIL_RST_UNKNOWN,
+	UTIL_RST_PASS,
+	UTIL_RST_FAIL
+};
+
 struct pt_features {
 	uint8_t easywake;
 	uint8_t noise_metric;
@@ -1737,6 +1819,7 @@ struct pt_core_data {
 	int phys_num;
 	int pip_cmd_timeout;
 	int pip_cmd_timeout_default;
+	int hid_multi_rsp_timeout;
 	void *pt_dynamic_data[PT_MODULE_LAST];
 	struct pt_platform_data *pdata;
 	struct pt_core_platform_data *cpdata;
@@ -1786,6 +1869,8 @@ struct pt_core_data {
 	struct pt_features features;
 	struct pt_hid_report_buf_op pt_hid_buf_op;
 	struct pt_hid_async_report pt_async_rpt;
+	u8 pt_hid_pen_async_ftr_rpt_id[PT_HID_MAX_REPORTS];
+	int num_hid_pen_async_ftr_rpt_id;
 #define PT_PREALLOCATED_CMD_BUFFER 32
 	u8 cmd_buf[PT_PREALLOCATED_CMD_BUFFER];
 	u8 input_buf[PT_MAX_INPUT];
@@ -1801,12 +1886,12 @@ struct pt_core_data {
 	enum pt_fb_state fb_state;
 #endif
 #ifdef TTHE_TUNER_SUPPORT
+	struct list_head tuner_list;
+	spinlock_t  tuner_list_lock;
+	wait_queue_head_t tuner_wait;
 	struct dentry *tthe_debugfs;
-	u8 *tthe_buf;
-	u32 tthe_buf_len;
-	u32 tthe_buf_size;
-	struct mutex tthe_lock;
 	u8 tthe_exit;
+	u8 tthe_data_format;
 #endif
 	u8 debug_level;
 	u8 watchdog_enabled;
@@ -1826,6 +1911,7 @@ struct pt_core_data {
 	u8 core_probe_complete;
 	u8 active_dut_generation;
 	bool set_dut_generation;
+	bool detect_dut_generation;
 	u8 fw_system_mode;
 	u8 flashless_dut;
 	u8 bl_with_no_int;
@@ -1842,11 +1928,14 @@ struct pt_core_data {
 #endif /* TTDL_PTVIRTDUT_SUPPORT */
 	u8 panel_id_support;
 	u8 protocol_mode;
+	u8 active_proc;
 	u8 enter_bl_method;
 	bool dual_mcu_available;
 	bool set_protocol_mode;
 	u8 report_type;
 	bool force_pip3_report_type;
+	u8 util_rst_state;
+	u8 pip3_output_rpt_cnt;
 #ifdef TTDL_DIAGNOSTICS
 	u8 t_refresh_active;
 	u8 flush_bus_type;
@@ -1869,6 +1958,7 @@ struct pt_core_data {
 	u16 err_gpio_type;
 	bool show_tt_data;
 	bool bridge_mode;
+	bool pip_no_wait;
 	bool hw_detect_enabled;
 #endif
 };
@@ -1884,6 +1974,7 @@ struct gd_sensor {
 };
 
 #ifdef TTHE_TUNER_SUPPORT
+#include <linux/kfifo.h>
 #define PT_CMD_RET_PANEL_IN_DATA_OFFSET	0
 #define PT_CMD_RET_PANEL_ELMNT_SZ_MASK	0x07
 #define PT_CMD_RET_PANEL_HDR		0x0A
@@ -1899,6 +1990,13 @@ enum scan_data_type_list {
 	PT_BAL_RAW,
 	PT_BAL_BASE,
 	PT_BAL_DIFF,
+};
+/* List for each instance of tthe_tuner to maintain locks and buffers */
+struct pt_tthe_tuner_list {
+	DECLARE_KFIFO_PTR(tuner_buf_fifo, char);
+	struct pt_core_data *cd;
+	struct list_head node;
+	struct mutex read_lock;
 };
 #endif
 

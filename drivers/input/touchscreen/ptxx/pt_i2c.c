@@ -34,10 +34,11 @@
 
 #define PT_I2C_DATA_SIZE  (2 * 256)
 #define I2C_MAX_BUF_SIZE  2048
+DEFINE_MUTEX(i2c_lock);
 
 
 /*******************************************************************************
- * FUNCTION: pt_i2c_read_default
+ * FUNCTION: pt_i2c_read_default_
  *
  * SUMMARY: Read a certain number of bytes from the I2C bus
  *
@@ -46,7 +47,7 @@
  *      *buf  - pointer to buffer where the data read will be stored
  *       size - size to be read
  ******************************************************************************/
-static int pt_i2c_read_default(struct device *dev, void *buf, int size)
+static int pt_i2c_read_default_(struct device *dev, void *buf, int size)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	int rc;
@@ -73,7 +74,7 @@ static int pt_i2c_read_default(struct device *dev, void *buf, int size)
  *      *buf  - pointer to buffer where the data read will be stored
  *       max  - max size that can be read
  ******************************************************************************/
-static int pt_i2c_read_default_nosize(struct device *dev, u8 *buf, u32 max)
+static int pt_i2c_read_default_nosize_(struct device *dev, u8 *buf, u32 max)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct i2c_msg msgs[2];
@@ -120,7 +121,7 @@ static int pt_i2c_read_default_nosize(struct device *dev, u8 *buf, u32 max)
  *  *read_buf  - pointer to buffer to read response into
  *   read_len  - length to read, 0 to use pt_i2c_read_default_nosize
  ******************************************************************************/
-static int pt_i2c_write_read_specific(struct device *dev, u16 write_len,
+static int pt_i2c_write_read_specific_(struct device *dev, u16 write_len,
 		u8 *write_buf, u8 *read_buf, u16 read_len)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -155,14 +156,83 @@ static int pt_i2c_write_read_specific(struct device *dev, u16 write_len,
 
 	if (read_buf) {
 		if (read_len > 0)
-			rc = pt_i2c_read_default(dev, read_buf, read_len);
+			rc = pt_i2c_read_default_(dev, read_buf, read_len);
 		else
-			rc = pt_i2c_read_default_nosize(dev, read_buf,
+			rc = pt_i2c_read_default_nosize_(dev, read_buf,
 				PT_I2C_DATA_SIZE);
 	}
 
 	return rc;
 }
+
+/*******************************************************************************
+ * FUNCTION: pt_i2c_read_default
+ *
+ * SUMMARY: Protected call to pt_i2c_read_default_()
+ *
+ * PARAMETERS:
+ *      *dev  - pointer to Device structure
+ *      *buf  - pointer to buffer where the data read will be stored
+ *       size - size to be read
+ ******************************************************************************/
+static int pt_i2c_read_default(struct device *dev, void *buf, int size)
+{
+	int rc;
+
+	mutex_lock(&i2c_lock);
+	rc = pt_i2c_read_default_(dev, buf, size);
+	mutex_unlock(&i2c_lock);
+
+	return rc;
+}
+
+/*******************************************************************************
+ * FUNCTION: pt_i2c_read_default_nosize
+ *
+ * SUMMARY: Protected call to pt_i2c_read_default_nosize_()
+ *
+ * PARAMETERS:
+ *      *dev  - pointer to Device structure
+ *      *buf  - pointer to buffer where the data read will be stored
+ *       max  - max size that can be read
+ ******************************************************************************/
+static int pt_i2c_read_default_nosize(struct device *dev, u8 *buf, u32 max)
+{
+	int rc;
+
+	mutex_lock(&i2c_lock);
+	rc = pt_i2c_read_default_nosize_(dev, buf, max);
+	mutex_unlock(&i2c_lock);
+
+	return rc;
+}
+
+
+/*******************************************************************************
+ * FUNCTION: pt_i2c_write_read_specific
+ *
+ * SUMMARY: Protected call to pt_i2c_write_read_specific_()
+ *
+ * PARAMETERS:
+ *  *dev       - pointer to Device structure
+ *   write_len - length of data buffer write_buf
+ *  *write_buf - pointer to buffer to write
+ *  *read_buf  - pointer to buffer to read response into
+ *   read_len  - length to read, 0 to use pt_i2c_read_default_nosize
+ ******************************************************************************/
+static int pt_i2c_write_read_specific(struct device *dev, u16 write_len,
+		u8 *write_buf, u8 *read_buf, u16 read_len)
+{
+	int rc;
+
+	mutex_lock(&i2c_lock);
+	rc = pt_i2c_write_read_specific_(dev, write_len,
+			write_buf, read_buf, read_len);
+	mutex_unlock(&i2c_lock);
+
+	return rc;
+}
+
 
 static struct pt_bus_ops pt_i2c_bus_ops = {
 	.bustype = BUS_I2C,

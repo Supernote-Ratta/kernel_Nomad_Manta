@@ -146,6 +146,7 @@ struct pt_pip2_cmd {
 struct pt_pip3_cmd {
 	u8 cmd_tag_seq;
 	u8 cmd_id;
+	u8 reset_expected;
 	u8 *param;
 	u16 param_len;
 	u16 timeout_ms;
@@ -187,6 +188,14 @@ struct pt_raw_cmd {
 	 ((id) == PT_HID_WRAP_PIP_REPORT_ID)
 
 #define PT_MAX_PR_BUF_SIZE  2048
+
+static int pt_pip3_get_data_block_(struct pt_core_data *cd,
+		u16 read_offset, u16 length, u8 ebid, u16 *actual_read_len,
+		u8 *read_buf, u16 read_buf_size, u16 *crc);
+static int pt_pip3_set_data_block_(struct pt_core_data *cd,
+		u16 write_offset, u16 write_length, u8 ebid, u8 *write_buf,
+		u8 *security_key, u16 *actual_write_len);
+
 /*******************************************************************************
  * FUNCTION: pt_pr_buf
  *
@@ -238,8 +247,8 @@ EXPORT_SYMBOL_GPL(pt_pr_buf);
  * FUNCTION: tthe_print
  *
  * SUMMARY: Format data name and time stamp as the header and format the
- *  content of input buffer with hex base to "tthe_buf". And then wake up event
- *  semaphore for tthe debugfs node.
+ *  content of input buffer with hex base to "tuner_buf_fifo". And then wake up
+ *  event semaphore for tthe debugfs node.
  *
  * RETURN:
  *   0 = success
@@ -251,59 +260,73 @@ EXPORT_SYMBOL_GPL(pt_pr_buf);
  *   buf_len    - size of input buffer
  *  *data_name  - pointer to data name
  ******************************************************************************/
+#define DATA_NAME_LENGTH (100) /* Max length to store data_name & timestamp */
 static int tthe_print(struct pt_core_data *cd, u8 *buf, int buf_len,
-		const u8 *data_name)
+		      const u8 *data_name)
 {
 	int name_len = strlen(data_name);
-	int i, n;
-	u8 *p;
-	int remain;
-	u8 data_name_with_time_stamp[100];
+	int i, n = 0;
+	u8 tmp_buf[DATA_NAME_LENGTH];
+	struct pt_tthe_tuner_list *list;
+	unsigned long flags;
 
 	/* Prepend timestamp, if requested, to data_name */
 	if (cd->show_timestamp) {
-		sprintf(data_name_with_time_stamp, "[%u] %s",
-			pt_get_time_stamp(), data_name);
-		data_name = data_name_with_time_stamp;
+		scnprintf(tmp_buf, ARRAY_SIZE(tmp_buf), "[%u] %s",
+			  pt_get_time_stamp(), data_name);
+		data_name = tmp_buf;
 		name_len = strlen(data_name);
 	}
 
-	mutex_lock(&cd->tthe_lock);
-	if (!cd->tthe_buf)
-		goto exit;
-
 	/* Add 1 due to the '\n' that is appended at the end */
-	if (cd->tthe_buf_len + name_len + buf_len + 1 > cd->tthe_buf_size)
+	if (name_len + buf_len + 1 > PT_MAX_PRBUF_SIZE)
 		goto exit;
 
 	if (name_len + buf_len == 0)
 		goto exit;
 
-	remain = cd->tthe_buf_size - cd->tthe_buf_len;
-	if (remain < name_len)
-		name_len = remain;
+	spin_lock_irqsave(&cd->tuner_list_lock, flags);
+	list_for_each_entry(list, &cd->tuner_list, node) {
+		/* Copy data_name to tuner_buf_fifo */
+		kfifo_in(&list->tuner_buf_fifo, data_name, name_len);
+		/* Format data and copy to tuner_buf_fifo */
+		for (i = 0; i < buf_len; i++) {
+			switch (cd->tthe_data_format) {
+			case PT_DATA_BINARY:
+				n = scnprintf(tmp_buf, ARRAY_SIZE(tmp_buf),
+					      "%02X ", buf[i]);
+				break;
+			case PT_DATA_ASCII:
+				/*
+				 * The first 3 bytes :Timestamp (2 bytes) and
+				 * data format ID (1 byte) always need to be
+				 * printed as binary.
+				 */
+				if (i < 3)
+					n = scnprintf(tmp_buf,
+						      ARRAY_SIZE(tmp_buf),
+						      "%02X ", buf[i]);
+				else
+					n = scnprintf(tmp_buf,
+						      ARRAY_SIZE(tmp_buf), "%c",
+						      buf[i]);
+				break;
+			default:
+				break;
+			}
 
-	p = cd->tthe_buf + cd->tthe_buf_len;
-	memcpy(p, data_name, name_len);
-	cd->tthe_buf_len += name_len;
-	p += name_len;
-	remain -= name_len;
+			if (n <= 0)
+				break;
 
-	*p = 0;
-	for (i = 0; i < buf_len; i++) {
-		n = scnprintf(p, remain, "%02X ", buf[i]);
-		if (n <= 0)
-			break;
-		p += n;
-		remain -= n;
-		cd->tthe_buf_len += n;
+			kfifo_in(&list->tuner_buf_fifo, tmp_buf, n);
+		}
+
+		n = scnprintf(tmp_buf, ARRAY_SIZE(tmp_buf), "\n");
+		kfifo_in(&list->tuner_buf_fifo, tmp_buf, n);
 	}
-
-	n = scnprintf(p, remain, "\n");
-	cd->tthe_buf_len += n;
+	spin_unlock_irqrestore(&cd->tuner_list_lock, flags);
+	wake_up_interruptible(&cd->tuner_wait);
 exit:
-	wake_up(&cd->wait_q);
-	mutex_unlock(&cd->tthe_lock);
 	return 0;
 }
 
@@ -311,7 +334,7 @@ exit:
  * FUNCTION: _pt_request_tthe_print
  *
  * SUMMARY: Function pointer included in core_cmds to allow other modules
- *	to request to print data to the "tthe_buffer".
+ *	to request to print data to "tuner_buf_fifo".
  *
  * RETURN:
  *   0 = success
@@ -748,7 +771,7 @@ static int pt_hid_send_cmd_and_wait_(struct pt_core_data *cd,
 	if (hid_cmd->timeout_ms)
 		timeout_ms = hid_cmd->timeout_ms;
 	else
-		timeout_ms = PT_HID_CMD_DEFAULT_TIMEOUT;
+		timeout_ms = cd->pip_cmd_timeout_default;
 again:
 	t = wait_event_timeout(cd->wait_q, (*cmd_state == 0),
 			msecs_to_jiffies(timeout_ms));
@@ -756,6 +779,7 @@ again:
 		if ((cd->pt_hid_buf_op.last_remain_packet != 0) &&
 		    (max_timeout_ms > timeout_ms)) {
 			max_timeout_ms -= timeout_ms;
+			timeout_ms = cd->hid_multi_rsp_timeout;
 			goto again;
 		}
 #ifdef TTDL_DIAGNOSTICS
@@ -855,6 +879,7 @@ static int pt_hid_send_user_cmd_and_wait_(struct pt_core_data *cd,
 	int rc = 0;
 	int t;
 	u8 cmd_id = 0;
+	u16 timeout_ms;
 	u16 max_timeout_ms = PT_HID_MULTIPACKET_TIMEOUT;
 
 	mutex_lock(&cd->system_lock);
@@ -866,10 +891,12 @@ static int pt_hid_send_user_cmd_and_wait_(struct pt_core_data *cd,
 	cd->hid_cmd_state = cmd_id + 1;
 	mutex_unlock(&cd->system_lock);
 
+	timeout_ms = cd->pip_cmd_timeout_default;
+
 	rc = pt_write_to_hid_cmd_reg_(cd, hid_cmd);
 	if (rc)
 		goto error;
-	if (cmd_id == HID_CMD_ID_START_BOOTLOADER
+	if (cmd_id == PIP3_CMD_ID_START_BOOTLOADER
 		&& cd->dual_mcu_available) {
 		pt_debug(cd->dev, DL_INFO,
 			"%s: Dual MCU is enabled, no BL sentinel after 0x31 cmd\n",
@@ -877,13 +904,18 @@ static int pt_hid_send_user_cmd_and_wait_(struct pt_core_data *cd,
 		usleep_range(10000, 11000);
 		goto error;
 	}
+
+	if (cd->bridge_mode && cd->pip_no_wait)
+		goto exit;
+
 again:
 	t = wait_event_timeout(cd->wait_q, (cd->hid_cmd_state == 0),
-			msecs_to_jiffies(PT_HID_CMD_DEFAULT_TIMEOUT));
+			msecs_to_jiffies(timeout_ms));
 	if (IS_TMO(t)) {
 		if ((cd->pt_hid_buf_op.last_remain_packet != 0) &&
-		    (max_timeout_ms > PT_HID_CMD_DEFAULT_TIMEOUT)) {
-			max_timeout_ms -= PT_HID_CMD_DEFAULT_TIMEOUT;
+		    (max_timeout_ms > timeout_ms)) {
+			max_timeout_ms -= timeout_ms;
+			timeout_ms = cd->hid_multi_rsp_timeout;
 			goto again;
 		}
 #ifdef TTDL_DIAGNOSTICS
@@ -922,7 +954,7 @@ exit:
  *  pl_buf_len  - HID cmd payload data length
  ******************************************************************************/
 static int pt_hid_user_cmd_send_(struct pt_core_data *cd,
-				u8 *hid_pl_buf, u8 pl_buf_len)
+				u8 *hid_pl_buf, u16 pl_buf_len)
 {
 	struct pt_hid_cmd hid_cmd = {
 		INIT_HID_SET_REPORT_HEADER,
@@ -931,14 +963,25 @@ static int pt_hid_user_cmd_send_(struct pt_core_data *cd,
 	u16 index = 0;
 
 	/*
-	 * 'write_length' is calculated by:
-	 *   Length field(2) +
-	 *   REPORT_ID(1) +
-	 *   Payload (hid_max_output_len)
+	 * The data in hid_pl_buf includes payload and report ID,
+	 * its length may exceed pip3_output_rpt_cnt + 1 (report ID)
 	 */
-	hid_cmd.write_length = 3 + cd->hid_core.hid_max_output_len;
-	if (hid_cmd.write_length < (pl_buf_len + 2))
-		return -EINVAL;
+	if (pl_buf_len > cd->pip3_output_rpt_cnt + 1) {
+		/*
+		 * 'write_length' is calculated by:
+		 *   pl_buf_len (payload and report ID) +
+		 *   Length field(2)
+		 */
+		hid_cmd.write_length = pl_buf_len + 2;
+	} else {
+		/*
+		 * 'write_length' is calculated by:
+		 *   Length field(2) +
+		 *   REPORT_ID(1) +
+		 *   Payload (pip3_output_rpt_cnt)
+		 */
+		hid_cmd.write_length = 3 + cd->pip3_output_rpt_cnt;
+	}
 	hid_cmd.write_buf = kzalloc(hid_cmd.write_length, GFP_KERNEL);
 	if (!hid_cmd.write_buf)
 		return -ENOMEM;
@@ -949,7 +992,7 @@ static int pt_hid_user_cmd_send_(struct pt_core_data *cd,
 
 	/* Copy hid palyload data */
 	memcpy(&hid_cmd.write_buf[index], hid_pl_buf,
-	      pl_buf_len);
+		pl_buf_len);
 
 #ifdef TTHE_TUNER_SUPPORT
 	tthe_print(cd, hid_pl_buf, pl_buf_len, "HID_CMD=");
@@ -977,7 +1020,7 @@ static int pt_hid_user_cmd_send_(struct pt_core_data *cd,
  *  pl_buf_len  - HID cmd payload data length
  ******************************************************************************/
 static int pt_hid_user_cmd_send(struct pt_core_data *cd,
-				u8 *hid_pl_buf, u8 pl_buf_len)
+				u8 *hid_pl_buf, u16 pl_buf_len)
 {
 	int rc;
 
@@ -1366,100 +1409,133 @@ static u8 pt_pip2_get_next_cmd_seq(struct pt_core_data *cd)
 #endif
 /*
  * id: the command id defined in PIP2
+ * pip_minor_ver: the (maximum) PIP minor version supported by this command
+ *    Note: 1. The entry can be matched only when the PIP minor version
+ *    obtained from HID descriptor <= the PIP minor version in this entry.
+ *    2. The order of any command that supports multiple lengths must be
+ *    in pip_minor_ver ascending order.
  * response_len: the (maximum) length of response.
  * response_time_min: minimum response time in microsecond
  * response_time_max: maximum response time in microsecond
  */
-static const struct pip2_cmd_response_structure pip2_cmd_response[] = {
+static const struct pip_cmd_response_structure pip2_cmd_response[] = {
 	{.id = PIP2_CMD_ID_PING,
+	 .pip_minor_ver = 255,
 	 .response_len = 255,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_STATUS,
+	  .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 5,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_CTRL,
+	  .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 1,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PT_PIP2_CMD_FILE_ERASE_TIMEOUT},
 	{.id = PIP2_CMD_ID_CONFIG,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 1,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_CLEAR,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 0,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_RESET,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 1,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_VERSION,
+	 .pip_minor_ver = 2,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 23,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
+	{.id = PIP2_CMD_ID_VERSION,
+	 .pip_minor_ver = 255,
+	 .response_len = PIP2_EXTRA_BYTES_NUM + 27,
+	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
+	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_FILE_OPEN,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 2,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_FILE_CLOSE,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 1,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_FILE_READ,
+	 .pip_minor_ver = 255,
 	 .response_len = 255,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_FILE_WRITE,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 1,
 	 .response_time_min = PIP2_RESP_FILE_WRITE_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_FILE_IOCTL,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 10,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_FILE_IOCTL_TIME_MAX},
 	{.id = PIP2_CMD_ID_FLASH_INFO,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 17,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_EXECUTE,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 1,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_GET_LAST_ERRNO,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 3,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	 {.id = PIP2_CMD_ID_EXIT_HOST_MODE,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 1,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_READ_GPIO,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 5,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_EXECUTE_SCAN,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 1,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_SET_PARAMETER,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 1,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_GET_PARAMETER,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 7,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_SET_DDI_REG,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 1,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_GET_DDI_REG,
+	 .pip_minor_ver = 255,
 	 .response_len = PIP2_EXTRA_BYTES_NUM + 249,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX},
 	{.id = PIP2_CMD_ID_END,
+	 .pip_minor_ver = 255,
 	 .response_len = 255,
 	 .response_time_min = PIP2_RESP_DEFAULT_TIME_MIN,
 	 .response_time_max = PIP2_RESP_DEFAULT_TIME_MAX}
@@ -1474,13 +1550,18 @@ static const struct pip2_cmd_response_structure pip2_cmd_response[] = {
  *
  * PARAMETERS:
  *	id - Command ID (-1 means input ID is not in list of PIP2 command)
+ *	pip_minor_ver - PIP minor version
  ******************************************************************************/
-static int pt_pip2_get_cmd_response_len(u8 id)
+static int pt_pip2_get_cmd_response_len(u8 id, u8 pip_minor_ver)
 {
-	const struct pip2_cmd_response_structure *p = pip2_cmd_response;
+	const struct pip_cmd_response_structure *p = pip2_cmd_response;
 
-	while ((p->id != id) && (p->id != PIP2_CMD_ID_END))
+	while (p->id != PIP2_CMD_ID_END) {
+		if ((p->id == id) &&
+			(pip_minor_ver <= p->pip_minor_ver))
+			break;
 		p++;
+	}
 
 	if (p->id != PIP2_CMD_ID_END)
 		return p->response_len;
@@ -1501,7 +1582,7 @@ static int pt_pip2_get_cmd_response_len(u8 id)
  ******************************************************************************/
 static u32 pt_pip2_get_cmd_resp_time_min(u8 id)
 {
-	const struct pip2_cmd_response_structure *p = pip2_cmd_response;
+	const struct pip_cmd_response_structure *p = pip2_cmd_response;
 
 	while ((p->id != id) && (p->id != PIP2_CMD_ID_END))
 		p++;
@@ -1525,7 +1606,7 @@ static u32 pt_pip2_get_cmd_resp_time_min(u8 id)
  ******************************************************************************/
 static u32 pt_pip2_get_cmd_resp_time_max(u8 id)
 {
-	const struct pip2_cmd_response_structure *p = pip2_cmd_response;
+	const struct pip_cmd_response_structure *p = pip2_cmd_response;
 
 	while ((p->id != id) && (p->id != PIP2_CMD_ID_END))
 		p++;
@@ -1538,76 +1619,74 @@ static u32 pt_pip2_get_cmd_resp_time_max(u8 id)
 
 static const struct PIP_vs_PURE_HID_cmd_id_map PIP1_TO_HID_CMD_ID_MAP[] = {
 	{.pip_cmd_id = PIP1_CMD_ID_ENTER_EASYWAKE_STATE,
-	 .hid_cmd_id = HID_CMD_ID_ENTER_EASYWAKE_STATE},
+	 .hid_cmd_id = PIP3_CMD_ID_ENTER_EASYWAKE_STATE},
 	{.pip_cmd_id = PIP1_CMD_ID_START_BOOTLOADER,
-	 .hid_cmd_id = HID_CMD_ID_START_BOOTLOADER},
+	 .hid_cmd_id = PIP3_CMD_ID_START_BOOTLOADER},
 	{.pip_cmd_id = PIP1_CMD_ID_GET_NOISE_METRICS,
-	 .hid_cmd_id = HID_CMD_ID_GET_NOISE_METRICS},
+	 .hid_cmd_id = PIP3_CMD_ID_GET_NOISE_METRICS},
 	{.pip_cmd_id = PIP1_CMD_ID_GET_SYSINFO,
-	 .hid_cmd_id = HID_CMD_ID_GET_SYSINFO},
+	 .hid_cmd_id = PIP3_CMD_ID_GET_SYSINFO},
 	{.pip_cmd_id = PIP1_CMD_ID_SUSPEND_SCANNING,
-	 .hid_cmd_id = HID_CMD_ID_SUSPEND_SCANNING},
+	 .hid_cmd_id = PIP3_CMD_ID_SUSPEND_SCANNING},
 	{.pip_cmd_id = PIP1_CMD_ID_RESUME_SCANNING,
-	 .hid_cmd_id = HID_CMD_ID_RESUME_SCANNING},
+	 .hid_cmd_id = PIP3_CMD_ID_RESUME_SCANNING},
 	{.pip_cmd_id = PIP1_CMD_ID_GET_PARAM,
-	 .hid_cmd_id = HID_CMD_ID_GET_PARAM},
+	 .hid_cmd_id = PIP3_CMD_ID_GET_PARAM},
 	{.pip_cmd_id = PIP1_CMD_ID_SET_PARAM,
-	 .hid_cmd_id = HID_CMD_ID_SET_PARAM},
+	 .hid_cmd_id = PIP3_CMD_ID_SET_PARAM},
 	{.pip_cmd_id = PIP1_CMD_ID_VERIFY_CONFIG_BLOCK_CRC,
-	 .hid_cmd_id = HID_CMD_ID_VERIFY_CONFIG_BLOCK_CRC},
+	 .hid_cmd_id = PIP3_CMD_ID_VERIFY_CONFIG_BLOCK_CRC},
 	{.pip_cmd_id = PIP1_CMD_ID_GET_CONFIG_ROW_SIZE,
-	 .hid_cmd_id = HID_CMD_ID_GET_CONFIG_ROW_SIZE},
+	 .hid_cmd_id = PIP3_CMD_ID_GET_CONFIG_ROW_SIZE},
 	{.pip_cmd_id = PIP1_CMD_ID_READ_DATA_BLOCK,
-	 .hid_cmd_id = HID_CMD_ID_READ_DATA_BLOCK},
+	 .hid_cmd_id = PIP3_CMD_ID_GET_DATA_BLOCK},
 	{.pip_cmd_id = PIP1_CMD_ID_WRITE_DATA_BLOCK,
-	 .hid_cmd_id = HID_CMD_ID_WRITE_DATA_BLOCK},
+	 .hid_cmd_id = PIP3_CMD_ID_SET_DATA_BLOCK},
 	{.pip_cmd_id = PIP1_CMD_ID_GET_DATA_STRUCTURE,
-	 .hid_cmd_id = HID_CMD_ID_GET_DATA_STRUCTURE},
+	 .hid_cmd_id = PIP3_CMD_ID_GET_DATA_STRUCTURE},
 	{.pip_cmd_id = PIP1_CMD_ID_LOAD_SELF_TEST_PARAM,
-	 .hid_cmd_id = HID_CMD_ID_LOAD_SELF_TEST_PARAM},
+	 .hid_cmd_id = PIP3_CMD_ID_LOAD_SELF_TEST_PARAM},
 	{.pip_cmd_id = PIP1_CMD_ID_RUN_SELF_TEST,
-	 .hid_cmd_id = HID_CMD_ID_RUN_SELF_TEST},
+	 .hid_cmd_id = PIP3_CMD_ID_RUN_SELF_TEST},
 	{.pip_cmd_id = PIP1_CMD_ID_GET_SELF_TEST_RESULT,
-	 .hid_cmd_id = HID_CMD_ID_GET_SELF_TEST_RESULT},
-	{.pip_cmd_id = PIP1_CMD_ID_CALIBRATE_IDACS,
-	 .hid_cmd_id = HID_CMD_ID_CALIBRATE_IDACS},
+	 .hid_cmd_id = PIP3_CMD_ID_GET_SELF_TEST_RESULT},
 	{.pip_cmd_id = PIP1_CMD_ID_INITIALIZE_BASELINES,
-	 .hid_cmd_id = HID_CMD_ID_INITIALIZE_BASELINES},
+	 .hid_cmd_id = PIP3_CMD_ID_INITIALIZE_BASELINES},
 	{.pip_cmd_id = PIP1_CMD_ID_EXEC_PANEL_SCAN,
-	 .hid_cmd_id = HID_CMD_ID_EXEC_PANEL_SCAN},
+	 .hid_cmd_id = PIP3_CMD_ID_EXEC_PANEL_SCAN},
 	{.pip_cmd_id = PIP1_CMD_ID_RETRIEVE_PANEL_SCAN,
-	 .hid_cmd_id = HID_CMD_ID_RETRIEVE_PANEL_SCAN},
+	 .hid_cmd_id = PIP3_CMD_ID_RETRIEVE_PANEL_SCAN},
 	{.pip_cmd_id = PIP1_CMD_ID_START_SENSOR_DATA_MODE,
-	 .hid_cmd_id = HID_CMD_ID_START_SENSOR_DATA_MODE},
+	 .hid_cmd_id = PIP3_CMD_ID_START_SENSOR_DATA_MODE},
 	{.pip_cmd_id = PIP1_CMD_ID_STOP_SENSOR_DATA_MODE,
-	 .hid_cmd_id = HID_CMD_ID_STOP_SENSOR_DATA_MODE},
+	 .hid_cmd_id = PIP3_CMD_ID_STOP_SENSOR_DATA_MODE},
 	{.pip_cmd_id = PIP1_CMD_ID_START_TRACKING_HEATMAP_MODE,
-	 .hid_cmd_id = HID_CMD_ID_START_TRACKING_HEATMAP_MODE},
+	 .hid_cmd_id = PIP3_CMD_ID_START_TRACKING_HEATMAP_MODE},
 	{.pip_cmd_id = PIP1_CMD_ID_CALIBRATE_DEVICE_EXTENDED,
-	 .hid_cmd_id = HID_CMD_ID_CALIBRATE_DEVICE_EXTENDED},
+	 .hid_cmd_id = PIP3_CMD_ID_CALIBRATE_DEVICE_EXTENDED},
 	{.pip_cmd_id = PIP1_CMD_ID_LAST,
-	 .hid_cmd_id = HID_CMD_ID_END},
+	 .hid_cmd_id = PIP3_CMD_ID_END},
 };
 
 static const struct PIP_vs_PURE_HID_cmd_id_map PIP2_TO_HID_CMD_ID_MAP[] = {
 	{.pip_cmd_id = PIP2_CMD_ID_STATUS,
-	 .hid_cmd_id = HID_CMD_ID_STATUS},
+	 .hid_cmd_id = PIP3_CMD_ID_STATUS},
 	{.pip_cmd_id = PIP2_CMD_ID_VERSION,
-	 .hid_cmd_id = HID_CMD_ID_VERSION},
+	 .hid_cmd_id = PIP3_CMD_ID_VERSION},
 	{.pip_cmd_id = PIP2_CMD_EXECUTE_SCAN,
-	 .hid_cmd_id = HID_CMD_ID_EXEC_PANEL_SCAN},
+	 .hid_cmd_id = PIP3_CMD_ID_EXEC_PANEL_SCAN},
 	{.pip_cmd_id = PIP2_CMD_SET_PARAMETER,
-	 .hid_cmd_id = HID_CMD_ID_SET_PARAM},
+	 .hid_cmd_id = PIP3_CMD_ID_SET_PARAM},
 	{.pip_cmd_id = PIP2_CMD_GET_PARAMETER,
-	 .hid_cmd_id = HID_CMD_ID_GET_PARAM},
+	 .hid_cmd_id = PIP3_CMD_ID_GET_PARAM},
 	{.pip_cmd_id = PIP2_CMD_SET_DDI_REG,
-	 .hid_cmd_id = HID_CMD_ID_SET_DDI_REG},
+	 .hid_cmd_id = PIP3_CMD_ID_SET_DDI_REG},
 	{.pip_cmd_id = PIP2_CMD_GET_DDI_REG,
-	 .hid_cmd_id = HID_CMD_ID_GET_DDI_REG},
+	 .hid_cmd_id = PIP3_CMD_ID_GET_DDI_REG},
 	{.pip_cmd_id = PIP2_CMD_REALTIME_SIGNAL_MODE,
-	 .hid_cmd_id = HID_CMD_ID_REALTIME_SIGNAL_MODE},
+	 .hid_cmd_id = PIP3_CMD_ID_REALTIME_SIGNAL_MODE},
 	{.pip_cmd_id = PIP2_CMD_ID_END,
-	 .hid_cmd_id = HID_CMD_ID_END},
+	 .hid_cmd_id = PIP3_CMD_ID_END},
 };
 
 static u8 pt_get_hid_cmd_id_from_pip(u8 id,
@@ -1615,7 +1694,7 @@ static u8 pt_get_hid_cmd_id_from_pip(u8 id,
 {
 	const struct PIP_vs_PURE_HID_cmd_id_map *p = id_map;
 
-	while ((p->pip_cmd_id != id) && (p->hid_cmd_id != HID_CMD_ID_END))
+	while ((p->pip_cmd_id != id) && (p->hid_cmd_id != PIP3_CMD_ID_END))
 		p++;
 
 	return p->hid_cmd_id;
@@ -1626,7 +1705,7 @@ static u8 pt_get_pip_cmd_id_from_hid(u8 id,
 {
 	const struct PIP_vs_PURE_HID_cmd_id_map *p = id_map;
 
-	while ((p->hid_cmd_id != id) && (p->hid_cmd_id != HID_CMD_ID_END))
+	while ((p->hid_cmd_id != id) && (p->hid_cmd_id != PIP3_CMD_ID_END))
 		p++;
 
 	return p->pip_cmd_id;
@@ -2054,6 +2133,43 @@ static int pt_write_raw_direct_(struct pt_core_data *cd,
 
 	return rc;
 }
+
+/*******************************************************************************
+ * FUNCTION: pt_write_raw_direct
+ *
+ * SUMMARY: Wrapper function for pt_write_raw_direct_ that guarantees
+ *  exclusive access.
+ *
+ * RETURN:
+ *	 0 = success
+ *	!0 = failure
+ *
+ * PARAMETERS:
+ *  *cd        - pointer to core data
+ *  *raw_cmd   - pointer to raw command data structure
+ ******************************************************************************/
+static int pt_write_raw_direct(struct pt_core_data *cd,
+			     struct pt_raw_cmd *raw_cmd)
+{
+	int rc;
+
+	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+	if (rc < 0) {
+		pt_debug(cd->dev, DL_ERROR,
+			"%s: fail get exclusive ex=%p own=%p\n",
+			__func__, cd->exclusive_dev, cd->dev);
+		return rc;
+	}
+
+	rc = pt_write_raw_direct_(cd, raw_cmd);
+
+	if (release_exclusive(cd, cd->dev) < 0)
+		pt_debug(cd->dev, DL_ERROR,
+			"%s: fail to release exclusive\n", __func__);
+
+	return rc;
+}
+
 /*******************************************************************************
  * FUNCTION: pt_raw_send_and_wait_
  *
@@ -2457,9 +2573,9 @@ static int pt_pip1_send_as_hid_(struct pt_core_data *cd,
 	 * 'write_length' is calculated by:
 	 *   Length field(2) +
 	 *   REPORT_ID(1) +
-	 *   Payload (hid_max_output_len)
+	 *   Payload (pip3_output_rpt_cnt)
 	 */
-	hid_cmd.write_length = 3 + cd->hid_core.hid_max_output_len;
+	hid_cmd.write_length = 3 + cd->pip3_output_rpt_cnt;
 	if (hid_cmd.write_length < (9 + pip1_cmd->write_length))
 		return -EINVAL;
 	hid_cmd.write_buf = kzalloc(hid_cmd.write_length, GFP_KERNEL);
@@ -2527,7 +2643,6 @@ static int pt_pip1_send_as_hid_(struct pt_core_data *cd,
  ******************************************************************************/
 static int pt_pip1_send_(struct pt_core_data *cd, struct pt_pip1_cmd *pip1_cmd)
 {
-	cd->report_type = PIP1_CMD_REPORT;
 	if ((cd->protocol_mode == PT_PROTOCOL_MODE_HID) &&
 		(cd->mode != PT_MODE_BOOTLOADER))
 		return pt_pip1_send_as_hid_(cd, pip1_cmd);
@@ -2602,6 +2717,7 @@ static int pt_pip1_send_and_wait_(struct pt_core_data *cd,
 
 	mutex_lock(&cd->system_lock);
 	cd->hid_cmd_state = pip1_cmd->command_code + 1;
+	cd->report_type = PIP1_CMD_REPORT;
 	mutex_unlock(&cd->system_lock);
 
 	if (pip1_cmd->timeout_ms)
@@ -2627,9 +2743,15 @@ static int pt_pip1_send_and_wait_(struct pt_core_data *cd,
 	if (pip1_cmd->command_code == PIP1_BL_CMD_ID_LAUNCH_APP &&
 		cd->dual_mcu_available) {
 		pt_debug(cd->dev, DL_INFO,
-			"%s: Dual MCU is enabled, no BL sentinel after cmd 0x3B\n",
+			"%s: Dual MCU is enabled, no sentinel after cmd 0x3B\n",
 			__func__);
-		usleep_range(10000, 11000);
+		/*
+		 * Typically a Gen6 needs about 100ms to generate a sentinel on
+		 * boot, however for a dual MCU solution no sentinel is produced
+		 * but the wait time is still needed to allow the Gen6 to fully
+		 * boot. The sleep time is doubled as a safe guard.
+		 */
+		msleep(200);
 		cd->hid_reset_cmd_state = 0;
 		goto exit;
 	}
@@ -2642,6 +2764,7 @@ again:
 		    (cd->pt_hid_buf_op.last_remain_packet != 0) &&
 		    (max_timeout_ms > timeout_ms)) {
 			max_timeout_ms -= timeout_ms;
+			timeout_ms = cd->hid_multi_rsp_timeout;
 			goto again;
 		}
 #ifdef TTDL_DIAGNOSTICS
@@ -2660,11 +2783,11 @@ again:
 		rc = pt_pip1_validate_response(cd, pip1_cmd);
 
 	pt_pip1_check_set_parameter(cd, pip1_cmd);
-	goto exit;
 
 error:
 	mutex_lock(&cd->system_lock);
 	cd->hid_cmd_state = 0;
+	cd->report_type = UNKNOWN_REPORT;
 	mutex_unlock(&cd->system_lock);
 exit:
 	return rc;
@@ -2795,9 +2918,9 @@ static int pt_pip2_send_as_hid_(struct pt_core_data *cd,
 	 * 'write_length' is calculated by:
 	 *   Length field(2) +
 	 *   REPORT_ID(1) +
-	 *   Payload (hid_max_output_len)
+	 *   Payload (pip3_output_rpt_cnt)
 	 */
-	hid_cmd.write_length = 3 + cd->hid_core.hid_max_output_len;
+	hid_cmd.write_length = 3 + cd->pip3_output_rpt_cnt;
 	if (hid_cmd.write_length < (pip2_cmd->report_len + 9))
 		return -EINVAL;
 	hid_cmd.write_buf = kzalloc(hid_cmd.write_length, GFP_KERNEL);
@@ -2866,7 +2989,6 @@ static int pt_pip2_send_as_hid_(struct pt_core_data *cd,
  ******************************************************************************/
 static int pt_pip2_send_(struct pt_core_data *cd, struct pt_pip2_cmd *pip2_cmd)
 {
-	cd->report_type = PIP2_CMD_REPORT;
 	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
 	    (cd->mode != PT_MODE_BOOTLOADER))
 		return pt_pip2_send_as_hid_(cd, pip2_cmd);
@@ -2905,7 +3027,8 @@ static int pt_pip2_send_and_wait_(struct pt_core_data *cd,
 		goto exit;
 	}
 
-	read_len = pt_pip2_get_cmd_response_len(pip2_cmd->cmd_id);
+	read_len = pt_pip2_get_cmd_response_len(pip2_cmd->cmd_id,
+		cd->hid_core.pip_minor_ver);
 	if (read_len < 0)
 		read_len = 255;
 	pt_debug(cd->dev, DL_INFO,
@@ -2915,6 +3038,7 @@ static int pt_pip2_send_and_wait_(struct pt_core_data *cd,
 	mutex_lock(&cd->system_lock);
 	cd->pip2_prot_active = true;
 	cd->hid_cmd_state = pip2_cmd->cmd_id + 1;
+	cd->report_type = PIP2_CMD_REPORT;
 	mutex_unlock(&cd->system_lock);
 
 	if (pip2_cmd->timeout_ms)
@@ -2933,6 +3057,7 @@ again:
 		    (cd->pt_hid_buf_op.last_remain_packet != 0) &&
 		    (max_timeout_ms > timeout_ms)) {
 			max_timeout_ms -= timeout_ms;
+			timeout_ms = cd->hid_multi_rsp_timeout;
 			goto again;
 		}
 #ifdef TTDL_DIAGNOSTICS
@@ -2977,6 +3102,7 @@ error:
 	mutex_lock(&cd->system_lock);
 	cd->pip2_prot_active = false;
 	cd->hid_cmd_state = 0;
+	cd->report_type = UNKNOWN_REPORT;
 	mutex_unlock(&cd->system_lock);
 exit:
 	return rc;
@@ -3197,7 +3323,8 @@ static int _pt_pip2_send_cmd_no_int(struct device *dev,
 		}
 	}
 
-	read_len = pt_pip2_get_cmd_response_len(pip2_cmd.cmd_id);
+	read_len = pt_pip2_get_cmd_response_len(pip2_cmd.cmd_id,
+		cd->hid_core.pip_minor_ver);
 	if (read_len < 0)
 		read_len = 255;
 	pt_debug(dev, DL_INFO,
@@ -3495,6 +3622,7 @@ static void pt_pip2_ver_load_ttdata(struct pt_core_data *cd, u16 len)
 	struct pt_ttdata *ttdata = &cd->sysinfo.ttdata;
 	struct pt_pip2_version_full *full_ver;
 	struct pt_pip2_version      *ver;
+	struct pt_pip3_version_full *full_ver3;
 
 	/*
 	 * The PIP2 VERSION command can return different lengths of data.
@@ -3506,35 +3634,61 @@ static void pt_pip2_ver_load_ttdata(struct pt_core_data *cd, u16 len)
 	 *  - Sub Lot bytes 16 and 17 are reserved.
 	 */
 	if (len >= 0x1D) {
-		full_ver = (struct pt_pip2_version_full *)
-			&cd->response_buf[PIP2_RESP_STATUS_OFFSET];
+		if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+			cd->hid_core.pip_minor_ver >= 3) {
+			full_ver3 = (struct pt_pip3_version_full *)
+				&cd->response_buf[PIP2_RESP_STATUS_OFFSET];
 
-		ttdata->pip_ver_major = full_ver->pip2_version_msb;
-		ttdata->pip_ver_minor = full_ver->pip2_version_lsb;
-		ttdata->bl_ver_major  = full_ver->bl_version_msb;
-		ttdata->bl_ver_minor  = full_ver->bl_version_lsb;
-		ttdata->fw_ver_major  = full_ver->fw_version_msb;
-		ttdata->fw_ver_minor  = full_ver->fw_version_lsb;
-		/*
-		 * BL PIP 2.02 and greater the version fields are
-		 * swapped
-		 */
-		if (ttdata->pip_ver_major >= 2 && ttdata->pip_ver_minor >= 2) {
+			ttdata->pip_ver_major = full_ver3->pip_version_msb;
+			ttdata->pip_ver_minor = full_ver3->pip_version_lsb;
+			ttdata->bl_ver_major  = 0xFF;
+			ttdata->bl_ver_minor  = 0xFF;
+			ttdata->fw_ver_major  = full_ver3->fw_version_msb;
+			ttdata->fw_ver_minor  = full_ver3->fw_version_lsb;
+			ttdata->fw_category_id =
+				(full_ver3->fw_category & 0xF0) >> 4;
 			ttdata->chip_rev =
-			    get_unaligned_le16(&full_ver->chip_rev);
+			    get_unaligned_le16(&full_ver3->chip_rev);
 			ttdata->chip_id =
-			    get_unaligned_le16(&full_ver->chip_id);
+			    get_unaligned_le16(&full_ver3->chip_id);
+
+			memcpy(ttdata->uid, full_ver3->chip_uid, PT_UID_SIZE);
+
+			pt_pr_buf(cd->dev, DL_INFO, (u8 *)full_ver3,
+				sizeof(struct pt_pip3_version_full),
+				"PIP3 VERSION FULL");
 		} else {
-			ttdata->chip_rev =
-			    get_unaligned_le16(&full_ver->chip_id);
-			ttdata->chip_id =
-			    get_unaligned_le16(&full_ver->chip_rev);
-		}
-		memcpy(ttdata->uid, full_ver->uid, PT_UID_SIZE);
+			full_ver = (struct pt_pip2_version_full *)
+				&cd->response_buf[PIP2_RESP_STATUS_OFFSET];
 
-		pt_pr_buf(cd->dev, DL_INFO, (u8 *)full_ver,
-			sizeof(struct pt_pip2_version_full),
-			"PIP2 VERSION FULL");
+			ttdata->pip_ver_major = full_ver->pip2_version_msb;
+			ttdata->pip_ver_minor = full_ver->pip2_version_lsb;
+			ttdata->bl_ver_major  = full_ver->bl_version_msb;
+			ttdata->bl_ver_minor  = full_ver->bl_version_lsb;
+			ttdata->fw_ver_major  = full_ver->fw_version_msb;
+			ttdata->fw_ver_minor  = full_ver->fw_version_lsb;
+			/*
+			 * Less than PIP 2.02 the version fields are
+			 * swapped
+			 */
+			if (ttdata->pip_ver_major == 2 &&
+				ttdata->pip_ver_minor < 2) {
+				ttdata->chip_rev =
+				    get_unaligned_le16(&full_ver->chip_id);
+				ttdata->chip_id =
+				    get_unaligned_le16(&full_ver->chip_rev);
+			} else {
+				ttdata->chip_rev =
+				    get_unaligned_le16(&full_ver->chip_rev);
+				ttdata->chip_id =
+				    get_unaligned_le16(&full_ver->chip_id);
+			}
+			memcpy(ttdata->uid, full_ver->uid, PT_UID_SIZE);
+
+			pt_pr_buf(cd->dev, DL_INFO, (u8 *)full_ver,
+				sizeof(struct pt_pip2_version_full),
+				"PIP2 VERSION FULL");
+		}
 	} else {
 		ver = (struct pt_pip2_version *)
 			&cd->response_buf[PIP2_RESP_STATUS_OFFSET];
@@ -4665,8 +4819,6 @@ static int pt_pip1_read_data_block_(struct pt_core_data *cd,
 	u8 write_buf[5];
 	u8 cmd_offset = 0;
 	u16 calc_crc;
-	u16 rsp_len;
-	u8 pip3_exofs = 0;
 	struct pt_pip1_cmd pip1_cmd = {
 		CREATE_PIP1_FW_CMD(PIP1_CMD_ID_READ_DATA_BLOCK),
 		.write_length = write_length,
@@ -4679,57 +4831,31 @@ static int pt_pip1_read_data_block_(struct pt_core_data *cd,
 	write_buf[cmd_offset++] = HI_BYTE(length);
 	write_buf[cmd_offset++] = ebid;
 
-	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
-		cd->force_pip3_report_type = true;
-		pip3_exofs = 1;
-	}
 	rc = pt_pip1_send_and_wait_(cd, &pip1_cmd);
 	if (rc)
 		goto exit;
 
-	status = cd->response_buf[5 - pip3_exofs];
+	status = cd->response_buf[5];
 	if (status) {
 		rc = status;
 		goto exit;
 	}
 
-	read_ebid = cd->response_buf[6 - pip3_exofs];
-	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
-		if (read_ebid != ebid) {
-			rc = -EPROTO;
-			goto exit;
-		}
-	} else {
-		if ((read_ebid != ebid) || (cd->response_buf[9] != 0)) {
-			rc = -EPROTO;
-			goto exit;
-		}
+	read_ebid = cd->response_buf[6];
+	if ((read_ebid != ebid) || (cd->response_buf[9] != 0)) {
+		rc = -EPROTO;
+		goto exit;
 	}
 
-	rsp_len  = get_unaligned_le16(&cd->response_buf[0]);
 	*actual_read_len = get_unaligned_le16(&cd->response_buf[7]);
 	pt_debug(cd->dev, DL_INFO,
-		"%s: Resp Len=0x%04X Actual Read Length=0x%04X\n",
-		__func__, rsp_len, *actual_read_len);
+		"%s: Actual Read Length=0x%04X\n",
+		__func__, *actual_read_len);
 	if (length == 0 || *actual_read_len == 0)
 		goto exit;
 
-	/* Do not continue if the ARL is larger than the response */
-	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
-		(*actual_read_len + 13) != rsp_len) {
-		/*
-		 * For HID/PIP3 response, command 0x22 payload length is
-		 * 13 bytes larger than ARL.
-		 */
-		pt_debug(cd->dev, DL_ERROR,
-			"%s: Invalid Actual Read Length\n", __func__);
-		rc = -EBADMSG;
-		goto exit;
-	}
-
 	if (read_buf_size >= *actual_read_len)
-		memcpy(read_buf, &cd->response_buf[10 - pip3_exofs],
-			*actual_read_len);
+		memcpy(read_buf, &cd->response_buf[10], *actual_read_len);
 	else {
 		rc = -EPROTO;
 		goto exit;
@@ -4749,7 +4875,6 @@ static int pt_pip1_read_data_block_(struct pt_core_data *cd,
 	}
 
 exit:
-	cd->force_pip3_report_type = false;
 	return rc;
 }
 
@@ -4780,6 +4905,89 @@ static int _pt_request_pip_read_data_block(struct device *dev,
 
 	return pt_pip1_read_data_block_(cd, row_number, length,
 			ebid, actual_read_len, read_buf, read_buf_size, crc);
+}
+
+/*
+ * There is fixed 4 bytes shift, 5 bytes are needed at least if to read
+ * 1 byte (e.g. MFG_VAL0) from Manufactuary Data Block. If other index of
+ * MFG_VAL is needed, please update macro MDATA_INDEX.
+ */
+#define MDATA_INDEX            (0) /* index of MFG_VAL */
+#define MDATA_OFFSET           (4 + MDATA_INDEX)
+#define MDATA_READ_SIZE        (1)
+#define MDATA_READ_BUFFER_SIZE (MDATA_OFFSET + MDATA_READ_SIZE)
+/*******************************************************************************
+ * FUNCTION: _pt_get_pid_from_mfg_data_
+ *
+ * SUMMARY: Wrapper funcion to call pt_pip1_read_data_block_() to get
+ *  Manufacturing Data which stores panel ID information in this case.
+ *
+ * NOTE: This function doesn't support PIP3.
+ *
+ * RETURN:
+ *	 0 = success
+ *	!0 = failure
+ *
+ * PARAMETERS:
+ *	*cd        - pointer to core data
+ *	*panel_id  - pointer to store Panel ID
+ ******************************************************************************/
+static int _pt_get_pid_from_mfg_data_(struct pt_core_data *cd, u8 *panel_id)
+{
+	int rc;
+	u8 read_buf[MDATA_READ_BUFFER_SIZE];
+	u16 crc;
+	u16 actual_read_len = 0;
+
+	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID)
+		return -EINVAL;
+
+	rc = pt_pip1_read_data_block_(cd, 0, MDATA_READ_BUFFER_SIZE,
+				      PT_MDATA_EBID, &actual_read_len, read_buf,
+				      MDATA_READ_BUFFER_SIZE, &crc);
+	if (rc)
+		return rc;
+
+	if (panel_id)
+		*panel_id = read_buf[MDATA_OFFSET];
+
+	return 0;
+}
+
+/*******************************************************************************
+ * FUNCTION: pt_get_pid_from_mfg_data_
+ *
+ * SUMMARY: This function retrieves 1 byte MFG_DATA as panel ID information. The
+ *  index of MFG_DATA is set by macro MDATA_INDEX.
+ *
+ * NOTE: The post condition of calling this function will be that the DUT will
+ *  be in SCANNINING mode if no failures occur
+ *
+ * RETURN:
+ *	 0 = success
+ *	!0 = failure
+ *
+ * PARAMETERS:
+ *  *cd        - pointer to core data
+ *  *panel_id  - pointer to store Panel ID
+ ******************************************************************************/
+static int pt_get_pid_from_mfg_data_(struct pt_core_data *cd, u8 *panel_id)
+{
+	int rc;
+
+	rc = pt_pip_suspend_scanning_(cd);
+	if (rc)
+		goto error;
+
+	rc = _pt_get_pid_from_mfg_data_(cd, panel_id);
+	if (rc)
+		goto exit;
+
+exit:
+	pt_pip_resume_scanning_(cd);
+error:
+	pt_debug(cd->dev, DL_INFO, "%s: panel_id:%02X\n", __func__, *panel_id);
+	return rc;
 }
 
 /*******************************************************************************
@@ -4926,6 +5134,8 @@ static int pt_pip_get_data_structure_(
 	u8 write_buf[5];
 	u8 read_data_id;
 	u8 pip3_exofs = 0;
+	u8 data_elem_size;
+	int data_size;
 	struct pt_pip1_cmd pip1_cmd = {
 		CREATE_PIP1_FW_CMD(PIP1_CMD_ID_GET_DATA_STRUCTURE),
 		.write_length = 5,
@@ -4958,16 +5168,22 @@ again:
 
 	rsp_len  = get_unaligned_le16(&cd->response_buf[0]);
 	read_len = get_unaligned_le16(&cd->response_buf[7]);
+	data_elem_size = cd->response_buf[9] & 0x07;
+	data_size = read_len * data_elem_size;
+
 	pt_debug(cd->dev, DL_INFO,
-		"%s: Resp Len=0x%04X Actual Read Length=0x%04X\n",
-		__func__, rsp_len, read_len);
+		"%s: %s=0x%04X %s=0x%04X %s=0x%02X %s=0x%04X\n",
+		__func__, "Resp Len", rsp_len,
+		"Actual Read Length", read_len,
+		"Element Size", data_elem_size,
+		"Calc Data Size", data_size);
 
 	/* Do not continue if the ARL is larger than the response */
 	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
-		(read_len + 12) != rsp_len) {
+		(data_size + 12) != rsp_len) {
 		/*
 		 * For HID/PIP3 response, command 0x24 payload length
-		 * is 12 bytes larger than ARL.
+		 * is 12 bytes larger than ARL * Element Size.
 		 */
 		pt_debug(cd->dev, DL_ERROR,
 			"%s: Invalid Actual Read Length\n", __func__);
@@ -5148,8 +5364,23 @@ static int _pt_manage_local_cal_data(struct device *dev, u8 action, u16 *size,
 		 * Don't check rc as doing a read size will give a false
 		 * error on the CRC check.
 		 */
-		rc = pt_pip1_read_data_block_(cd, row_number, 0, PT_CAL_EBID,
-			&act_trans_len, tmp_data, buf_size, &data_block_crc);
+		if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+			/*
+			 * According to 001-30009*I, Table 8-2, the read
+			 * length should be 2 to get the Data block size.
+			 */
+			if (cd->hid_core.pip_minor_ver > 0)
+				rc = pt_pip3_get_data_block_(cd, 0, 2,
+					PT_CAL_EBID, &act_trans_len, tmp_data,
+					buf_size, &data_block_crc);
+			else
+				rc = pt_pip3_get_data_block_(cd, 0, 0,
+					PT_CAL_EBID, &act_trans_len, tmp_data,
+					buf_size, &data_block_crc);
+		} else
+			rc = pt_pip1_read_data_block_(cd, row_number, 0,
+				PT_CAL_EBID, &act_trans_len, tmp_data,
+				buf_size, &data_block_crc);
 		cal_blk_size = act_trans_len;
 		kfree(tmp_data);
 
@@ -5199,11 +5430,34 @@ static int _pt_manage_local_cal_data(struct device *dev, u8 action, u16 *size,
 			else
 				transfer_size = PT_CAL_DATA_ROW_SIZE;
 
-			rc = pt_pip1_read_data_block_(cd, row_number,
-				transfer_size, PT_CAL_EBID,
-				&act_trans_len,
-				&cal_cache_data[byte_offset], cal_blk_size + 2,
-				&data_block_crc);
+			if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+				/*
+				 * According to 001-30009*H, Row parameter is
+				 * replaced by byte offset.
+				 */
+				if (cd->hid_core.pip_minor_ver > 0)
+					rc = pt_pip3_get_data_block_(cd,
+						row_number * 128,
+						transfer_size, PT_CAL_EBID,
+						&act_trans_len,
+						&cal_cache_data[byte_offset],
+						cal_blk_size + 2,
+						&data_block_crc);
+				else
+					rc = pt_pip3_get_data_block_(cd,
+						row_number,
+						transfer_size, PT_CAL_EBID,
+						&act_trans_len,
+						&cal_cache_data[byte_offset],
+						cal_blk_size + 2,
+						&data_block_crc);
+			} else
+				rc = pt_pip1_read_data_block_(cd, row_number,
+					transfer_size, PT_CAL_EBID,
+					&act_trans_len,
+					&cal_cache_data[byte_offset],
+					cal_blk_size + 2,
+					&data_block_crc);
 			if (rc) {
 				/* Error occured, exit loop */
 				cal_size = 0;
@@ -5247,11 +5501,18 @@ static int _pt_manage_local_cal_data(struct device *dev, u8 action, u16 *size,
 			else
 				transfer_size = cal_size - byte_offset;
 
-			rc = pt_pip1_write_data_block_(cd, row_number,
-				transfer_size, PT_CAL_EBID,
-				&cal_cache_data[byte_offset],
-				(u8 *)pt_data_block_security_key,
-				&act_trans_len);
+			if (cd->protocol_mode == PT_PROTOCOL_MODE_HID)
+				rc = pt_pip3_set_data_block_(cd, row_number,
+					transfer_size, PT_CAL_EBID,
+					&cal_cache_data[byte_offset],
+					(u8 *)pt_data_block_security_key,
+					&act_trans_len);
+			else
+				rc = pt_pip1_write_data_block_(cd, row_number,
+					transfer_size, PT_CAL_EBID,
+					&cal_cache_data[byte_offset],
+					(u8 *)pt_data_block_security_key,
+					&act_trans_len);
 
 			byte_offset += act_trans_len;
 			pt_debug(dev, DL_INFO, "%s: CAL write byte offset=%d\n",
@@ -5923,6 +6184,13 @@ static int pt_pip_calibrate_idacs_(struct pt_core_data *cd,
 		.timeout_ms = PT_PIP1_CMD_CALIBRATE_IDAC_TIMEOUT,
 	};
 
+	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+		pt_debug(cd->dev, DL_ERROR,
+			"%s: PIP3 doesn't support command 0x28\n",
+			__func__);
+		return -EINVAL;
+	}
+
 	write_buf[cmd_offset++] = mode;
 	rc =  pt_pip1_send_and_wait_(cd, &pip1_cmd);
 	if (rc)
@@ -6355,7 +6623,7 @@ static int pt_hid_output_retrieve_panel_scan_(
 		(data_size + 12) != size) {
 		/*
 		 * For HID/PIP3 response, command 0x2B payload length
-		 * is 12 bytes larger than ARL.
+		 * is 12 bytes larger than ARL * Element Size.
 		 */
 		pt_debug(cd->dev, DL_ERROR,
 			"%s: Invalid Actual Read Length\n", __func__);
@@ -7120,7 +7388,7 @@ static int pt_pip2_get_status_(struct pt_core_data *cd)
 {
 	u16 actual_read_len;
 	u8 read_buf[12];
-	u8 status, boot;
+	u8 status, exec, init_failed;
 	int rc = 0;
 
 	rc = _pt_request_pip2_send_cmd(cd->dev, PT_CORE_CMD_UNPROTECTED,
@@ -7134,32 +7402,73 @@ static int pt_pip2_get_status_(struct pt_core_data *cd)
 	pt_pr_buf(cd->dev, DL_DEBUG, read_buf, actual_read_len,
 		"PIP2 STATUS");
 
+	/*
+	 * In HID/PIP3 mode, if status is non-zero, the following data after
+	 * "status code" is invalid. In PIP2 mode, if status is 0 or 2, the
+	 * following data after "status code" is valid.
+	 */
 	status = read_buf[PIP2_RESP_STATUS_OFFSET];
-	if (status == PIP2_RSP_ERR_INIT_FAILURE) {
-		pt_debug(cd->dev, DL_ERROR,
-			"%s: PIP2 Initialization Failure, FW stuck in BOOTUP SysMode. status code = %d\n",
-			__func__, status);
-		rc = status;
+	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+		if (cd->hid_core.pip_minor_ver >= 3) {
+			init_failed =
+				(read_buf[PIP2_RESP_BODY_OFFSET] & 0x80) >> 7;
+			if (init_failed) {
+				pt_debug(cd->dev, DL_ERROR,
+					"%s: Initialization error detected, FW unable to enter scanning mode. init_failed = %d\n",
+					__func__, init_failed);
+				rc = PIP2_RSP_ERR_INIT_FAILURE;
+				goto exit;
+			}
+		} else {
+			if (status != PIP2_RSP_ERR_NONE) {
+				rc = status;
+				if (status == PIP2_RSP_ERR_INIT_FAILURE)
+					pt_debug(cd->dev, DL_ERROR,
+						"%s: Initialization error detected, FW unable to enter scanning mode. status code = %d\n",
+						__func__, status);
+				goto exit;
+			}
+		}
+	} else {
+		if (status != PIP2_RSP_ERR_NONE &&
+			status != PIP2_RSP_ERR_INIT_FAILURE) {
+			rc = status;
+			goto exit;
+		}
+		if (status == PIP2_RSP_ERR_INIT_FAILURE) {
+			rc = status;
+			pt_debug(cd->dev, DL_ERROR,
+				"%s: Initialization error detected, FW unable to enter scanning mode. status code = %d\n",
+				__func__, status);
+		}
 	}
 
-	boot = read_buf[PIP2_RESP_BODY_OFFSET] & 0x01;
-	cd->dut_status.fw_system_mode =
-		read_buf[PIP2_RESP_BODY_OFFSET + 1];
-
-	if (status == PIP2_RSP_ERR_NONE && boot == 0x00)
+	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+		cd->hid_core.pip_minor_ver >= 3)
+		cd->active_proc = (read_buf[PIP2_RESP_BODY_OFFSET] & 0x06) >> 1;
+	exec = read_buf[PIP2_RESP_BODY_OFFSET] & 0x01;
+	if (exec == PIP2_STATUS_BL_EXEC)
 		cd->dut_status.mode = PT_MODE_BOOTLOADER;
-	else if ((status == PIP2_RSP_ERR_NONE ||
-			status == PIP2_RSP_ERR_INIT_FAILURE) &&
-			boot == 0x01) {
-		cd->dut_status.mode = PT_MODE_OPERATIONAL;
+	else if (exec == PIP2_STATUS_APP_EXEC) {
 		/* protocol mode need a mask: 0x07 */
 		cd->dut_status.protocol_mode =
 		    read_buf[PIP2_RESP_BODY_OFFSET + 2] & 0x07;
+		cd->dut_status.fw_system_mode =
+			read_buf[PIP2_RESP_BODY_OFFSET + 1];
 		if (cd->dut_status.fw_system_mode ==
 			FW_SYS_MODE_SECONDARY_IMAGE)
 			cd->dut_status.mode = PT_MODE_SECONDARY_IMAGE;
+		else if (cd->dut_status.fw_system_mode ==
+			FW_SYS_MODE_UTILITY_IMAGE)
+			cd->dut_status.mode = PT_MODE_UTILITY_IMAGE;
+		else
+			cd->dut_status.mode = PT_MODE_OPERATIONAL;
 	} else
 		cd->dut_status.mode = PT_MODE_UNKNOWN;
+
+	/* There is no "Protocol Mode" field in PIP2 mode */
+	if (cd->protocol_mode != PT_PROTOCOL_MODE_HID)
+		goto exit;
 
 	if (cd->set_protocol_mode) {
 		if (cd->dut_status.protocol_mode != cd->protocol_mode)
@@ -7170,6 +7479,12 @@ static int pt_pip2_get_status_(struct pt_core_data *cd)
 	} else
 		cd->protocol_mode = cd->dut_status.protocol_mode;
 
+exit:
+	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+		rc == PIP2_RSP_ERR_INIT_FAILURE) {
+		cd->dut_status.fw_system_mode = FW_SYS_MODE_BOOT;
+		cd->dut_status.mode = PT_MODE_OPERATIONAL;
+	}
 	return rc;
 }
 
@@ -7439,7 +7754,9 @@ static int _pt_get_fw_sys_mode(struct pt_core_data *cd, u8 *sys_mode, u8 *mode)
 		pt_debug(cd->dev, DL_DEBUG, "%s: tmp_sys_mode=%d tmp_mode=%d\n",
 			__func__, tmp_sys_mode, tmp_mode);
 		if (!rc) {
-			if (tmp_mode != PT_MODE_OPERATIONAL)
+			if (tmp_mode != PT_MODE_OPERATIONAL &&
+				tmp_mode != PT_MODE_SECONDARY_IMAGE &&
+				tmp_mode != PT_MODE_UTILITY_IMAGE)
 				tmp_sys_mode = FW_SYS_MODE_UNDEFINED;
 		}
 		goto exit;
@@ -7663,6 +7980,9 @@ static int pt_get_hid_descriptor_(struct pt_core_data *cd,
 
 	cd->hid_core.hid_protocol_ver =
 		(desc->version_id & 0xff00) >> 8;
+
+	cd->hid_core.pip_minor_ver =
+		desc->version_id & 0x00ff;
 
 	pt_debug(dev, DL_INFO,
 		"%s: report desc len:%d, max_input_len:%d, max_output_len:%d\n",
@@ -8130,7 +8450,7 @@ static int _pt_detect_dut_by_pip3(struct device *dev,
 	write_buf[index++] = 0x06; /* LSB, Length */
 	write_buf[index++] = 0x00; /* MSB, Length */
 	write_buf[index++] = 0x08; /* SEQ */
-	write_buf[index++] = HID_CMD_ID_STATUS; /* CMD_ID */
+	write_buf[index++] = PIP3_CMD_ID_STATUS; /* CMD_ID */
 	write_buf[index++] = 0x3A; /* MSB, CRC */
 	write_buf[index++] = 0xD1; /* LSB, CRC */
 	/* Set report type to PIP3 */
@@ -8174,6 +8494,8 @@ static int _pt_detect_dut_by_pip3(struct device *dev,
 			mode_tmp = read_buf[PIP2_RESP_BODY_OFFSET + 1];
 			if (mode_tmp == FW_SYS_MODE_SECONDARY_IMAGE)
 				mode_tmp = PT_MODE_SECONDARY_IMAGE;
+			else if (mode_tmp == FW_SYS_MODE_UTILITY_IMAGE)
+				mode_tmp = PT_MODE_UTILITY_IMAGE;
 			else
 				mode_tmp = PT_MODE_OPERATIONAL;
 			enum_status_tmp = ENUM_STATUS_FW_RESET_SENTINEL;
@@ -8190,6 +8512,7 @@ exit:
 		*prot_mode = prot_mode_tmp;
 	if (enum_status)
 		*enum_status = enum_status_tmp;
+	cd->pt_hid_buf_op.report_type = UNKNOWN_REPORT;
 	mutex_unlock(&cd->system_lock);
 
 #ifdef TTDL_DIAGNOSTICS
@@ -8419,7 +8742,7 @@ static int _pip2_generate_hw_version(struct pt_core_data *cd, char *hw_version)
 {
 	struct pt_ttdata *ttdata = &cd->sysinfo.ttdata;
 
-	if (cd->app_pip_ver_ready | cd->bl_pip_ver_ready) {
+	if (cd->app_pip_ver_ready || cd->bl_pip_ver_ready) {
 		snprintf(hw_version, HW_VERSION_LEN_MAX, "%04X.%04X.%02X",
 			 ttdata->chip_id, ttdata->chip_rev, cd->pid_for_loader);
 		return 0;
@@ -8456,6 +8779,8 @@ static int _pt_request_hw_version(struct device *dev, char *hw_version)
 	u8 panel_id;
 	struct pt_core_data *cd = dev_get_drvdata(dev);
 	struct pt_ttdata *ttdata = &cd->sysinfo.ttdata;
+
+	memset(return_data, 0, sizeof(return_data));
 
 	if (!hw_version)
 		return -ENOMEM;
@@ -8640,15 +8965,25 @@ static void pt_stop_wd_timer(struct pt_core_data *cd)
 static int pt_hw_soft_reset(struct pt_core_data *cd, int protect)
 {
 	int rc = 0;
+	u8 read_buf[12];
+	u16 actual_read_len;
 
 	mutex_lock(&cd->system_lock);
 	cd->enum_status = ENUM_STATUS_START;
 	pt_debug(cd->dev, DL_DEBUG, "%s: Startup Status Reset\n", __func__);
 	mutex_unlock(&cd->system_lock);
-	if (protect)
-		rc = pt_hid_cmd_reset(cd);
-	else
-		rc = pt_hid_cmd_reset_(cd);
+	if (cd->mode == PT_MODE_OPERATIONAL ||
+	    cd->active_dut_generation == DUT_PIP1_ONLY) {
+		if (protect)
+			rc = pt_hid_cmd_reset(cd);
+		else
+			rc = pt_hid_cmd_reset_(cd);
+	} else {
+		rc = _pt_request_pip2_send_cmd(cd->dev, protect,
+				PIP2_CMD_ID_RESET, NULL, 0,
+				read_buf, &actual_read_len);
+	}
+
 	if (rc < 0) {
 		pt_debug(cd->dev, DL_ERROR,
 			"%s: FAILED to execute SOFT reset\n", __func__);
@@ -8719,6 +9054,13 @@ static int pt_dut_reset(struct pt_core_data *cd, int protect)
 	int rc = 0;
 
 	pt_debug(cd->dev, DL_INFO, "%s: reset hw...\n", __func__);
+
+	if (cd->util_rst_state == UTIL_RST_FAIL) {
+		pt_debug(cd->dev, DL_WARN,
+			"%s: Reset Util is failed, try soft reset\n", __func__);
+		goto skip_hw_rst;
+	}
+
 	mutex_lock(&cd->system_lock);
 	cd->hid_reset_cmd_state = 1;
 	rc = pt_hw_hard_reset(cd);
@@ -8727,9 +9069,11 @@ static int pt_dut_reset(struct pt_core_data *cd, int protect)
 	if (rc == -ENODEV) {
 		mutex_lock(&cd->system_lock);
 		cd->hid_reset_cmd_state = 0;
+		cd->util_rst_state = UTIL_RST_FAIL;
 		mutex_unlock(&cd->system_lock);
 		pt_debug(cd->dev, DL_ERROR,
 			"%s: Hard reset failed, try soft reset\n", __func__);
+skip_hw_rst:
 		rc = pt_hw_soft_reset(cd, protect);
 	}
 
@@ -9698,6 +10042,49 @@ static void publish_report_desc(struct pt_core_data *cd, u16 len)
 }
 
 /*******************************************************************************
+ * FUNCTION: find_hid_pen_async_feature_report_id
+ *
+ * SUMMARY: Find out the hid pen asynchronous feature report id according to the
+ *    usage page and collection usage page
+ *
+ * PARAMETERS:
+ *  *cd        - pointer to core data structure
+ ******************************************************************************/
+static void find_hid_pen_async_feature_report_id(struct pt_core_data *cd)
+{
+	struct pt_hid_report *report = NULL;
+	struct pt_hid_field *field = NULL;
+	int i;
+	u32 field_cup;
+	u32 field_up;
+	u8 id_num = 0;
+
+	for (i = 0; i < cd->num_hid_reports; i++) {
+		report = cd->hid_reports[i];
+		field = report->fields[0];
+		field_cup = field->collection_usage_pages
+			[HID_COLLECTION_APPLICATION];
+		field_up = field->usage_page;
+		if (field_cup == HID_DG_PEN &&
+			(field_up == HID_PEN_GETSET_FEATURE_USAGE_PG ||
+			field_up == HID_PEN_DIAGNOSE_USAGE_PG ||
+			field_up == HID_PEN_SET_TRANSDUCER_USAGE_PG)) {
+			cd->pt_hid_pen_async_ftr_rpt_id[id_num++] = report->id;
+			pt_debug(cd->dev, DL_DEBUG,
+				"%s: HID PEN async feature report id: %d\n",
+				__func__, report->id);
+			if (id_num > PT_HID_MAX_REPORTS)
+				id_num = 0;
+			cd->num_hid_pen_async_ftr_rpt_id = id_num;
+		}
+	}
+
+	pt_debug(cd->dev, DL_INFO,
+		"%s: HID PEN async feature report id number: %d\n",
+		__func__, cd->num_hid_pen_async_ftr_rpt_id);
+}
+
+/*******************************************************************************
  * FUNCTION: pt_get_report_descriptor_
  *
  * SUMMARY: Get and parse report descriptor.
@@ -9768,6 +10155,13 @@ static int pt_get_report_descriptor_(struct pt_core_data *cd)
 		for (j = 0; j < report->num_fields; j++) {
 			struct pt_hid_field *field = report->fields[j];
 
+			if (report->id == PT_HID_OUTPUT_REPORT_ID &&
+				field->usage_page == HID_PT_PIP3_CMD_USAGE_PG) {
+				cd->pip3_output_rpt_cnt = field->report_count;
+				pt_debug(cd->dev, DL_INFO, "%s: PIP3 output report count: %d\n",
+					__func__, cd->pip3_output_rpt_cnt);
+			}
+
 			pt_debug(cd->dev, DL_DEBUG,
 				" Field %d: rep_cnt:%d rep_sz:%d off:%d data:%02X min:%d max:%d usage_page:%08X\n",
 				j, field->report_count, field->report_size,
@@ -9787,6 +10181,7 @@ static int pt_get_report_descriptor_(struct pt_core_data *cd)
 
 	setup_pen_report_from_report_desc(cd);
 	setup_finger_report_from_report_desc(cd);
+	find_hid_pen_async_feature_report_id(cd);
 
 	/* Free it for now */
 	pt_free_hid_reports_(cd);
@@ -10390,7 +10785,45 @@ static int move_sensor_data(struct pt_core_data *cd,
 }
 
 /*******************************************************************************
- * FUNCTION: hid_async_report_validate_crc
+ * FUNCTION: move_pip1_fw_debug_data
+ *
+ * SUMMARY: Move pip1 FW debug data from the input buffer into the system
+ *	system information structure, xy_mode and xy_data.
+ *	- If TTHE_TUNER_SUPPORT is defined print FW debug data into
+ *	the tthe_tuner sysfs node under the label "DBG"
+ *
+ * RETURN:
+ *	 0 = success
+ *	!0 = failure
+ *
+ * PARAMETERS:
+ *	*cd - pointer to core data
+ *	*si - pointer to the system information structure
+ ******************************************************************************/
+static int move_pip1_fw_debug_data(struct pt_core_data *cd,
+	struct pt_sysinfo *si)
+{
+#ifdef TTHE_TUNER_SUPPORT
+	int size = get_unaligned_le16(&cd->input_buf[0]);
+	/*
+	 * Only print Timestamp, Data Format ID and FW debug data.
+	 * The length of print data should be:
+	 * Length of Report - header size (4)
+	 */
+	if (size) {
+		cd->tthe_data_format =
+			cd->input_buf[PIP1_FW_DBG_DATA_FORMAT_ID_OFFSET];
+		tthe_print(cd, &cd->input_buf[SENSOR_HEADER_SIZE],
+				size - SENSOR_HEADER_SIZE, "DBG=");
+		cd->tthe_data_format = PT_DATA_BINARY;
+	}
+#endif
+	memcpy(si->xy_mode, cd->input_buf, SENSOR_HEADER_SIZE);
+	return 0;
+}
+
+/*******************************************************************************
+ * FUNCTION: pip3_async_report_validate_crc
  *
  * SUMMARY: Validate CRC for pure hid asynchronous reports.
  *
@@ -10401,7 +10834,7 @@ static int move_sensor_data(struct pt_core_data *cd,
  * PARAMETERS:
  *	*cd - pointer to core data
  ******************************************************************************/
-static int hid_async_report_validate_crc(struct pt_core_data *cd)
+static int pip3_async_report_validate_crc(struct pt_core_data *cd)
 {
 	int rc = 0;
 	int hid_pl_len;
@@ -10430,7 +10863,7 @@ static int hid_async_report_validate_crc(struct pt_core_data *cd)
 }
 
 /*******************************************************************************
- * FUNCTION: stitch_hid_async_report
+ * FUNCTION: stitch_pip3_async_report
  *
  * SUMMARY: Stitch the asynchronous reports in pure hid mode. HID reports can be
  *  segmented due to wMaxInputReportLength being less than the size of a full
@@ -10449,7 +10882,7 @@ static int hid_async_report_validate_crc(struct pt_core_data *cd)
  *	*data_buf - pointer to the async reports buffer
  *	mrpt      - the value of more reports bit
  ******************************************************************************/
-static int stitch_hid_async_report(struct pt_core_data *cd)
+static int stitch_pip3_async_report(struct pt_core_data *cd)
 {
 	static int input_sz;
 	int hdr_sz = HID_RESP_HEADER_SIZE;
@@ -10519,7 +10952,7 @@ static int stitch_hid_async_report(struct pt_core_data *cd)
 		input_sz = 0;
 		hid_pl_len = 0;
 
-		rc = hid_async_report_validate_crc(cd);
+		rc = pip3_async_report_validate_crc(cd);
 		if (rc)
 			pt_debug(cd->dev, DL_ERROR, "%s: CRC error\n",
 				__func__);
@@ -10535,7 +10968,7 @@ exit:
 }
 
 /*******************************************************************************
- * FUNCTION: rebuild_hid_sdm_to_pip1
+ * FUNCTION: rebuild_pip3_sdm_to_pip1
  *
  * SUMMARY: Rebuild async_data_buf with PIP1 data format for SENSOR DATA MODE
  *	response.
@@ -10547,7 +10980,7 @@ exit:
  * PARAMETERS:
  *	*cd       - pointer to core data
  ******************************************************************************/
-static int rebuild_hid_sdm_to_pip1(struct pt_core_data *cd)
+static int rebuild_pip3_sdm_to_pip1(struct pt_core_data *cd)
 {
 	int hid_pl_len = 0;
 	u8 cmd_id = 0;
@@ -10560,7 +10993,7 @@ static int rebuild_hid_sdm_to_pip1(struct pt_core_data *cd)
 	hid_pl_len = get_unaligned_le16(
 		&cd->pt_async_rpt.buf[HID_RESP_PAYLOAD_LEN_OFFSET]);
 	cmd_id = cd->pt_async_rpt.buf[HID_RESP_CMD_ID_OFFSET] & 0x7F;
-	if (cmd_id != HID_CMD_ID_START_SENSOR_DATA_MODE) {
+	if (cmd_id != PIP3_CMD_ID_START_SENSOR_DATA_MODE) {
 		pt_debug(cd->dev, DL_ERROR,
 			"%s: Cmd ID error. cmd_id=0x%02X\n",
 			__func__, cmd_id);
@@ -10611,7 +11044,7 @@ exit:
 }
 
 /*******************************************************************************
- * FUNCTION: move_hid_sdm
+ * FUNCTION: move_pip3_sdm
  *
  * SUMMARY: Print the raw sensor data into the tthe_tuner sysfs node.
  *
@@ -10622,7 +11055,7 @@ exit:
  * PARAMETERS:
  *	*cd - pointer to core data
  ******************************************************************************/
-static int move_hid_sdm(struct pt_core_data *cd)
+static int move_pip3_sdm(struct pt_core_data *cd)
 {
 	u8 mrpt = 0;
 	int pip1_pl_len;
@@ -10630,7 +11063,7 @@ static int move_hid_sdm(struct pt_core_data *cd)
 	int length;
 	u8 cmd_id = cd->pt_async_rpt.cmd_id;
 
-	if (cmd_id != HID_CMD_ID_START_SENSOR_DATA_MODE) {
+	if (cmd_id != PIP3_CMD_ID_START_SENSOR_DATA_MODE) {
 		pt_debug(cd->dev, DL_ERROR,
 			"%s: Cmd ID error. cmd_id=0x%02X\n",
 			__func__, cmd_id);
@@ -10659,11 +11092,11 @@ static int move_hid_sdm(struct pt_core_data *cd)
 		pt_debug(cd->dev, DL_DEBUG, "%s: mrpt=%d\n",
 			__func__, mrpt);
 
-		rc = stitch_hid_async_report(cd);
+		rc = stitch_pip3_async_report(cd);
 		if (rc || mrpt)
 			goto exit;
 
-		rc = rebuild_hid_sdm_to_pip1(cd);
+		rc = rebuild_pip3_sdm_to_pip1(cd);
 		if (rc)
 			goto exit;
 		pip1_pl_len =
@@ -10677,7 +11110,7 @@ exit:
 }
 
 /*******************************************************************************
- * FUNCTION: move_hid_thm
+ * FUNCTION: move_pip3_thm
  *
  * SUMMARY: Print the Tracking Heatmap data into the tthe_tuner sysfs node.
  *
@@ -10688,7 +11121,7 @@ exit:
  * PARAMETERS:
  *	*cd - pointer to core data
  ******************************************************************************/
-static int move_hid_thm(struct pt_core_data *cd)
+static int move_pip3_thm(struct pt_core_data *cd)
 {
 	u8 mrpt = 0;
 	int pip1_pl_len;
@@ -10697,7 +11130,7 @@ static int move_hid_thm(struct pt_core_data *cd)
 	u8 cmd_id = cd->pt_async_rpt.cmd_id;
 	u8 data_buf[PT_MAX_PIP1_MSG_SIZE];
 
-	if (cmd_id != HID_CMD_ID_START_TRACKING_HEATMAP_MODE) {
+	if (cmd_id != PIP3_CMD_ID_START_TRACKING_HEATMAP_MODE) {
 		pt_debug(cd->dev, DL_ERROR,
 			"%s: Cmd ID error. cmd_id=0x%02X\n",
 			__func__, cmd_id);
@@ -10726,7 +11159,7 @@ static int move_hid_thm(struct pt_core_data *cd)
 		pt_debug(cd->dev, DL_DEBUG, "%s: mrpt=%d\n",
 			__func__, mrpt);
 
-		rc = stitch_hid_async_report(cd);
+		rc = stitch_pip3_async_report(cd);
 		if (rc || mrpt)
 			goto exit;
 
@@ -10764,7 +11197,7 @@ exit:
 }
 
 /*******************************************************************************
- * FUNCTION: move_hid_rtsd
+ * FUNCTION: move_pip3_rtsd
  *
  * SUMMARY: Print the Realtime Signal Data into the tthe_tuner sysfs node.
  *
@@ -10775,14 +11208,14 @@ exit:
  * PARAMETERS:
  *	*cd - pointer to core data
  ******************************************************************************/
-static int move_hid_rtsd(struct pt_core_data *cd)
+static int move_pip3_rtsd(struct pt_core_data *cd)
 {
 	u8 mrpt = 0;
 	int rc = 0;
 	int length;
 	u8 cmd_id = cd->pt_async_rpt.cmd_id;
 
-	if (cmd_id != HID_CMD_ID_REALTIME_SIGNAL_MODE) {
+	if (cmd_id != PIP3_CMD_ID_REALTIME_SIGNAL_MODE) {
 		pt_debug(cd->dev, DL_ERROR,
 			"%s: Cmd ID error. cmd_id=0x%02X\n",
 			__func__, cmd_id);
@@ -10811,10 +11244,11 @@ static int move_hid_rtsd(struct pt_core_data *cd)
 		pt_debug(cd->dev, DL_DEBUG, "%s: mrpt=%d\n",
 			__func__, mrpt);
 
-		rc = stitch_hid_async_report(cd);
+		rc = stitch_pip3_async_report(cd);
 		if (rc || mrpt)
 			goto exit;
 
+		length = get_unaligned_le16(&cd->pt_async_rpt.buf[0]);
 		tthe_print(cd, cd->pt_async_rpt.buf, length, "RTSD=");
 	}
 
@@ -10823,7 +11257,60 @@ exit:
 }
 
 /*******************************************************************************
- * FUNCTION: move_hid_async_sensor_data
+ * FUNCTION: move_pip3_fw_debug_data
+ *
+ * SUMMARY: Print PIP3 fw debug Data into the tthe_tuner sysfs node.
+ *
+ * RETURN:
+ *	 0 = success
+ *	!0 = failure
+ *
+ * PARAMETERS:
+ *	*cd - pointer to core data
+ ******************************************************************************/
+static int move_pip3_fw_debug_data(struct pt_core_data *cd)
+{
+	u8 mrpt = 0;
+	int rc = 0;
+	int length;
+	u8 cmd_id = cd->pt_async_rpt.cmd_id;
+
+	if (cmd_id != PIP3_CMD_ID_FW_DEBUG_MODE) {
+		pt_debug(cd->dev, DL_ERROR,
+			"%s: Cmd ID error. cmd_id=0x%02X\n",
+			__func__, cmd_id);
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	mrpt = cd->input_buf[HID_RESP_MRPT_OFFSET] & 0x01;
+	pt_debug(cd->dev, DL_DEBUG, "%s: mrpt=%d\n",
+		__func__, mrpt);
+
+	rc = stitch_pip3_async_report(cd);
+	if (rc || mrpt)
+		goto exit;
+
+	/*
+	 * Only print Timestamp, Data Format ID and FW debug data.
+	 * The length of print data should be:
+	 * Length of Payload - Payload header size (4) - CRC (2)
+	 */
+	length = get_unaligned_le16(
+			&cd->pt_async_rpt.buf[HID_RESP_PAYLOAD_LEN_OFFSET])
+			- HID_RESP_HEADER_SIZE - 2;
+	cd->tthe_data_format =
+		cd->pt_async_rpt.buf[HID_FW_DBG_DATA_FORMAT_ID_OFFSET];
+	tthe_print(cd, &cd->pt_async_rpt.buf[HID_FW_DBG_DATA_TIMESTAMP_OFFSET],
+			length, "DBG=");
+	cd->tthe_data_format = PT_DATA_BINARY;
+
+exit:
+	return rc;
+}
+
+/*******************************************************************************
+ * FUNCTION: move_pip3_async_sensor_data
  *
  * SUMMARY: If TTHE_TUNER_SUPPORT is defined print the raw sensor data into
  *	the tthe_tuner sysfs node.
@@ -10836,7 +11323,7 @@ exit:
  *	*cd - pointer to core data
  *	*si - pointer to the system information structure
  ******************************************************************************/
-static int move_hid_async_sensor_data(struct pt_core_data *cd)
+static int move_pip3_async_sensor_data(struct pt_core_data *cd)
 {
 	u8 mrpt = 0;
 	u8 frpt = 0;
@@ -10857,12 +11344,14 @@ static int move_hid_async_sensor_data(struct pt_core_data *cd)
 		__func__, cmd_id, frpt, mrpt);
 
 #ifdef TTHE_TUNER_SUPPORT
-	if (cmd_id == HID_CMD_ID_START_SENSOR_DATA_MODE)
-		rc = move_hid_sdm(cd);
-	else if (cmd_id == HID_CMD_ID_START_TRACKING_HEATMAP_MODE)
-		rc = move_hid_thm(cd);
-	else if (cmd_id == HID_CMD_ID_REALTIME_SIGNAL_MODE)
-		rc = move_hid_rtsd(cd);
+	if (cmd_id == PIP3_CMD_ID_START_SENSOR_DATA_MODE)
+		rc = move_pip3_sdm(cd);
+	else if (cmd_id == PIP3_CMD_ID_START_TRACKING_HEATMAP_MODE)
+		rc = move_pip3_thm(cd);
+	else if (cmd_id == PIP3_CMD_ID_REALTIME_SIGNAL_MODE)
+		rc = move_pip3_rtsd(cd);
+	else if (cmd_id == PIP3_CMD_ID_FW_DEBUG_MODE)
+		rc = move_pip3_fw_debug_data(cd);
 	else {
 		pt_debug(cd->dev, DL_DEBUG,
 			"%s: Wrong command id [0x%02X]\n",
@@ -10872,6 +11361,30 @@ static int move_hid_async_sensor_data(struct pt_core_data *cd)
 #endif
 
 	return rc;
+}
+
+/*******************************************************************************
+ * FUNCTION: move_hid_pen_async_feature_report
+ *
+ * SUMMARY: If TTHE_TUNER_SUPPORT is defined print HID feature report data into
+ *	the tthe_tuner sysfs node under the label "HID-ASYNC-FTR-RPT"
+ *
+ * RETURN:
+ *	 0 = success
+ *	!0 = failure
+ *
+ * PARAMETERS:
+ *	*cd - pointer to core data
+ ******************************************************************************/
+static int move_hid_pen_async_feature_report(struct pt_core_data *cd)
+{
+#ifdef TTHE_TUNER_SUPPORT
+	int size = get_unaligned_le16(&cd->input_buf[0]);
+
+	if (size)
+		tthe_print(cd, cd->input_buf, size, "HID-ASYNC-FTR-RPT=");
+#endif
+	return 0;
 }
 
 /*******************************************************************************
@@ -11223,6 +11736,36 @@ static int move_hid_pen_data(struct pt_core_data *cd, struct pt_sysinfo *si)
 }
 
 /*******************************************************************************
+ * FUNCTION: pt_is_hid_pen_async_feature_report
+ *
+ * SUMMARY: Determine if a report ID should be treated as a HID async feature
+ *			 report.
+ *
+ * RETURN:
+ *	true  = report ID is a HID async feature report
+ *	false = report ID is not a HID async feature report
+ *
+ * PARAMETERS:
+ *  *cd  - pointer to core data structure
+ *	id   - Report ID
+ ******************************************************************************/
+static bool pt_is_hid_pen_async_feature_report(struct pt_core_data *cd,
+	int id)
+{
+	int i;
+
+	if (cd->protocol_mode != PT_PROTOCOL_MODE_HID)
+		return false;
+
+	for (i = 0; i < cd->num_hid_pen_async_ftr_rpt_id; i++) {
+		if (id == cd->pt_hid_pen_async_ftr_rpt_id[i])
+			return true;
+	}
+
+	return false;
+}
+
+/*******************************************************************************
  * FUNCTION: parse_touch_input
  *
  * SUMMARY: Parse the touch report and take action based on the touch
@@ -11254,11 +11797,20 @@ static int parse_touch_input(struct pt_core_data *cd, int size)
 	if (!si->xy_mode || !si->xy_data)
 		return rc;
 
-	if (report_id == PT_PIP_TOUCH_REPORT_ID ||
-	    report_id == PT_HID_VS_FINGER_REPORT_ID) {
-		if (cd->protocol_mode == PT_PROTOCOL_MODE_PIP)
+	if (cd->protocol_mode == PT_PROTOCOL_MODE_PIP) {
+		if (report_id == PT_PIP_TOUCH_REPORT_ID)
 			rc = move_touch_data_pip(cd, si);
-		else {
+		else if (report_id == PT_PIP_CAPSENSE_BTN_REPORT_ID)
+			rc = move_button_data(cd, si);
+		else if (report_id == PT_PIP_SENSOR_DATA_REPORT_ID)
+			rc = move_sensor_data(cd, si);
+		else if (report_id == PT_PIP_TRACKING_HEATMAP_REPORT_ID)
+			rc = move_tracking_heatmap_data(cd, si);
+		else if (report_id == PT_PIP_FW_DEBUG_DATA_REPORT_ID)
+			rc = move_pip1_fw_debug_data(cd, si);
+	} else {
+		if (report_id == PT_PIP_TOUCH_REPORT_ID ||
+			report_id == PT_HID_VS_FINGER_REPORT_ID) {
 			rc = move_touch_data_hid(cd, si);
 			if (rc) {
 				pt_debug(cd->dev, DL_INFO,
@@ -11266,19 +11818,14 @@ static int parse_touch_input(struct pt_core_data *cd, int size)
 					__func__);
 				return 0;
 			}
-		}
-	} else if ((report_id == PT_HID_PEN_REPORT_ID ||
-		   report_id == PT_HID_VS_PEN_REPORT_ID) &&
-		   cd->protocol_mode != PT_PROTOCOL_MODE_PIP)
-		rc = move_hid_pen_data(cd, si);
-	else if (report_id == PT_PIP_CAPSENSE_BTN_REPORT_ID)
-		rc = move_button_data(cd, si);
-	else if (report_id == PT_PIP_SENSOR_DATA_REPORT_ID)
-		rc = move_sensor_data(cd, si);
-	else if (report_id == PT_PIP_TRACKING_HEATMAP_REPORT_ID)
-		rc = move_tracking_heatmap_data(cd, si);
-	else if (report_id == PT_HID_ASYNC_SENSOR_DATA_REPORT_ID)
-		rc = move_hid_async_sensor_data(cd);
+		} else if (report_id == PT_HID_PEN_REPORT_ID ||
+			report_id == PT_HID_VS_PEN_REPORT_ID)
+			rc = move_hid_pen_data(cd, si);
+		else if (pt_is_hid_pen_async_feature_report(cd, report_id))
+			rc = move_hid_pen_async_feature_report(cd);
+		else if (report_id == PT_HID_ASYNC_SENSOR_DATA_REPORT_ID)
+			rc = move_pip3_async_sensor_data(cd);
+	}
 
 	if (rc)
 		return rc;
@@ -11309,7 +11856,8 @@ static int parse_command_input(struct pt_core_data *cd, int size)
 
 	memcpy(cd->response_buf, cd->input_buf, size);
 #if defined(TTHE_TUNER_SUPPORT) && defined(TTDL_DIAGNOSTICS)
-	if (size && cd->show_tt_data) {
+	if (size && cd->show_tt_data &&
+		cd->protocol_mode != PT_PROTOCOL_MODE_HID) {
 		if (cd->pip2_prot_active)
 			tthe_print(cd, cd->input_buf, size, "TT_DATA_PIP2=");
 		else
@@ -11345,7 +11893,8 @@ static inline bool pt_allow_enumeration(struct pt_core_data *cd)
 	    (cd->core_probe_complete) &&
 	    (cd->hid_cmd_state != PIP1_CMD_ID_START_BOOTLOADER + 1) &&
 	    (cd->hid_cmd_state != PIP1_BL_CMD_ID_LAUNCH_APP + 1) &&
-	    (cd->hid_cmd_state != HID_CMD_ID_SWITCH_IMAGE + 1) &&
+	    (cd->hid_cmd_state != PIP3_CMD_ID_SWITCH_IMAGE + 1) &&
+	    (cd->hid_cmd_state != PIP3_CMD_ID_START_BOOTLOADER + 1) &&
 	    (cd->mode == PT_MODE_OPERATIONAL)) {
 		return true;
 	}
@@ -11354,7 +11903,8 @@ static inline bool pt_allow_enumeration(struct pt_core_data *cd)
 	    (cd->core_probe_complete) &&
 	    (cd->hid_cmd_state != PIP1_CMD_ID_START_BOOTLOADER + 1) &&
 	    (cd->hid_cmd_state != PIP1_BL_CMD_ID_LAUNCH_APP + 1) &&
-	    (cd->hid_cmd_state != HID_CMD_ID_SWITCH_IMAGE + 1) &&
+	    (cd->hid_cmd_state != PIP3_CMD_ID_SWITCH_IMAGE + 1) &&
+	    (cd->hid_cmd_state != PIP3_CMD_ID_START_BOOTLOADER + 1) &&
 	    (cd->active_dut_generation != DUT_PIP1_ONLY)) {
 		return true;
 	}
@@ -11379,9 +11929,10 @@ static inline bool pt_allow_enumeration(struct pt_core_data *cd)
  *	false = report ID is not a touch report
  *
  * PARAMETERS:
- *	id - Report ID
+ *  *cd  - pointer to core data structure
+ *	id   - Report ID
  ******************************************************************************/
-static bool pt_is_touch_report(int id)
+static bool pt_is_touch_report(struct pt_core_data *cd, int id)
 {
 	if (id == PT_PIP_TOUCH_REPORT_ID ||
 	    id == PT_HID_PEN_REPORT_ID ||
@@ -11391,6 +11942,8 @@ static bool pt_is_touch_report(int id)
 	    id == PT_PIP_SENSOR_DATA_REPORT_ID ||
 	    id == PT_PIP_TRACKING_HEATMAP_REPORT_ID ||
 	    id == PT_HID_ASYNC_SENSOR_DATA_REPORT_ID)
+		return true;
+	else if (pt_is_hid_pen_async_feature_report(cd, id))
 		return true;
 	else
 		return false;
@@ -11460,10 +12013,11 @@ static int pt_parse_hid_report_to_pip(struct pt_core_data *cd,
 		if (cd->pt_hid_buf_op.report_type != UNKNOWN_REPORT)
 			cur_report_type = cd->pt_hid_buf_op.report_type;
 		else {
-			if (cd->force_pip3_report_type)
-				cd->report_type = PIP3_CMD_REPORT;
-
-			cur_report_type = cd->report_type;
+			if (cd->force_pip3_report_type ||
+				cd->report_type == UNKNOWN_REPORT)
+				cur_report_type = PIP3_CMD_REPORT;
+			else
+				cur_report_type = cd->report_type;
 		}
 	} else {
 		if (cd->pt_hid_buf_op.offset == 0) {
@@ -11624,6 +12178,8 @@ static int pt_parse_hid_report_to_pip(struct pt_core_data *cd,
 			pt_pr_buf(cd->dev, DL_DEBUG, cd->input_buf, pip_index,
 			  "<<< ATM - PIP3 payload buf");
 		}
+
+		cd->pt_hid_buf_op.report_type = UNKNOWN_REPORT;
 	} else {
 		cd->pt_hid_buf_op.report_type = cur_report_type;
 		cd->pt_hid_buf_op.last_remain_packet += 1;
@@ -11767,17 +12323,13 @@ static int pt_parse_input(struct pt_core_data *cd)
 				 */
 				if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
 					cd->hid_cmd_state ==
-					(HID_CMD_ID_SWITCH_IMAGE + 1)) {
-					mutex_lock(&cd->system_lock);
-					memcpy(cd->response_buf,
-						cd->input_buf, 2);
-					if (cd->img_id == 1)
+					(PIP3_CMD_ID_SWITCH_IMAGE + 1)) {
+					if (cd->img_id == 1) {
+						mutex_lock(&cd->system_lock);
 						cd->mode =
 							PT_MODE_SECONDARY_IMAGE;
-					cd->hid_cmd_state = 0;
-					wake_up(&cd->wait_q);
-					mutex_unlock(&cd->system_lock);
-					return 0;
+						mutex_unlock(&cd->system_lock);
+					}
 				}
 			}
 
@@ -11814,7 +12366,8 @@ static int pt_parse_input(struct pt_core_data *cd)
 		    cd->hid_cmd_state == PIP1_BL_CMD_ID_LAUNCH_APP + 1 ||
 		    cd->hid_cmd_state == PIP1_CMD_ID_USER_CMD + 1 ||
 		    (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
-		    cd->hid_cmd_state == HID_CMD_ID_SWITCH_IMAGE + 1))
+		    (cd->hid_cmd_state == PIP3_CMD_ID_SWITCH_IMAGE + 1 ||
+		    cd->hid_cmd_state == PIP3_CMD_ID_START_BOOTLOADER + 1)))
 			cd->hid_cmd_state = 0;
 		wake_up(&cd->wait_q);
 		mutex_unlock(&cd->system_lock);
@@ -11851,7 +12404,7 @@ static int pt_parse_input(struct pt_core_data *cd)
 		rc = pt_parse_hid_report_to_pip(cd, &remain_packets,
 						&report_type);
 		if (rc || (remain_packets != 0)) {
-			pt_debug(cd->dev, DL_WARN,
+			pt_debug(cd->dev, DL_INFO,
 				 "%s: Parse HID report rc=%d, remain=%d\n",
 				 __func__, rc, remain_packets);
 			return rc;
@@ -11883,7 +12436,7 @@ static int pt_parse_input(struct pt_core_data *cd)
 
 		if ((cd->pip2_cmd_tag_seq != tag_seq) &&
 		    (resp_crc != calc_crc) &&
-		    (pt_is_touch_report(report_id))) {
+		    (pt_is_touch_report(cd, report_id))) {
 			pt_debug(cd->dev, DL_INFO, "%s: %s 0x%02X %s\n",
 				__func__, "Received Touch report_id",
 				report_id, "when expecting a PIP2 report");
@@ -11914,7 +12467,7 @@ static int pt_parse_input(struct pt_core_data *cd)
 	 * If it is PIP2 response, the report_id has been set to 0,
 	 * so it will not be parsed as a touch packet.
 	 */
-	if (!pt_is_touch_report(report_id)) {
+	if (!pt_is_touch_report(cd, report_id)) {
 		is_command = 1;
 		touch_report = false;
 	}
@@ -12024,6 +12577,7 @@ irqreturn_t pt_irq(int irq, void *handle)
 
 	if (!pt_check_irq_asserted(cd))
 		return IRQ_HANDLED;
+
 	rc = pt_read_input(cd);
 #ifdef TTDL_DIAGNOSTICS
 	cd->irq_count++;
@@ -12135,11 +12689,11 @@ int _pt_unsubscribe_attention(struct device *dev,
 		if (atten->id == id && atten->mode == mode) {
 			list_del(&atten->node);
 			spin_unlock(&cd->spinlock);
-			kfree(atten);
 			pt_debug(cd->dev, DL_DEBUG, "%s: %s=%p %s=%d\n",
 				__func__,
 				"unsub for atten->dev", atten->dev,
 				"atten->mode", atten->mode);
+			kfree(atten);
 			return 0;
 		}
 	}
@@ -12621,6 +13175,7 @@ int pt_pip2_exit_bl_(struct pt_core_data *cd, u8 *status_str, int buf_size)
 	int wait_time = 0;
 	u8 mode = PT_MODE_UNKNOWN;
 	bool load_status_str = false;
+	int timeout = 0;
 
 	/* Check and correct "mode" if need when protocol mode is HID */
 	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
@@ -12640,36 +13195,41 @@ int pt_pip2_exit_bl_(struct pt_core_data *cd, u8 *status_str, int buf_size)
 	 */
 	rc = pt_pip2_get_mode_sysmode(cd, &mode, NULL);
 
-	if (status_str && buf_size <= 50)
+	if (status_str && buf_size >= 50)
 		load_status_str = true;
 
 	if (mode == PT_MODE_BOOTLOADER) {
-		if (cd->flashless_dut == 1) {
+		if (cd->flashless_dut == 1)
 			rc = pt_hw_hard_reset(cd);
-		} else {
-			rc = pt_pip2_launch_app(cd->dev,
-				PT_CORE_CMD_UNPROTECTED);
-			if (rc == PIP2_RSP_ERR_INVALID_IMAGE) {
-				pt_debug(cd->dev, DL_ERROR, "%s: %s = %d\n",
-				__func__, "Invalid image in FLASH rc", rc);
-			} else if (rc) {
-				pt_debug(cd->dev, DL_ERROR, "%s: %s = %d\n",
-				__func__, "Failed to launch app rc", rc);
-			}
-		}
+		else
+			rc = pt_dut_reset(cd, PT_CORE_CMD_UNPROTECTED);
 
 		if (!rc) {
 			if (cd->flashless_dut == 1) {
 				/* Wait for BL to complete before enum */
-				rc = _pt_request_wait_for_enum_state(cd->dev,
-					4000, ENUM_STATUS_FW_RESET_SENTINEL);
+				timeout = 4000;
+			} else
+				timeout = 400;
+
+			rc = _pt_request_wait_for_enum_state(cd->dev,
+				timeout, ENUM_STATUS_FW_RESET_SENTINEL);
+			if (cd->flashless_dut == 1) {
 				if (rc && load_status_str) {
 					strcpy(status_str,
 						"No FW sentinel after BL");
 					goto exit;
 				}
+			} else {
+				if ((cd->enum_status &
+					ENUM_STATUS_FW_RESET_SENTINEL) &&
+					!(cd->enum_status &
+					ENUM_STATUS_COMPLETE)) {
+					pt_queue_enum(cd);
+					rc = _pt_request_wait_for_enum_state(
+						cd->dev, 2000,
+						ENUM_STATUS_COMPLETE);
+				}
 			}
-
 			/*
 			 * If the host wants to interact with the FW or do a
 			 * forced calibration, the FW must be out of BOOT mode
@@ -13156,6 +13716,12 @@ static int pt_get_ic_crc_(struct pt_core_data *cd, u8 ebid)
 		goto exit;
 	}
 
+	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+		calculated_crc != stored_crc) {
+		rc = -EINVAL;
+		goto exit;
+	}
+
 	si->ttconfig.crc = stored_crc;
 
 exit:
@@ -13297,9 +13863,14 @@ static int pt_enum_with_pip1_dut_(struct pt_core_data *cd, bool reset,
 	pt_stop_wd_timer(cd);
 
 reset:
-	if (try > 1)
+	if (try > 1) {
 		pt_debug(cd->dev, DL_WARN, "%s: DUT Enum Attempt %d\n",
 			__func__, try);
+
+		/* Clear enum status except BL/FW sentinel status */
+		cd->enum_status &= (ENUM_STATUS_BL_RESET_SENTINEL |
+					ENUM_STATUS_FW_RESET_SENTINEL);
+	}
 	pt_flush_bus_if_irq_asserted(cd, PT_FLUSH_BUS_BASED_ON_LEN);
 
 
@@ -13402,7 +13973,6 @@ reset:
 				__func__, rc);
 			if (try++ < PT_CORE_STARTUP_RETRY_COUNT)
 				goto reset;
-			rc = -ENODEV;
 			goto exit;
 		}
 
@@ -13427,7 +13997,7 @@ reset:
 				__func__);
 			if (try++ < PT_CORE_STARTUP_RETRY_COUNT)
 				goto reset;
-			rc = -ENODEV;
+			rc = -EINVAL;
 			goto exit;
 		}
 	}
@@ -13488,8 +14058,24 @@ reset:
 			__func__, *enum_status);
 	}
 
+	if (cd->panel_id_support & PT_PANEL_ID_BY_MFG_DATA) {
+		rc = pt_get_pid_from_mfg_data_(cd, &pid);
+		mutex_lock(&cd->system_lock);
+		if (!rc) {
+			cd->pid_for_loader = pid;
+			pt_debug(cd->dev, DL_INFO,
+				"%s: Panel ID: 0x%02X\n",
+				__func__, cd->pid_for_loader);
+		} else {
+			cd->pid_for_loader = PANEL_ID_NOT_ENABLED;
+			pt_debug(cd->dev, DL_WARN,
+				"%s: Read Failed, disable Panel ID: 0x%02X\n",
+				__func__, cd->pid_for_loader);
+		}
+		mutex_unlock(&cd->system_lock);
+	}
+
 	call_atten_cb(cd, PT_ATTEN_STARTUP, 0);
-	cd->watchdog_interval = PT_WATCHDOG_TIMEOUT;
 	cd->startup_retry_count = 0;
 
 exit:
@@ -13544,9 +14130,14 @@ static int pt_enum_with_pip2_dut_(struct pt_core_data *cd, bool reset,
 	pt_stop_wd_timer(cd);
 
 reset:
-	if (try > 1)
+	if (try > 1) {
 		pt_debug(cd->dev, DL_WARN, "%s: DUT Enum Attempt %d\n",
 			__func__, try);
+
+		/* Clear enum status except BL/FW sentinel status */
+		cd->enum_status &= (ENUM_STATUS_BL_RESET_SENTINEL |
+					ENUM_STATUS_FW_RESET_SENTINEL);
+	}
 	pt_flush_bus_if_irq_asserted(cd, PT_FLUSH_BUS_BASED_ON_LEN);
 
 	/* Generation is PIP2 Capable */
@@ -13569,10 +14160,12 @@ reset:
 		detected = true;
 
 		if (cd->dut_status.fw_system_mode ==
-			FW_SYS_MODE_SECONDARY_IMAGE) {
+			FW_SYS_MODE_SECONDARY_IMAGE ||
+			cd->dut_status.fw_system_mode ==
+			FW_SYS_MODE_UTILITY_IMAGE) {
 			cd->mode = mode;
 			pt_debug(cd->dev, DL_WARN,
-				"%s: Enumeration not supported from secondary image\n",
+				"%s: Enumeration not supported from secondary or utility image\n",
 				__func__);
 			goto exit;
 		}
@@ -13590,11 +14183,24 @@ reset:
 		pt_debug(cd->dev, DL_INFO,
 			"%s: Operational mode\n", __func__);
 		protocol_mode = cd->protocol_mode;
-		if (cd->app_pip_ver_ready == false) {
+		if ((cd->app_pip_ver_ready == false) ||
+			(cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+			cd->hid_core.pip_minor_ver >= 3)) {
 			rc = pt_pip2_get_version_(cd);
-			if (!rc)
+			if (!rc) {
 				cd->app_pip_ver_ready = true;
-			else {
+				if (cd->sysinfo.ttdata.fw_category_id
+					== PT_PROGRAMMER_FW) {
+					cd->mode = PT_MODE_SECONDARY_IMAGE;
+					pt_debug(cd->dev, DL_INFO, "%s: Secondary Image mode\n",
+						__func__);
+				} else if (cd->sysinfo.ttdata.fw_category_id
+							== PT_UTILITY_FW) {
+					cd->mode = PT_MODE_UTILITY_IMAGE;
+					pt_debug(cd->dev, DL_INFO, "%s: Utility Image mode\n",
+						__func__);
+				}
+			} else {
 				if (try++ < PT_CORE_STARTUP_RETRY_COUNT)
 					goto reset;
 				goto exit;
@@ -13696,11 +14302,24 @@ reset:
 			goto exit;
 		}
 
-		if (cd->app_pip_ver_ready == false) {
+		if ((cd->app_pip_ver_ready == false) ||
+			(cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+			cd->hid_core.pip_minor_ver >= 3)) {
 			rc = pt_pip2_get_version_(cd);
-			if (!rc)
+			if (!rc) {
 				cd->app_pip_ver_ready = true;
-			else {
+				if (cd->sysinfo.ttdata.fw_category_id
+					== PT_PROGRAMMER_FW) {
+					cd->mode = PT_MODE_SECONDARY_IMAGE;
+					pt_debug(cd->dev, DL_INFO, "%s: Secondary Image mode\n",
+						__func__);
+				} else if (cd->sysinfo.ttdata.fw_category_id
+							== PT_UTILITY_FW) {
+					cd->mode = PT_MODE_UTILITY_IMAGE;
+					pt_debug(cd->dev, DL_INFO, "%s: Utility Image mode\n",
+						__func__);
+				}
+			} else {
 				if (try++ < PT_CORE_STARTUP_RETRY_COUNT)
 					goto reset;
 				goto exit;
@@ -13737,6 +14356,14 @@ reset:
 	}
 
 	*enum_status |= ENUM_STATUS_GET_RPT_DESC;
+
+	if (cd->mode == PT_MODE_SECONDARY_IMAGE ||
+		cd->mode == PT_MODE_UTILITY_IMAGE) {
+		pt_debug(cd->dev, DL_INFO,
+			"%s: Enumeration not supported from secondary or utility image\n",
+			__func__);
+		goto exit;
+	}
 
 	if (!cd->features.easywake)
 		cd->easy_wakeup_gesture = PT_CORE_EWG_NONE;
@@ -13807,7 +14434,6 @@ reset:
 	}
 
 	call_atten_cb(cd, PT_ATTEN_STARTUP, 0);
-	cd->watchdog_interval = PT_WATCHDOG_TIMEOUT;
 	cd->startup_retry_count = 0;
 
 exit:
@@ -13848,7 +14474,23 @@ static int pt_enum_with_dut_(struct pt_core_data *cd, bool reset,
 #ifdef TTHE_TUNER_SUPPORT
 	tthe_print(cd, NULL, 0, "enter startup");
 #endif
+	if (cd->detect_dut_generation) {
+		cd->detect_dut_generation = false;
+		rc = _pt_detect_dut_generation(cd->dev,
+			&cd->enum_status, &cd->active_dut_generation,
+			&cd->mode, &cd->protocol_mode);
+		if ((cd->active_dut_generation == DUT_UNKNOWN) || (rc)) {
+			pt_debug(cd->dev, DL_ERROR,
+				"%s: Error, Unknown DUT Generation rc=%d\n",
+				__func__, rc);
+			goto exit;
+		}
+	}
 	pt_stop_wd_timer(cd);
+
+	/* Clear enum status except BL/FW sentinel status */
+	cd->enum_status &= (ENUM_STATUS_BL_RESET_SENTINEL |
+				ENUM_STATUS_FW_RESET_SENTINEL);
 
 	if (cd->active_dut_generation == DUT_PIP1_ONLY)
 		rc = pt_enum_with_pip1_dut_(cd, reset, enum_status);
@@ -13857,6 +14499,7 @@ static int pt_enum_with_dut_(struct pt_core_data *cd, bool reset,
 
 	pt_start_wd_timer(cd);
 
+exit:
 #ifdef TTHE_TUNER_SUPPORT
 	tthe_print(cd, NULL, 0, "exit startup");
 #endif
@@ -13975,7 +14618,8 @@ static int _pt_ttdl_restart(struct device *dev)
 			pt_debug(dev, DL_ERROR,
 				"%s: Error, Unknown DUT Generation rc=%d\n",
 				__func__, rc);
-		}
+		} else
+			cd->hw_detected = true;
 	}
 
 	rc = add_sysfs_interfaces(cd->dev);
@@ -14425,25 +15069,15 @@ _retry:
 
 	switch (mode) {
 	case PT_MODE_SECONDARY_IMAGE:
+	case PT_MODE_UTILITY_IMAGE:
 	case PT_MODE_UNKNOWN:
 		/*
-		 * When either the secondary image is running or the mode
-		 * could not be determined due to the DUT potentially
-		 * running corrupted FW or FW that is not responding to
-		 * the mode request, a hard reset is done.
+		 * When the secondary or utility image is running, or the mode
+		 * could not be determined due to the DUT potentially running
+		 * corrupted FW or FW that is not responding to the mode
+		 * request, a hard reset is done.
 		 */
-		mutex_lock(&cd->system_lock);
-		cd->enum_status = ENUM_STATUS_START;
-		pt_debug(dev, DL_DEBUG, "%s: Startup Status Reset\n", __func__);
-		mutex_unlock(&cd->system_lock);
-
-		rc = pt_dut_reset(cd, PT_CORE_CMD_UNPROTECTED);
-		if (rc) {
-			tmp_result = PT_ENTER_BL_RESET_FAIL;
-			goto exit;
-		}
 		break;
-
 	case PT_MODE_OPERATIONAL:
 		if (sys_mode == FW_SYS_MODE_SCANNING) {
 			pt_debug(dev, DL_INFO, "%s: Suspend Scanning\n",
@@ -14461,32 +15095,11 @@ _retry:
 			/* sleep to allow the suspend scan to be processed */
 			usleep_range(1000, 2000);
 		}
-		mutex_lock(&cd->system_lock);
-		cd->enum_status = ENUM_STATUS_START;
-		pt_debug(dev, DL_DEBUG, "%s: Startup Status Reset\n", __func__);
-		mutex_unlock(&cd->system_lock);
-
-		/* Reset device to enter the BL */
-		if (cd->enter_bl_method == PT_ENTER_BL_BY_RESET_PIN) {
-			rc = pt_dut_reset(cd, PT_CORE_CMD_UNPROTECTED);
-			if (rc) {
-				tmp_result = PT_ENTER_BL_RESET_FAIL;
-				goto exit;
-			}
-		} else {
-			rc = pt_pip_start_bootloader_(cd);
-			if (rc) {
-				tmp_result = PT_ENTER_BL_START_BL_CMD_FAIL;
-				goto exit;
-			}
-		}
 		break;
-
 	case PT_MODE_BOOTLOADER:
 		/* Do nothing as we are already in the BL */
 		tmp_result = PT_ENTER_BL_PASS;
 		goto exit;
-
 	default:
 		/* Should NEVER get here */
 		tmp_result = PT_ENTER_BL_ERROR;
@@ -14494,12 +15107,38 @@ _retry:
 		goto exit;
 	}
 
-	if (!cd->flashless_dut &&
-	    (mode == PT_MODE_UNKNOWN ||
-	    mode == PT_MODE_OPERATIONAL ||
-	    mode == PT_MODE_SECONDARY_IMAGE) &&
-		cd->enter_bl_method == PT_ENTER_BL_BY_RESET_PIN) {
-		pt_send_host_mode_cmd_(cd);
+	/*
+	 * Reset device to enter BL by toggling reset pin if
+	 * enter_bl_method is:
+	 * * BY_RESET_PIN
+	 * * BY_RST_UTIL when reset util is:
+	 *     UTIL_RST_UNKNOWN
+	 *     UTIL_RST_PASS
+	 * Reset device to enter BL by command if enter_bl_method is:
+	 * * BY_COMMAND
+	 * * BY_RST_UTIL when reset util is:
+	 *     UTIL_RST_FAIL
+	 */
+	mutex_lock(&cd->system_lock);
+	cd->enum_status = ENUM_STATUS_START;
+	pt_debug(dev, DL_DEBUG, "%s: Startup Status Reset\n", __func__);
+	mutex_unlock(&cd->system_lock);
+	if (cd->enter_bl_method == PT_ENTER_BL_BY_RESET_PIN ||
+		(cd->enter_bl_method == PT_ENTER_BL_BY_RST_UTIL &&
+		(cd->util_rst_state != UTIL_RST_FAIL))) {
+		rc = pt_dut_reset(cd, PT_CORE_CMD_UNPROTECTED);
+		if (rc) {
+			tmp_result = PT_ENTER_BL_RESET_FAIL;
+			goto exit;
+		}
+		if (!cd->flashless_dut)
+			pt_send_host_mode_cmd_(cd);
+	} else {
+		rc = pt_pip_start_bootloader_(cd);
+		if (rc) {
+			tmp_result = PT_ENTER_BL_START_BL_CMD_FAIL;
+			goto exit;
+		}
 	}
 
 	/*
@@ -14618,7 +15257,11 @@ int _pt_pip2_file_open(struct device *dev, u8 file_no)
 	u8  file_handle;
 	u8  data[2];
 	u8  read_buf[10];
-	u8  expected_len = pt_pip2_get_cmd_response_len(PIP2_CMD_ID_FILE_OPEN);
+	u8  expected_len;
+	struct pt_core_data *cd = dev_get_drvdata(dev);
+
+	expected_len = pt_pip2_get_cmd_response_len(PIP2_CMD_ID_FILE_OPEN,
+		cd->hid_core.pip_minor_ver);
 
 	pt_debug(dev, DL_DEBUG, "%s: OPEN file %d\n", __func__, file_no);
 	data[0] = file_no;
@@ -15637,34 +16280,66 @@ error:
  *	even multiple of PAGE_SIZE
  *
  * RETURN:
- *	 0 = success
- *	!0 = failure
+ *   0 = success
+ *  !0 = failure
  *
  * PARAMETERS:
- *      *inode - file inode number
- *      *filp  - file pointer to debugfs file
+ *  *inode - file inode number
+ *  *filp  - file pointer to debugfs file
  ******************************************************************************/
 static int tthe_debugfs_open(struct inode *inode, struct file *filp)
 {
-	struct pt_core_data *cd = inode->i_private;
-	u32 buf_size = PT_MAX_PRBUF_SIZE;
+	int err = 0;
+	struct pt_tthe_tuner_list *list;
+	unsigned long flags;
 
-	filp->private_data = inode->i_private;
+	list = kzalloc(sizeof(struct pt_tthe_tuner_list), GFP_KERNEL);
+	if (!list) {
+		err = -ENOMEM;
+		goto out;
+	}
 
-	if (cd->tthe_buf)
-		return -EBUSY;
+	err = kfifo_alloc(&list->tuner_buf_fifo, PT_MAX_PRBUF_SIZE * 4,
+			  GFP_KERNEL);
+	if (err) {
+		kfree(list);
+		goto out;
+	}
+	list->cd = (struct pt_core_data *) inode->i_private;
+	filp->private_data = list;
+	mutex_init(&list->read_lock);
 
-	while (buf_size < 4096)
-		buf_size = buf_size << 1;
+	spin_lock_irqsave(&list->cd->tuner_list_lock, flags);
+	list_add_tail(&list->node, &list->cd->tuner_list);
+	spin_unlock_irqrestore(&list->cd->tuner_list_lock, flags);
 
-	pt_debug(cd->dev, DL_INFO, "%s:PT_MAX_BRBUF_SIZE=%d buf_size=%d\n",
-		__func__, (int)PT_MAX_PRBUF_SIZE, (int)buf_size);
+out:
+	return err;
+}
 
-	cd->tthe_buf_size = buf_size;
-	cd->tthe_buf = kzalloc(cd->tthe_buf_size, GFP_KERNEL);
-	if (!cd->tthe_buf)
-		return -ENOMEM;
+/*******************************************************************************
+ * FUNCTION: tthe_debugfs_poll
+ *
+ * SUMMARY: Poll method for tthe_tuner debugfs node, it provides support at
+ *  driver side for poll() function at userspace.
+ *
+ * RETURN:
+ *   0 = success
+ *  !0 = failure
+ *
+ * PARAMETERS:
+ *  *filp - file pointer to debugfs file
+ *  *wait - pointer to poll_table
+ ******************************************************************************/
+static unsigned int tthe_debugfs_poll(struct file *filp, poll_table *wait)
+{
+	struct pt_tthe_tuner_list *list = filp->private_data;
 
+	poll_wait(filp, &list->cd->tuner_wait, wait);
+	if (!kfifo_is_empty(&list->tuner_buf_fifo))
+		return POLLIN | POLLRDNORM;
+	if (list->cd->tthe_exit)
+		return POLLERR | POLLHUP;
 	return 0;
 }
 
@@ -15674,22 +16349,23 @@ static int tthe_debugfs_open(struct inode *inode, struct file *filp)
  * SUMMARY: Close method for tthe_tuner debugfs node.
  *
  * RETURN:
- *	 0 = success
- *	!0 = failure
+ *   0 = success
+ *  !0 = failure
  *
  * PARAMETERS:
- *      *inode - file inode number
- *      *filp  - file pointer to debugfs file
+ *  *inode - file inode number
+ *  *filp  - file pointer to debugfs file
  ******************************************************************************/
-static int tthe_debugfs_close(struct inode *inode, struct file *filp)
+static int tthe_debugfs_close(struct inode *inode, struct file *file)
 {
-	struct pt_core_data *cd = filp->private_data;
+	struct pt_tthe_tuner_list *list = file->private_data;
+	unsigned long flags;
 
-	filp->private_data = NULL;
-
-	kfree(cd->tthe_buf);
-	cd->tthe_buf = NULL;
-
+	spin_lock_irqsave(&list->cd->tuner_list_lock, flags);
+	list_del(&list->node);
+	spin_unlock_irqrestore(&list->cd->tuner_list_lock, flags);
+	kfifo_free(&list->tuner_buf_fifo);
+	kfree(list);
 	return 0;
 }
 
@@ -15704,21 +16380,20 @@ static int tthe_debugfs_close(struct inode *inode, struct file *filp)
  * RETURN: Size of debugfs data write
  *
  * PARAMETERS:
- *      *filp   - file pointer to debugfs file
- *      *buf    - the user space buffer to read to
- *       count  - the maximum number of bytes to read
- *      *ppos   - the current position in the buffer
+ *  *filp   - file pointer to debugfs file
+ *  *buf    - the user space buffer to read to
+ *  count  - the maximum number of bytes to read
+ *  *ppos   - the current position in the buffer
  ******************************************************************************/
 static ssize_t tthe_debugfs_store(struct file *filp, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
-	struct pt_core_data *cd = filp->private_data;
+	struct pt_tthe_tuner_list *list = filp->private_data;
+	struct pt_core_data *cd = list->cd;
 	ssize_t length;
 	u32 input_data[2];
 	u8 tmp_buf[4];    /* large enough for 1 32bit value */
 	int rc = 0;
-
-	mutex_lock(&cd->tthe_lock);
 
 	/* copy data from user space */
 	rc = simple_write_to_buffer(tmp_buf, sizeof(tmp_buf),
@@ -15764,7 +16439,6 @@ static ssize_t tthe_debugfs_store(struct file *filp, const char __user *buf,
 	}
 
 exit:
-	mutex_unlock(&cd->tthe_lock);
 	if (rc)
 		return rc;
 	else
@@ -15775,63 +16449,87 @@ exit:
  * FUNCTION: tthe_debugfs_read
  *
  * SUMMARY: Read method for tthe_tuner debugfs node. This function prints
- *	tthe_buf to user buffer.
+ *	tuner_buf_fifo to user buffer.
  *
  * RETURN: Size of debugfs data print
  *
  * PARAMETERS:
- *      *filp   - file pointer to debugfs file
- *      *buf    - the user space buffer to read to
- *       count  - the maximum number of bytes to read
- *      *ppos   - the current position in the buffer
+ *  *filp   - file pointer to debugfs file
+ *  *buf    - the user space buffer to read to
+ *   count  - the maximum number of bytes to read
+ *  *ppos   - the current position in the buffer
  ******************************************************************************/
 static ssize_t tthe_debugfs_read(struct file *filp, char __user *buf,
 		size_t count, loff_t *ppos)
 {
-	struct pt_core_data *cd = filp->private_data;
-	int size;
-	int ret;
-	static int partial_read;
+	struct pt_tthe_tuner_list *list = filp->private_data;
+	struct pt_core_data *cd = list->cd;
+	int ret = 0, copied;
+	DECLARE_WAITQUEUE(wait, current);
 
-	wait_event_interruptible(cd->wait_q,
-			cd->tthe_buf_len != 0 || cd->tthe_exit);
-	mutex_lock(&cd->tthe_lock);
-	if (cd->tthe_exit) {
-		mutex_unlock(&cd->tthe_lock);
-		return 0;
-	}
-	if (count > cd->tthe_buf_len)
-		size = cd->tthe_buf_len;
-	else
-		size = count;
-	if (!size) {
-		mutex_unlock(&cd->tthe_lock);
-		return 0;
+	mutex_lock(&list->read_lock);
+	if (!list->cd || list->cd->tthe_exit)
+		goto out;
+
+	if (kfifo_is_empty(&list->tuner_buf_fifo)) {
+		add_wait_queue(&list->cd->tuner_wait, &wait);
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		while (kfifo_is_empty(&list->tuner_buf_fifo)) {
+			if (filp->f_flags & O_NONBLOCK) {
+				ret = -EAGAIN;
+				break;
+			}
+
+			if (signal_pending(current)) {
+				ret = -ERESTARTSYS;
+				break;
+			}
+
+			if (!list->cd) {
+				ret = -EIO;
+				set_current_state(TASK_RUNNING);
+				goto out;
+			}
+
+			if (list->cd->tthe_exit) {
+				ret = 0;
+				__set_current_state(TASK_RUNNING);
+				remove_wait_queue(&list->cd->tuner_wait, &wait);
+				goto out;
+			}
+
+			/* allow O_NONBLOCK from other threads */
+			mutex_unlock(&list->read_lock);
+			schedule();
+			mutex_lock(&list->read_lock);
+			set_current_state(TASK_INTERRUPTIBLE);
+		}
+
+		__set_current_state(TASK_RUNNING);
+		remove_wait_queue(&list->cd->tuner_wait, &wait);
+
+		if (ret)
+			goto out;
 	}
 
-	if (partial_read) {
-		ret = copy_to_user(buf, cd->tthe_buf + partial_read, size);
-		partial_read = 0;
-	} else {
-		ret = copy_to_user(buf, cd->tthe_buf, size);
+	/* Print warning if FIFO gets very full */
+	if (kfifo_len(&list->tuner_buf_fifo) >= PT_MAX_PRBUF_SIZE * 3) {
+		pt_debug(cd->dev, DL_WARN,
+			"%s: tthe_tuner FIFO high watermark - Len=%d\n",
+			__func__, kfifo_len(&list->tuner_buf_fifo));
 	}
 
-	/*
-	 * When size >= tthe_buf_len setting partial_read will cause NULL
-	 * characters to be printed in the output.
+	/* pass the fifo content to userspace, locking is not needed with only
+	 * one concurrent reader and one concurrent writer
 	 */
-	if (size == count && size < cd->tthe_buf_len)
-		partial_read = count;
-
-	if (ret == size) {
-		mutex_unlock(&cd->tthe_lock);
-		return -EFAULT;
-	}
-	size -= ret;
-	cd->tthe_buf_len -= size;
-	mutex_unlock(&cd->tthe_lock);
-	*ppos += size;
-	return size;
+	ret = kfifo_to_user(&list->tuner_buf_fifo, buf, count, &copied);
+	if (ret)
+		goto out;
+	ret = copied;
+out:
+	mutex_unlock(&list->read_lock);
+	return ret;
 }
 
 static const struct file_operations tthe_debugfs_fops = {
@@ -15839,8 +16537,95 @@ static const struct file_operations tthe_debugfs_fops = {
 	.release = tthe_debugfs_close,
 	.read = tthe_debugfs_read,
 	.write = tthe_debugfs_store,
+	.poll = tthe_debugfs_poll,
+	.llseek = noop_llseek,
 };
 #endif
+
+/*******************************************************************************
+ * FUNCTION: pt_pip3_validate_response
+ *
+ * SUMMARY: Validate the response of PIP3 command.
+ *
+ * RETURN:
+ *   0 = success
+ *  !0 = failure
+ *
+ * PARAMETERS:
+ *  *cd              - pointer to core data
+ *  *pip3_cmd        - pointer to PIP3 command structure
+ ******************************************************************************/
+static int pt_pip3_validate_response(struct pt_core_data *cd,
+		struct pt_pip3_cmd *pip3_cmd)
+{
+	int rc = 0;
+	u8 cmd_id = 0;
+	u8 status = 0;
+	u8 response_bit  = 0;
+	u8 response_seq  = 0;
+	u8 reserved_bits = 0;
+	u16 size;
+
+	size = get_unaligned_le16(&cd->response_buf[0]);
+
+	/* This case is for PIP3 commands SWITCH_IMAGE and START_BOOTLOADER */
+	if (pip3_cmd->reset_expected && (!size || IS_BL_SENTINEL(cd, size)))
+		return 0;
+
+	/* Verify the STATUS is 0 */
+	status = cd->response_buf[HID_PAYLOAD_RESP_STATUS_OFFSET];
+	if (status) {
+		pt_debug(cd->dev, DL_ERROR,
+			"%s cmd[0x%02X] status ERR: status = 0x%02X\n",
+			__func__, pip3_cmd->cmd_id, status);
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	/* Verify the response bit is set */
+	response_bit = cd->response_buf[HID_PAYLOAD_RESP_CMD_ID_OFFSET] & 0x80;
+	if (!response_bit) {
+		pt_debug(cd->dev, DL_ERROR,
+			"%s cmd[0x%02X] response bit ERR: response_bit = %d\n",
+			__func__, pip3_cmd->cmd_id, response_bit);
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	/* Verify the command ID matches from command to response */
+	cmd_id = cd->response_buf[HID_PAYLOAD_RESP_CMD_ID_OFFSET] & 0x7F;
+	if (cmd_id != pip3_cmd->cmd_id) {
+		pt_debug(cd->dev, DL_ERROR,
+			"%s cmd[0x%02X] command ID ERR: cmd_id = 0x%02X\n",
+			__func__, pip3_cmd->cmd_id, cmd_id);
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	/* Verify the SEQ number matches from command to response */
+	response_seq = cd->response_buf[HID_PAYLOAD_RESP_SEQ_OFFSET] & 0x0F;
+	if ((pip3_cmd->cmd_tag_seq & 0x0F) != response_seq) {
+		pt_debug(cd->dev, DL_ERROR,
+			"%s cmd[0x%02X] send_seq = 0x%02X, resp_seq = 0x%02X\n",
+			__func__, pip3_cmd->cmd_id,
+			pip3_cmd->cmd_tag_seq, response_seq);
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	/* Verify the reserved bits are 0 */
+	reserved_bits = cd->response_buf[HID_PAYLOAD_RESP_SEQ_OFFSET] & 0xE0;
+	if (reserved_bits)
+		pt_debug(cd->dev, DL_WARN,
+			"%s cmd[0x%02X] reserved_bits = 0x%02X\n",
+			__func__, pip3_cmd->cmd_id, reserved_bits);
+
+exit:
+	if (rc)
+		pt_pr_buf(cd->dev, DL_WARN, cd->response_buf,
+			  size, "PIP3 RSP:");
+	return rc;
+}
 
 /*******************************************************************************
  * FUNCTION: pt_pip3_send_cmd_
@@ -15871,9 +16656,9 @@ static int pt_pip3_send_cmd_(struct pt_core_data *cd,
 	 * 'write_length' is calculated by:
 	 *   Length field(2) +
 	 *   REPORT_ID(1) +
-	 *   Payload (hid_max_output_len)
+	 *   Payload (pip3_output_rpt_cnt)
 	 */
-	hid_cmd.write_length = 3 + cd->hid_core.hid_max_output_len;
+	hid_cmd.write_length = 3 + cd->pip3_output_rpt_cnt;
 	hid_cmd.write_buf = kzalloc(hid_cmd.write_length, GFP_KERNEL);
 	if (!hid_cmd.write_buf)
 		return -ENOMEM;
@@ -15945,7 +16730,7 @@ static int pt_pip3_send_and_wait_(struct pt_core_data *cd,
 	u16 max_timeout_ms = PT_HID_MULTIPACKET_TIMEOUT;
 
 	/* PIP3 the cmd ID is a 7bit field */
-	if (pip3_cmd->cmd_id > HID_CMD_ID_END) {
+	if (pip3_cmd->cmd_id > PIP3_CMD_ID_END) {
 		pt_debug(cd->dev, DL_WARN, "%s: Invalid PIP3 CMD ID 0x%02X\n",
 			__func__, pip3_cmd->cmd_id);
 		rc = -EINVAL;
@@ -15973,6 +16758,7 @@ again:
 		    (cd->pt_hid_buf_op.last_remain_packet != 0) &&
 		    (max_timeout_ms > timeout_ms)) {
 			max_timeout_ms -= timeout_ms;
+			timeout_ms = cd->hid_multi_rsp_timeout;
 			goto again;
 		}
 #ifdef TTDL_DIAGNOSTICS
@@ -15986,13 +16772,260 @@ again:
 		goto error;
 	}
 
-	goto exit;
+	rc = pt_pip3_validate_response(cd, pip3_cmd);
 
 error:
 	mutex_lock(&cd->system_lock);
 	cd->hid_cmd_state = 0;
+	cd->report_type = UNKNOWN_REPORT;
 	mutex_unlock(&cd->system_lock);
 exit:
+	return rc;
+}
+
+/*******************************************************************************
+ * FUNCTION: pt_pip3_get_data_block_
+ *
+ * SUMMARY: Sends the PIP3 "Get Data Block" (0x22) command to the DUT and print
+ *  output data to the "read_buf" and update "crc".
+ *
+ * RETURN:
+ *	 0 = success
+ *	!0 = failure
+ *
+ * PARAMETERS:
+ *	*cd              - pointer to core data
+ *	 read_offset     - read offset
+ *	 length          - length of data to read
+ *	 ebid            - block id
+ *	*actual_read_len - Actual data length read
+ *	*read_buf        - pointer to the buffer to store read data
+ *	 read_buf_size   - size of read_buf
+ *	*crc             - pointer to store CRC of row data (only for PIP monor
+ *                     version 0)
+ ******************************************************************************/
+static int pt_pip3_get_data_block_(struct pt_core_data *cd,
+		u16 read_offset, u16 length, u8 ebid, u16 *actual_read_len,
+		u8 *read_buf, u16 read_buf_size, u16 *crc)
+{
+	int rc = 0;
+	u8 write_buf[5];
+	u8 cmd_offset = 0;
+	u16 rsp_len;
+	int read_ebid;
+	int extra_bytes = 0;
+	u16 calc_crc;
+	u8 rsp_arl_offset;
+	u8 rsp_data_offset;
+	struct pt_pip3_cmd pip3_cmd;
+
+	pt_debug(cd->dev, DL_DEBUG, "%s: Enumerated Block ID %d\n",
+		__func__, ebid);
+
+	write_buf[cmd_offset++] = LOW_BYTE(read_offset);
+	write_buf[cmd_offset++] = HI_BYTE(read_offset);
+	write_buf[cmd_offset++] = LOW_BYTE(length);
+	write_buf[cmd_offset++] = HI_BYTE(length);
+	write_buf[cmd_offset++] = ebid;
+	pip3_cmd.cmd_id = PIP3_CMD_ID_GET_DATA_BLOCK;
+	pip3_cmd.param = write_buf;
+	pip3_cmd.param_len = cmd_offset;
+	pip3_cmd.timeout_ms = PT_BL_WAIT_FOR_SENTINEL;
+
+	rc = pt_pip3_send_and_wait_(cd, &pip3_cmd);
+	if (rc)
+		goto exit;
+
+	/*
+	 * According to 001-30009*I, Enumerated Block ID is removed from PIP3.2
+	 * and later versions.
+	 */
+	if (cd->hid_core.pip_minor_ver < 2) {
+		/* Verify ebid */
+		read_ebid = cd->response_buf[HID_PAYLOAD_RESP_EBID_OFFSET];
+		if (read_ebid != ebid) {
+			rc = -EPROTO;
+			goto exit;
+		}
+		rsp_arl_offset = HID_PAYLOAD_RESP_ARL_OFFSET;
+		rsp_data_offset = HID_PAYLOAD_RESP_DATA_OFFSET;
+	} else {
+		rsp_arl_offset = HID_PAYLOAD_RESP_ARL_OFFSET - 1;
+		rsp_data_offset = HID_PAYLOAD_RESP_DATA_OFFSET - 1;
+	}
+
+	/* Verify read length */
+	rsp_len  = get_unaligned_le16(&cd->response_buf[0]);
+	if (cd->hid_core.pip_minor_ver > 0 &&
+		read_offset == 0 && length == 2) {
+		/*
+		 * According to 001-30009*I, Table 8-2, the first two bytes
+		 * in response Data (X) is the size of the block. So the offset
+		 * of Data block size should be ARL offset + 2.
+		 */
+		*actual_read_len = get_unaligned_le16(
+			&cd->response_buf[rsp_arl_offset + 2]);
+		goto exit;
+	} else
+		*actual_read_len = get_unaligned_le16(
+			&cd->response_buf[rsp_arl_offset]);
+	pt_debug(cd->dev, DL_INFO,
+		"%s: Resp Len=0x%04X Actual Read Length=0x%04X\n",
+		__func__, rsp_len, *actual_read_len);
+	if (length == 0 || *actual_read_len == 0)
+		goto exit;
+
+	/*
+	 * According to 001-30009*I: Length of Payload = (ARL+9) for PIP3.2.
+	 * According to 001-30009*H: Length of Payload = (ARL+10) for PIP3.1.
+	 * According to 001-30009*G: Length of Payload = (ARL+12) for PIP3.0
+	 */
+	if (cd->hid_core.pip_minor_ver >= 2)
+		extra_bytes = 9;
+	else if (cd->hid_core.pip_minor_ver == 1)
+		extra_bytes = 10;
+	else
+		extra_bytes = 12;
+
+	/* Do not continue if the ARL is larger than the response */
+	if ((*actual_read_len + extra_bytes) != rsp_len) {
+		pt_debug(cd->dev, DL_ERROR,
+			"%s: Invalid Actual Read Length\n", __func__);
+		rc = -EBADMSG;
+		goto exit;
+	}
+
+	if (read_buf_size >= *actual_read_len)
+		memcpy(read_buf, &cd->response_buf[rsp_data_offset],
+			*actual_read_len);
+	else {
+		rc = -EPROTO;
+		goto exit;
+	}
+
+	/*
+	 * According to 001-30009*H, ROW DATA CRC is removed from PIP3.1
+	 * and later versions.
+	 */
+	if (cd->hid_core.pip_minor_ver == 0) {
+		/*
+		 * The offset of Row Data CRC filed in the response
+		 * payload is (ARL+8).
+		 */
+		*crc = get_unaligned_le16(
+			&cd->response_buf[*actual_read_len + 8]);
+
+		/* Validate Row Data CRC */
+		calc_crc = _pt_compute_crc(read_buf, *actual_read_len);
+		if (*crc == calc_crc) {
+			goto exit;
+		} else {
+			pt_debug(cd->dev, DL_ERROR,
+				"%s: CRC Missmatch packet=0x%04X calc=0x%04X\n",
+				__func__, *crc, calc_crc);
+			rc = -EPROTO;
+		}
+	}
+
+exit:
+	return rc;
+}
+
+/*******************************************************************************
+ * FUNCTION: pt_pip3_set_data_block_
+ *
+ * SUMMARY: Send PIP3 SWITCH_IAMGE command 0x04 to the DUT
+ *
+ * SUMMARY: Sends the PIP3 "Set Data Block" (0x23) command to the DUT and
+ *  write data to the data block.
+ *
+ * RETURN:
+ *   0 = success
+ *  !0 = failure
+ *
+ * PARAMETERS:
+ *  *cd               - pointer to core data
+ *   write_offset     - Offset in config block to write to
+ *   write_length     - length of data to write
+ *   ebid             - enumerated block ID
+ *  *write_buf        - pointer to buffer to write
+ *  *security_key     - pointer to security key to allow write
+ *  *actual_write_len - pointer to store data length actually written
+ ******************************************************************************/
+static int pt_pip3_set_data_block_(struct pt_core_data *cd,
+		u16 write_offset, u16 write_length, u8 ebid, u8 *write_buf,
+		u8 *security_key, u16 *actual_write_len)
+{
+	int rc = 0;
+	/* row_number + write_len + ebid + security_key + crc */
+	int full_write_length = 2 + 2 + 1 + write_length + 8 + 2;
+	u8 *full_write_buf;
+	u8 cmd_offset = 0;
+	u16 crc;
+	int read_ebid;
+	u8 *data;
+	struct pt_pip3_cmd pip3_cmd;
+
+	pt_debug(cd->dev, DL_DEBUG, "%s: Enumerated Block ID %d\n",
+		__func__, ebid);
+
+	full_write_buf = kzalloc(full_write_length, GFP_KERNEL);
+	if (!full_write_buf)
+		return -ENOMEM;
+
+	full_write_buf[cmd_offset++] = LOW_BYTE(write_offset);
+	full_write_buf[cmd_offset++] = HI_BYTE(write_offset);
+	full_write_buf[cmd_offset++] = LOW_BYTE(write_length);
+	full_write_buf[cmd_offset++] = HI_BYTE(write_length);
+	full_write_buf[cmd_offset++] = ebid;
+	data = &full_write_buf[cmd_offset];
+	memcpy(data, write_buf, write_length);
+	cmd_offset += write_length;
+	/*
+	 * According to 001-30009*I, Security Key is removed from PIP3.2
+	 * and later versions.
+	 */
+	if (cd->hid_core.pip_minor_ver < 2) {
+		memcpy(&full_write_buf[cmd_offset], security_key, 8);
+		cmd_offset += 8;
+	}
+	pip3_cmd.cmd_id = PIP3_CMD_ID_SET_DATA_BLOCK;
+	pip3_cmd.param = full_write_buf;
+	pip3_cmd.param_len = cmd_offset;
+	pip3_cmd.timeout_ms = PT_BL_WAIT_FOR_SENTINEL;
+
+	/*
+	 * According to 001-30009*H, Row data CRC is removed from PIP3.1
+	 * and later versions.
+	 */
+	if (cd->hid_core.pip_minor_ver == 0) {
+		/* Calculate Row Data CRC for PIP3.0 */
+		crc = _pt_compute_crc(data, write_length);
+		full_write_buf[cmd_offset++] = LOW_BYTE(crc);
+		full_write_buf[cmd_offset++] = HI_BYTE(crc);
+	}
+
+	rc = pt_pip3_send_and_wait_(cd, &pip3_cmd);
+	if (rc)
+		goto exit;
+
+	/*
+	 * According to 001-30009*I, Enumerated Block ID and Actual Write Length
+	 * are removed from PIP3.2 and later versions.
+	 */
+	if (cd->hid_core.pip_minor_ver < 2) {
+		read_ebid = cd->response_buf[HID_PAYLOAD_RESP_EBID_OFFSET];
+		if (read_ebid != ebid) {
+			rc = -EPROTO;
+			goto exit;
+		}
+
+		*actual_write_len = get_unaligned_le16(
+			&cd->response_buf[HID_PAYLOAD_RESP_ARL_OFFSET]);
+	}
+
+exit:
+	kfree(full_write_buf);
 	return rc;
 }
 
@@ -16020,10 +17053,11 @@ int pt_pip3_switch_image_(struct pt_core_data *cd, u8 image_id)
 	pt_debug(cd->dev, DL_DEBUG, "%s: image ID %d\n",
 		__func__, image_id);
 	data[0] = image_id;
-	pip3_cmd.cmd_id = HID_CMD_ID_SWITCH_IMAGE;
+	pip3_cmd.cmd_id = PIP3_CMD_ID_SWITCH_IMAGE;
 	pip3_cmd.param = data;
 	pip3_cmd.param_len = 1;
 	pip3_cmd.timeout_ms = PT_BL_WAIT_FOR_SENTINEL;
+	pip3_cmd.reset_expected = 1;
 	rc = pt_pip3_send_and_wait_(cd, &pip3_cmd);
 	if (rc)
 		pt_debug(cd->dev, DL_ERROR,
@@ -16109,7 +17143,6 @@ static ssize_t pt_pip3_switch_img_show(struct device *dev,
 	u8 mode = PT_MODE_UNKNOWN;
 	int status;
 	u8 status_str[PT_STATUS_STR_LEN];
-	int time = 0;
 
 	if (cd->protocol_mode != PT_PROTOCOL_MODE_HID) {
 		pt_debug(dev, DL_WARN,
@@ -16136,80 +17169,87 @@ static ssize_t pt_pip3_switch_img_show(struct device *dev,
 		if (cd->mode == PT_MODE_OPERATIONAL)
 			strcpy(status_str, "Already in Primary image");
 		else if (cd->mode == PT_MODE_BOOTLOADER) {
-			status = pt_pip2_launch_app(cd->dev,
-				PT_CORE_CMD_UNPROTECTED);
+			/*
+			 * Currently, FW doesn't support entering Primary image
+			 * from ROM-BL through LAUNCH_APP command if entering
+			 * ROM-BL through PIP3 SWITCH_IMAGE command. So use HW
+			 * reset to switch to Primary instead of LANUCH_APP.
+			 */
+			status = pt_dut_reset(cd, 0);
 			if (status) {
-				if (status == PIP2_RSP_ERR_INVALID_IMAGE)
-					strcpy(status_str,
-							"There is no valid primary or secondary images");
-				else
-					strcpy(status_str,
-						"Failed to enter primary image from host mode");
+				pt_debug(cd->dev, DL_ERROR,
+					"%s: HW reset failed rc = %d\n",
+					__func__, status);
+				strcpy(status_str, "Failed to reset the DUT");
 				goto exit;
 			}
-			while ((cd->startup_state != STARTUP_DONE)
-				&& time < 2000) {
-				msleep(50);
-				pt_debug(cd->dev, DL_INFO,
-					"%s: wait %dms for the queued startup to complete, current enum=0x%04X\n",
-					__func__, time, cd->enum_status);
-				time += 50;
-			}
-			if (!(cd->enum_status & ENUM_STATUS_COMPLETE)) {
-				status = -ETIME;
+			status = _pt_request_wait_for_enum_state(
+			    dev, 4000, ENUM_STATUS_FW_RESET_SENTINEL);
+			if (status) {
+				pt_debug(cd->dev, DL_ERROR,
+					"%s: No FW Sentinel detected rc = %d\n",
+					__func__, status);
 				strcpy(status_str,
-					"Failed to queue enum");
+					"Failed to enter Primary image from host mode");
 				goto exit;
 			}
 			status = pt_pip2_get_mode_sysmode_(cd, &mode, NULL);
 			if (!status) {
 				if (mode == PT_MODE_OPERATIONAL)
 					strcpy(status_str,
-						"Entered primary image from ROM-BL mode");
+						"Entered primary image");
 				else if (mode ==
-					PT_MODE_SECONDARY_IMAGE)
+					PT_MODE_SECONDARY_IMAGE) {
+					status = -EINVAL;
 					strcpy(status_str,
 						"There is no valid primary image");
+				}
 			} else
 				strcpy(status_str,
 					"Failed to get current mode");
-		} else if (cd->mode == PT_MODE_SECONDARY_IMAGE) {
+		} else if (cd->mode == PT_MODE_SECONDARY_IMAGE ||
+				cd->mode == PT_MODE_UTILITY_IMAGE) {
 			status = pt_pip3_switch_image_(cd, cd->img_id);
-			if (!status)
+			if (!status) {
+				status = pt_pip2_get_mode_sysmode_(cd,
+					&mode, NULL);
+				if (!status && mode == PT_MODE_OPERATIONAL) {
+					strcpy(status_str,
+						"Entered primary image");
+				} else
+					strcpy(status_str,
+						"SWITCH_IMAGE passed but system mode indicates a failure in entering primary image");
+			} else
 				strcpy(status_str,
-					"Entered primary image from secondary image");
-			else
-				strcpy(status_str,
-					"Failed to enter primary image from secondary image");
+					"Failed to enter primary image");
 		}
 		break;
 	case PT_IMG_SECONDARY:
 		if (cd->mode == PT_MODE_SECONDARY_IMAGE)
 			strcpy(status_str, "Already in Secondary image");
 		else if (cd->mode == PT_MODE_BOOTLOADER) {
-			status = pt_pip2_launch_app(cd->dev,
-				PT_CORE_CMD_UNPROTECTED);
+			/*
+			 * Currently, FW doesn't support entering Primary image
+			 * from ROM-BL through LAUNCH_APP command if entering
+			 * ROM-BL through PIP3 SWITCH_IMAGE command. So use HW
+			 * reset to switch to Primary instead of LANUCH_APP.
+			 */
+			status = pt_dut_reset(cd, 0);
 			if (status) {
-				if (status == PIP2_RSP_ERR_INVALID_IMAGE)
-					strcpy(status_str,
-							"There is no valid primary or secondary images");
-				else
-					strcpy(status_str,
-						"Failed to exit host mode");
+				pt_debug(cd->dev, DL_ERROR,
+					"%s: HW reset failed rc = %d\n",
+					__func__, status);
+				strcpy(status_str, "Failed to reset the DUT");
 				goto exit;
 			}
-			while ((cd->startup_state != STARTUP_DONE)
-				&& time < 2000) {
-				msleep(50);
-				pt_debug(cd->dev, DL_INFO,
-					"%s: wait %dms for the queued startup to complete, current enum=0x%04X\n",
-					__func__, time, cd->enum_status);
-				time += 50;
-			}
-			if (!(cd->enum_status & ENUM_STATUS_COMPLETE)) {
-				status = -ETIME;
+			status = _pt_request_wait_for_enum_state(
+			    dev, 4000, ENUM_STATUS_FW_RESET_SENTINEL);
+			if (status) {
+				pt_debug(cd->dev, DL_ERROR,
+					"%s: No FW Sentinel detected rc = %d\n",
+					__func__, status);
 				strcpy(status_str,
-					"Failed to queue enum");
+					"Failed to enter Secondary image from host mode");
 				goto exit;
 			}
 			status = pt_pip2_get_mode_sysmode_(cd, &mode, NULL);
@@ -16217,26 +17257,42 @@ static ssize_t pt_pip3_switch_img_show(struct device *dev,
 				if (mode == PT_MODE_OPERATIONAL) {
 					status = pt_pip3_switch_image_(cd,
 						cd->img_id);
-					if (!status)
+					if (status) {
 						strcpy(status_str,
-							"Entered secondary image from primary image");
+							"Failed to enter secondary image");
+						break;
+					}
+					status = pt_pip2_get_mode_sysmode_(cd,
+						&mode, NULL);
+					if (!status &&
+						mode == PT_MODE_SECONDARY_IMAGE)
+						strcpy(status_str,
+							"Entered secondary image");
 					else
 						strcpy(status_str,
-							"Failed to enter secondary image from primary image");
+							"SWITCH_IMAGE passed but system mode indicates a failure in entering secondary image");
 				} else if (mode == PT_MODE_SECONDARY_IMAGE)
 					strcpy(status_str,
 						"No primary image, entered secondary image from ROM-BL mode");
 			} else
 				strcpy(status_str,
 					"Failed to get current mode");
-		} else if (cd->mode == PT_MODE_OPERATIONAL) {
+		} else if (cd->mode == PT_MODE_OPERATIONAL ||
+			cd->mode == PT_MODE_UTILITY_IMAGE) {
 			status = pt_pip3_switch_image_(cd, cd->img_id);
-			if (!status)
+			if (!status) {
+				status = pt_pip2_get_mode_sysmode_(cd,
+							&mode, NULL);
+				if (!status &&
+					mode == PT_MODE_SECONDARY_IMAGE) {
+					strcpy(status_str,
+						"Entered secondary image");
+				} else
+					strcpy(status_str,
+						"SWITCH_IMAGE passed but system mode indicates a failure in entering secondary image");
+			} else
 				strcpy(status_str,
-					"Entered secondary image from primary image");
-			else
-				strcpy(status_str,
-					"Failed to enter secondary image from primary image");
+					"Failed to enter secondary image");
 		}
 		break;
 	case PT_IMG_ROM_BL:
@@ -16245,18 +17301,27 @@ static ssize_t pt_pip3_switch_img_show(struct device *dev,
 		} else {
 			status = pt_pip3_switch_image_(cd, cd->img_id);
 			if (!status)
-				strcpy(status_str,
-					"Entered ROM-BL");
+				strcpy(status_str, "Entered ROM-BL");
 			else
 				strcpy(status_str,
 					"Failed to enter ROM-BL mode");
 		}
 		break;
 	default:
+		strcpy(status_str, "Invalid Image ID");
 		break;
 	}
 
 exit:
+	if (!status && cd->img_id == PT_IMG_PRIMARY &&
+		(cd->enum_status & ENUM_STATUS_COMPLETE) == 0) {
+		pt_queue_enum(cd);
+		status = _pt_request_wait_for_enum_state(
+			dev, 2000, ENUM_STATUS_COMPLETE);
+		pt_debug(dev, DL_INFO, "%s: Startup_status = 0x%04X\n",
+			__func__, cd->enum_status);
+	}
+
 	ret = snprintf(buf, PT_MAX_PRBUF_SIZE, "Status: %d\n%s\n",
 		status, status_str);
 	return ret;
@@ -17548,6 +18613,7 @@ static ssize_t pt_command_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct pt_core_data *cd = dev_get_drvdata(dev);
+	struct pt_raw_cmd raw_cmd;
 	unsigned short crc;
 	u16 actual_read_len;
 	u8 input_data[PT_MAX_PIP2_MSG_SIZE + 1];
@@ -17557,6 +18623,7 @@ static ssize_t pt_command_store(struct device *dev,
 	int rc = 0;
 	u8 opcode = 0;
 	u8 cmd_id = 0;
+	u8 report_type = 0;
 
 	mutex_lock(&cd->sysfs_lock);
 	cd->cmd_rsp_buf_len = 0;
@@ -17606,6 +18673,22 @@ static ssize_t pt_command_store(struct device *dev,
 		goto pt_command_store_exit;
 	}
 
+	/* HID SET_REPORT (Feature Report) */
+	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+		input_data[0] == 0x05 && input_data[1] == 0x00) {
+		opcode = input_data[3] & 0x0f;
+		report_type = (input_data[2] & 0xf0) >> 4;
+		if (opcode == HID_CMD_SET_REPORT &&
+			report_type == FEATURE_REPORT) {
+			pm_runtime_get_sync(dev);
+			raw_cmd.write_length = length;
+			raw_cmd.write_buf = input_data;
+			rc = pt_write_raw_direct(cd, &raw_cmd);
+			pm_runtime_put(dev);
+			goto pt_command_store_exit;
+		}
+	}
+
 	/* HID cmd */
 	if (length <= 6 && input_data[0] == 0x05 && input_data[1] == 0x00) {
 		opcode = input_data[3] & 0x0f;
@@ -17623,6 +18706,13 @@ static ssize_t pt_command_store(struct device *dev,
 				    get_unaligned_le16(&cd->response_buf[0]);
 				memcpy(cd->cmd_rsp_buf, cd->response_buf,
 				    cd->cmd_rsp_buf_len);
+#ifdef TTHE_TUNER_SUPPORT
+				report_type = (input_data[2] & 0xf0) >> 4;
+				if (report_type == FEATURE_REPORT)
+					tthe_print(cd, &(cd->cmd_rsp_buf[0]),
+						cd->cmd_rsp_buf_len,
+						"HID-FTR-RPT=");
+#endif
 			}
 			cd->raw_cmd_status = rc;
 			mutex_unlock(&cd->sysfs_lock);
@@ -17650,6 +18740,9 @@ static ssize_t pt_command_store(struct device *dev,
 			goto pt_command_store_exit;
 		}
 	}
+
+	if (cd->bridge_mode)
+		goto uer_cmd;
 
 	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID
 		&& cd->mode != PT_MODE_BOOTLOADER
@@ -17680,7 +18773,7 @@ static ssize_t pt_command_store(struct device *dev,
 			       cd->cmd_rsp_buf_len);
 		}
 
-		if (cmd_id == HID_CMD_ID_START_BOOTLOADER
+		if (cmd_id == PIP3_CMD_ID_START_BOOTLOADER
 			&& cd->dual_mcu_available) {
 			rc = _pt_detect_dut_by_pip1(
 				dev, NULL, NULL, &cd->mode, NULL);
@@ -17689,6 +18782,7 @@ static ssize_t pt_command_store(struct device *dev,
 					__func__);
 		}
 		cd->raw_cmd_status = rc;
+		cd->pt_hid_buf_op.report_type = UNKNOWN_REPORT;
 		mutex_unlock(&cd->sysfs_lock);
 		pm_runtime_put(dev);
 		goto pt_command_store_exit;
@@ -17697,6 +18791,14 @@ static ssize_t pt_command_store(struct device *dev,
 	/* PIP2 messages begin with 01 01 */
 	if (length >= 2 && input_data[0] == 0x01 && input_data[1] == 0x01) {
 		cd->pip2_prot_active = 1;
+		cmd_id = input_data[PIP2_CMD_COMMAND_ID_OFFSET] & 0x7F;
+		/*
+		 * For the case that command 0x16 is used to exit ROM-BL,
+		 * DUT generation needs to be detected again to ensure "enum"
+		 * can run in correct protocol mode.
+		 */
+		if (cmd_id == PIP2_CMD_ID_EXECUTE)
+			cd->detect_dut_generation = true;
 		/* Override next seq tag with what was sent */
 		cd->pip2_cmd_tag_seq = input_data[4] & 0x0F;
 		/* For PIP2 cmd if length does not include crc, add it */
@@ -17735,6 +18837,12 @@ uer_cmd:
 	mutex_unlock(&cd->sysfs_lock);
 
 pt_command_store_exit:
+	if (cd->bridge_mode && rc) {
+		pt_debug(dev, DL_INFO,
+			"%s: Ignore any I2C transaction errors when in brige mode\n",
+			__func__);
+		rc = 0;
+	}
 	if (rc)
 		return rc;
 	return size;
@@ -17968,6 +19076,8 @@ static ssize_t pt_drv_debug_show(struct device *dev,
 		"%d %s \t- %s\n"
 		"%d %s \t- %s\n"
 		"%d %s \t- %s\n"
+		"%d %s \t- %s\n"
+		"%d %s \t- %s\n"
 #endif /* TTDL_DIAGNOSTICS */
 		,
 		PT_DRV_DBG_SUSPEND, "       ", "Suspend TTDL responding to INT",
@@ -18001,7 +19111,10 @@ static ssize_t pt_drv_debug_show(struct device *dev,
 		PT_DRV_DBG_CORE_SET_PROTOCOL_MODE, "[0|1|2|255]", "Prot Mode",
 		PT_DRV_DBG_CORE_SET_XRES_LEVEL, "[0|1]", "TP_XRES Set Level",
 		PT_DRV_DBG_CORE_ENTER_BL_METHOD, "[0|1]", "Enter BL method",
-		PT_DRV_DBG_DUAL_MCU_AVAILABLE, "[0|1]", "Dual mcu available"
+		PT_DRV_DBG_DUAL_MCU_AVAILABLE, "[0|1]", "Dual mcu available",
+		PT_DRV_DBG_HID_MULTI_RSP_TIMEOUT, "[100-7000]",
+				"HID multi Resp Timeout (ms)",
+		PT_DRV_DBG_PIP_WAIT_MODE, "[0|1]", "Set PIP command wait mode"
 #endif /* TTDL_DIAGNOSTICS */
 	);
 
@@ -18194,24 +19307,17 @@ static ssize_t pt_drv_debug_store(struct device *dev,
 		break;
 #ifdef TTHE_TUNER_SUPPORT
 	case PT_DRV_DBG_TTHE_TUNER_EXIT:		/* 107 */
-		mutex_lock(&cd->tthe_lock);
+		mutex_lock(&cd->system_lock);
 		cd->tthe_exit = 1;
-		wake_up(&cd->wait_q);
-		mutex_unlock(&cd->tthe_lock);
+		mutex_unlock(&cd->system_lock);
+		wake_up_interruptible(&cd->tuner_wait);
 
-		/* Allow wait_q to be processed and then clear tthe_exit */
+		/* Allow tuner_wait to be processed and then clear tthe_exit */
 		msleep(20);
-		mutex_lock(&cd->tthe_lock);
+		mutex_lock(&cd->system_lock);
 		cd->tthe_exit = 0;
-		wake_up(&cd->wait_q);
-		mutex_unlock(&cd->tthe_lock);
-		break;
-	case PT_DRV_DBG_TTHE_BUF_CLEAN:			/* 108 */
-		if (cd->tthe_buf)
-			memset(cd->tthe_buf, 0, PT_MAX_PRBUF_SIZE);
-		else
-			pt_debug(dev, DL_INFO, "%s : tthe_buf not existed\n",
-				__func__);
+		mutex_unlock(&cd->system_lock);
+		wake_up_interruptible(&cd->tuner_wait);
 		break;
 #endif
 #ifdef TTDL_DIAGNOSTICS
@@ -18629,6 +19735,10 @@ static ssize_t pt_drv_debug_store(struct device *dev,
 			cd->enter_bl_method = PT_ENTER_BL_BY_COMMAND;
 			pt_debug(dev, DL_INFO, "%s: Enter BL by command only\n",
 				 __func__);
+		} else if (input_data[1] == PT_ENTER_BL_BY_RST_UTIL) {
+			cd->enter_bl_method = PT_ENTER_BL_BY_RST_UTIL;
+			pt_debug(dev, DL_INFO, "%s: Enter BL according to Reset Util\n",
+				 __func__);
 		} else {
 			rc = -EINVAL;
 			pt_debug(dev, DL_ERROR, "%s: Invalid parameter: %d\n",
@@ -18645,6 +19755,43 @@ static ssize_t pt_drv_debug_store(struct device *dev,
 			cd->dual_mcu_available = false;
 			pt_debug(dev, DL_INFO,
 				"%s: Dual mcu NOT available\n",
+				 __func__);
+		} else {
+			rc = -EINVAL;
+			pt_debug(dev, DL_ERROR, "%s: Invalid parameter: %d\n",
+				 __func__, input_data[1]);
+		}
+		break;
+	case PT_DRV_DBG_HID_MULTI_RSP_TIMEOUT:	/* 225 */
+		mutex_lock(&cd->system_lock);
+		if (input_data[1] >= 100 && input_data[1] <= 7000) {
+			/*
+			 * The timeout is changed for some cases so the
+			 * hid_multi_rsp_timeout is used to retore back to
+			 * what the user requested as the new timeout.
+			 */
+			cd->hid_multi_rsp_timeout = input_data[1];
+			pt_debug(dev, DL_INFO,
+				"%s: ATM - HID multi response Timeout = %d\n",
+				__func__, cd->hid_multi_rsp_timeout);
+		} else {
+			rc = -EINVAL;
+			pt_debug(dev, DL_ERROR,
+				"%s: ATM - Invalid parameter: %d\n",
+				__func__, input_data[1]);
+		}
+		mutex_unlock(&(cd->system_lock));
+		break;
+	case PT_DRV_DBG_PIP_WAIT_MODE:		/* 226 */
+		if (input_data[1] == 1) {
+			cd->pip_no_wait = true;
+			pt_debug(dev, DL_INFO,
+				 "%s: Send PIP command without waiting for timeout\n",
+				 __func__);
+		} else if (input_data[1] == 0) {
+			cd->pip_no_wait = false;
+			pt_debug(dev, DL_INFO,
+				"%s: Send PIP command and wait for timeout\n",
 				 __func__);
 		} else {
 			rc = -EINVAL;
@@ -18760,6 +19907,12 @@ static ssize_t pt_panel_id_show(struct device *dev,
 				if (!rc)
 					pid =
 					 cd->sysinfo.sensing_conf_data.panel_id;
+				pt_debug(dev, DL_WARN,
+					 "%s: Gen6 FW mode rc=%d PID=0x%02X\n",
+					 __func__, rc, pid);
+			} else if (cd->panel_id_support &
+				   PT_PANEL_ID_BY_MFG_DATA) {
+				rc = pt_get_pid_from_mfg_data_(cd, &pid);
 				pt_debug(dev, DL_WARN,
 					 "%s: Gen6 FW mode rc=%d PID=0x%02X\n",
 					 __func__, rc, pid);
@@ -19084,6 +20237,7 @@ static ssize_t pt_ttdl_status_show(struct device *dev,
 		"%s: 0x%04X\n"
 		"%s: %d\n"
 		"%s: %s\n"
+		"%s: %s\n"
 		"%s: 0x%02X\n"
 		"%s: %s\n"
 		"%s: %s\n"
@@ -19118,6 +20272,8 @@ static ssize_t pt_ttdl_status_show(struct device *dev,
 		,
 		"Startup Status            ", cd->enum_status,
 		"TTDL Debug Level          ", cd->debug_level,
+		"Active processor          ",
+			cd->active_proc ? "AUX MCU" : "Primary",
 		"Active Bus Module         ",
 			cd->bus_ops->bustype == BUS_I2C ? "I2C" : "SPI",
 		"I2C Address               ",
@@ -19144,7 +20300,8 @@ static ssize_t pt_ttdl_status_show(struct device *dev,
 		"Mode                      ",
 			cd->mode ? (cd->mode == PT_MODE_OPERATIONAL ?
 			"Operational" : (cd->mode == PT_MODE_BOOTLOADER ?
-			"BL-ROM" : "BL-Secondary")) : "Unknown",
+			"BL-ROM" : (cd->mode == PT_MODE_SECONDARY_IMAGE ?
+			"BL-Secondary" : "Utility"))) : "Unknown",
 		"Flashless Mode            ",
 			cd->flashless_dut == 1 ? "Yes" : "No",
 		"Suppress No-Flash Auto BL ",
@@ -20364,7 +21521,7 @@ static int pt_bist_slave_irq_test(struct device *dev,
 
 		/* Slave detect is only valid if status ok and in boot exec */
 		if (status == PIP2_RSP_ERR_NONE &&
-		    boot == PIP2_STATUS_BOOT_EXEC) {
+		    boot == PIP2_STATUS_BL_EXEC) {
 			detected = read_buf[PIP2_RESP_BODY_OFFSET + 2] &
 					SLAVE_DETECT_MASK;
 		} else {
@@ -20799,8 +21956,19 @@ static int pt_bist_host_test(struct device *dev,
 	if ((cd->ttdl_bist_select & PT_BIST_TP_XRES_TEST) != 0) {
 		pt_debug(dev, DL_INFO,
 			"%s: ----- Start TP_XRES BIST -----\n", __func__);
+
+		/* Clear Reset Util before reset pin is tested */
+		cd->util_rst_state = UTIL_RST_UNKNOWN;
+
 		rc = pt_bist_xres_test(dev, &bus_toggled, &irq_toggled,
 			&xres_toggled, host->xres_err_str);
+
+		/* Update Reset Util if reset pin is tested */
+		if (xres_toggled == 1)
+			cd->util_rst_state = UTIL_RST_PASS;
+		else if (xres_toggled == 0)
+			cd->util_rst_state = UTIL_RST_FAIL;
+
 		/* Done if the rest of all nets toggled */
 		if (bus_toggled == 1 && irq_toggled == 1 && xres_toggled == 1)
 			goto print_results;
@@ -20821,6 +21989,10 @@ static int pt_bist_host_test(struct device *dev,
 		if (irq_toggled != 1) {
 			xres_toggled = 0x0F;
 			memset(host->xres_err_str, 0, PT_ERR_STR_SIZE);
+			/*
+			 * Clear Reset Util when XRES functionality is unknown.
+			 */
+			cd->util_rst_state = UTIL_RST_UNKNOWN;
 		}
 		if (bus_toggled == 1 && irq_toggled == 1)
 			goto print_results;
@@ -21429,9 +22601,9 @@ static ssize_t pt_dut_status_show(struct device *dev,
 {
 	u8 sys_mode = FW_SYS_MODE_UNDEFINED;
 	u8 mode = PT_MODE_UNKNOWN;
-	char *outputstring[8] = {"BOOT", "SCANNING", "DEEP_SLEEP",
+	char *outputstring[9] = {"BOOT", "SCANNING", "DEEP_SLEEP",
 				 "TEST", "DEEP_STANDBY", "SECONDARY_IMAGE",
-				 "UNDEFINED", "n/a"};
+				 "UTILITY_IMAGE", "UNDEFINED", "n/a"};
 	struct pt_core_data *cd = dev_get_drvdata(dev);
 	ssize_t ret;
 	u16 calculated_crc = 0;
@@ -21462,7 +22634,9 @@ static ssize_t pt_dut_status_show(struct device *dev,
 			"Calculated CRC ");
 		return ret;
 	} else {
-		if (mode == PT_MODE_OPERATIONAL) {
+		if (mode == PT_MODE_OPERATIONAL ||
+			mode == PT_MODE_SECONDARY_IMAGE ||
+			mode == PT_MODE_UTILITY_IMAGE) {
 			if (sys_mode > FW_SYS_MODE_MAX)
 				sys_mode = FW_SYS_MODE_UNDEFINED;
 			if (sys_mode != FW_SYS_MODE_TEST)
@@ -21473,6 +22647,12 @@ static ssize_t pt_dut_status_show(struct device *dev,
 				&calculated_crc, &stored_crc);
 			if (rc)
 				goto print_limited_results;
+
+			if (status &&
+				cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+				rc = status;
+				goto print_limited_results;
+			}
 
 			ret = snprintf(buf, PT_MAX_PRBUF_SIZE,
 				"%s: %d\n"
@@ -21501,7 +22681,9 @@ print_limited_results:
 		"%s: n/a\n",
 		"Status", rc,
 		"Active Exec    ",
-			mode == PT_MODE_OPERATIONAL ? "FW" : "BL",
+			(mode == PT_MODE_OPERATIONAL ||
+			mode == PT_MODE_SECONDARY_IMAGE ||
+			mode == PT_MODE_UTILITY_IMAGE) ? "FW" : "BL",
 		"FW System Mode ", outputstring[sys_mode],
 		"Stored CRC     ",
 		"Calculated CRC ");
@@ -21509,7 +22691,6 @@ print_limited_results:
 	return ret;
 }
 #endif /* TTDL_DIAGNOSTICS */
-
 
 /*******************************************************************************
  * Structures of sysfs attributes for all DUT dependent sysfs node
@@ -21740,6 +22921,7 @@ int pt_probe(const struct pt_bus_ops *ops, struct device *dev,
 	cd->fw_system_mode             = FW_SYS_MODE_BOOT;
 	cd->pip_cmd_timeout            = PT_PIP_CMD_DEFAULT_TIMEOUT;
 	cd->pip_cmd_timeout_default    = PT_PIP_CMD_DEFAULT_TIMEOUT;
+	cd->hid_multi_rsp_timeout      = PT_HID_MULTI_RSP_DEFAULT_TIMEOUT;
 	cd->flashless_dut              = 0;
 	cd->flashless_auto_bl          = PT_SUPPRESS_AUTO_BL;
 	cd->bl_with_no_int             = 0;
@@ -21764,6 +22946,8 @@ int pt_probe(const struct pt_bus_ops *ops, struct device *dev,
 	cd->watchdog_interval          = PT_WATCHDOG_TIMEOUT;
 	cd->hid_cmd_state                 = 1;
 	cd->fw_updating                   = false;
+	cd->enter_bl_method               = PT_ENTER_BL_BY_COMMAND;//PT_ENTER_BL_BY_RST_UTIL;
+	cd->pip3_output_rpt_cnt           = 0xFF;
 
 #ifdef TTDL_DIAGNOSTICS
 	cd->t_refresh_active              = 0;
@@ -21835,7 +23019,8 @@ int pt_probe(const struct pt_bus_ops *ops, struct device *dev,
 	/* Set platform panel_id value */
 	cd->panel_id_support = cd->cpdata->panel_id_support;
 
-	if (cd->panel_id_support & PT_PANEL_ID_BY_SYS_INFO)
+	if (cd->panel_id_support &
+	    (PT_PANEL_ID_BY_SYS_INFO | PT_PANEL_ID_BY_MFG_DATA))
 		/* Set Panel ID to default to 0 */
 		cd->pid_for_loader = PT_PANEL_ID_DEFAULT;
 	else
@@ -21975,7 +23160,9 @@ int pt_probe(const struct pt_bus_ops *ops, struct device *dev,
 	pt_stop_wd_timer(cd);
 
 #ifdef TTHE_TUNER_SUPPORT
-	mutex_init(&cd->tthe_lock);
+	init_waitqueue_head(&cd->tuner_wait);
+	INIT_LIST_HEAD(&cd->tuner_list);
+	spin_lock_init(&cd->tuner_list_lock);
 	cd->tthe_debugfs = debugfs_create_file(PT_TTHE_TUNER_FILE_NAME,
 			0644, NULL, cd, &tthe_debugfs_fops);
 #endif
@@ -22248,10 +23435,10 @@ int pt_release(struct pt_core_data *cd)
 	device_init_wakeup(dev, 0);
 
 #ifdef TTHE_TUNER_SUPPORT
-	mutex_lock(&cd->tthe_lock);
+	mutex_lock(&cd->system_lock);
 	cd->tthe_exit = 1;
-	wake_up(&cd->wait_q);
-	mutex_unlock(&cd->tthe_lock);
+	mutex_unlock(&cd->system_lock);
+	wake_up_interruptible(&cd->tuner_wait);
 	debugfs_remove(cd->tthe_debugfs);
 #endif
 

@@ -45,7 +45,7 @@
 #define PT_DRIVER_MAJOR 04
 #define PT_DRIVER_MINOR 13
 
-#define PT_DRIVER_REVCTRL 1011990
+#define PT_DRIVER_REVCTRL 1039125
 
 #define PT_DRIVER_VERSION		    \
 __stringify(PT_DRIVER_NAME)		    \
@@ -53,7 +53,7 @@ __stringify(PT_DRIVER_NAME)		    \
 "." __stringify(PT_DRIVER_MINOR)	    \
 "." __stringify(PT_DRIVER_REVCTRL)
 
-#define PT_DRIVER_DATE "20220607"
+#define PT_DRIVER_DATE "20230627"
 
 /* abs settings */
 #define PT_IGNORE_VALUE             -1
