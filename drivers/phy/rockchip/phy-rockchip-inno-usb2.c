@@ -1061,11 +1061,13 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 					cable = EXTCON_CHG_USB_DCP;
 					sch_work = true;
 					break;
+                    #ifdef CONFIG_TYPEC_ET7303
 				case POWER_SUPPLY_TYPE_USB_FLOATING:
 					dev_dbg(&rport->phy->dev, "float is connected\n");
 					cable = EXTCON_CHG_USB_SLOW;
 					sch_work = true;
 					break;
+                    #endif
 				case POWER_SUPPLY_TYPE_USB_CDP:
 					dev_dbg(&rport->phy->dev, "cdp cable is connected\n");
 					wake_lock(&rport->wakelock);
@@ -1273,7 +1275,11 @@ static void rockchip_chg_detect_work(struct work_struct *work)
 			// tanlq 220730 add floating line
 				dev_dbg(&rport->phy->dev, "chg detection work floating charger found\n");
 				//rphy->chg_type = POWER_SUPPLY_TYPE_USB_DCP;
+                #ifdef CONFIG_TYPEC_ET7303
 				rphy->chg_type = POWER_SUPPLY_TYPE_USB_FLOATING;
+                #else
+                rphy->chg_type = POWER_SUPPLY_TYPE_USB_DCP;
+                #endif
 				rphy->chg_state = USB_CHG_STATE_DETECTED;
 				delay = 0;
 			} else {

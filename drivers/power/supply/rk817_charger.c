@@ -259,7 +259,7 @@ static enum power_supply_property rk817_usb_props[] = {
     POWER_SUPPLY_PROP_VOLTAGE_MAX,
     POWER_SUPPLY_PROP_CURRENT_MAX,
 };
-#ifdef CONFIG_TYPEC_TCPM
+#ifdef CONFIG_TYPEC_ET7303
 extern int cc_type;
 #endif
 extern int charge_enable;
@@ -1001,7 +1001,7 @@ static void rk817_charger_evt_worker(struct work_struct *work)
     } else if (extcon_get_state(edev, EXTCON_CHG_USB_DCP) > 0) {
         charger = USB_TYPE_AC_CHARGER;
 //tanlq add 220617 for boe no cc_report line
-#ifdef CONFIG_TYPEC_TCPM
+#ifdef CONFIG_TYPEC_ET7303
 		if(cc_type == 0){
 			//tanlq 220824,sometimes vbus report before cc_type,so wait for cc_type.
 			line_detect_retry++;
@@ -1015,7 +1015,7 @@ static void rk817_charger_evt_worker(struct work_struct *work)
 		printk("====rk817_charger_evt_worker:ac charger cc_type:0x%2x\n",cc_type);
 #endif
     }
-#ifdef CONFIG_TYPEC_TCPM
+#ifdef CONFIG_TYPEC_ET7303
 	else if(extcon_get_state(edev, EXTCON_CHG_USB_SLOW) > 0) {
 		if(cc_type == 4 || cc_type == 0x400){
 			charger = USB_TYPE_CDP_CHARGER;
@@ -1030,10 +1030,12 @@ static void rk817_charger_evt_worker(struct work_struct *work)
 	else if (extcon_get_state(edev, EXTCON_CHG_USB_CDP) > 0) {
         charger = USB_TYPE_CDP_CHARGER;
     }
+    #ifdef CONFIG_TYPEC_ET7303
 	printk("====rk817_charger_evt_worker:charger:%d\n",charger);
 	if((charger == USB_TYPE_UNKNOWN_CHARGER)||(charger == DC_TYPE_NONE_CHARGER)||(charger == USB_TYPE_NONE_CHARGER)){
 		line_detect_retry = 0;
 	}
+    #endif
     if (charger != USB_TYPE_UNKNOWN_CHARGER) {
         printk("receive type-c notifier event: %s...\n", event[charger]);
         charge->usb_charger = charger;
