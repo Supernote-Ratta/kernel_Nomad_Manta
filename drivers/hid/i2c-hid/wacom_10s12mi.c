@@ -67,16 +67,6 @@ struct wacom_features {
     u16 fw_version;
 };
 
-/* changed tower: for pencil data track. */
-#define DATATRACKTIME 60 * HZ  // 60 secods
-struct wacom_datatrack {
-    struct timer_list datatrack_timer;
-    struct device *dev;
-    atomic_t state;
-    bool initok;
-};
-/* changed end. */
-
 /* The main device structure */
 struct wacom_pencil {
     struct i2c_client *client;              /* i2c client */
@@ -84,7 +74,6 @@ struct wacom_pencil {
     struct input_dev *input;
     struct hid_desc hdesc;                  /* the HID Descriptor */
     struct notifier_block fb_notif;
-    struct wacom_datatrack datatrack;
     int (*pen_suspend)(struct wacom_pencil *);
     int(*pen_resume)(struct wacom_pencil *);
     int suspended;
@@ -452,11 +441,6 @@ static irqreturn_t wacom_report_irq(int irq, void *dev_id)
     input_report_abs(input, ABS_TILT_X, tx);
     input_report_abs(input, ABS_TILT_Y, ty);
     input_sync(input);
-    /* changed tower: add for pen data track. */
-    if (wpen->datatrack.initok) {
-        atomic_set(&(wpen->datatrack.state), 1);
-    }
-    /* changed end. */
 
 out:
     if (device_can_wakeup(&wpen->client->dev)) {
@@ -933,94 +917,6 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long actio
     return NOTIFY_OK;
 }
 
-/* changed tower: add for data track. */
-static void datatrack_timer(struct timer_list *t)
-{
-    struct wacom_datatrack *datatrack = from_timer(datatrack, t, datatrack_timer);
-    int state = atomic_read(&datatrack->state);
-    char data[64] = { 0 };
-    char *envp[] = { data, NULL };
-
-    if (state) {
-        snprintf(data, sizeof(data), "STATE=%s", "penactive");
-        kobject_uevent_env(&datatrack->dev->kobj, KOBJ_CHANGE, envp);
-        atomic_set(&datatrack->state, 0);
-        printk("report pen use event.\n");
-    }
-    mod_timer(&datatrack->datatrack_timer, jiffies + DATATRACKTIME);
-}
-
-static ssize_t datatrack_event_show(struct device *edev, struct device_attribute *attr, char *buf)
-{
-    struct wacom_datatrack *datatrack = (struct wacom_datatrack *)edev->driver_data;
-    int state = atomic_read(&datatrack->state);
-
-    return sprintf(buf, "%d\n", state);
-}
-
-static ssize_t datatrack_event_store(struct device *edev, struct device_attribute *attr, const char *buf, size_t count)
-{
-    char data[64] = { 0 };
-    char *envp[] = { data, NULL };
-
-    strcat(data, buf);
-    printk(KERN_WARNING "%s\n", data);
-    kobject_uevent_env(&edev->kobj, KOBJ_CHANGE, envp);
-
-    return count;
-}
-static DEVICE_ATTR(penused, S_IRUGO | S_IWUSR, datatrack_event_show, datatrack_event_store);
-
-static const struct attribute *datatrack_event_attr[] = {
-    &dev_attr_penused.attr,
-    NULL,
-};
-
-static const struct attribute_group datatrack_event_attr_group = {
-    .attrs = (struct attribute **)datatrack_event_attr,
-};
-
-static struct class datatrack_event_class = {
-    .name = "penused_event",
-    .owner = THIS_MODULE,
-};
-
-static int datatrack_uevent_init(struct wacom_datatrack *datatrack)
-{
-    int ret = 0;
-
-    ret = class_register(&datatrack_event_class);
-    if (ret < 0) {
-        printk(KERN_ERR "data track class register fail\n");
-        return ret;
-    }
-
-    datatrack->dev = device_create(&datatrack_event_class, NULL, MKDEV(0, 0), NULL, "event");
-    if (datatrack->dev) {
-        ret = sysfs_create_group(&datatrack->dev->kobj, &datatrack_event_attr_group);
-        if (ret < 0) {
-            printk(KERN_ERR "data track create event group fail!!!\n");
-            return ret;
-        }
-        datatrack->dev->driver_data = datatrack;
-    } else {
-        printk(KERN_ERR "data track create event device fail!!!\n");
-        ret = -1;
-        return ret;
-    }
-
-    return 0;
-}
-
-static void datatrack_uevent_uninit(struct wacom_datatrack *datatrack)
-{
-    device_destroy(&datatrack_event_class, MKDEV(0, 0));
-    class_destroy(&datatrack_event_class);
-    sysfs_remove_group(&datatrack->dev->kobj, &datatrack_event_attr_group);
-    printk(KERN_WARNING "%s!\n", __func__);
-}
-/* changed end. */
-
 static int wacom_pen_probe(struct i2c_client *client, const struct i2c_device_id *dev_id)
 {
     int ret = 0;
@@ -1083,15 +979,6 @@ static int wacom_pen_probe(struct i2c_client *client, const struct i2c_device_id
     // if (ret) {
     //     goto error_input;
     // }
-
-    /* changed tower: add for data track. */
-    timer_setup(&(wpen->datatrack.datatrack_timer), datatrack_timer, 0);
-    if (!datatrack_uevent_init(&wpen->datatrack)) {
-        atomic_set(&(wpen->datatrack.state), 0);
-        wpen->datatrack.initok = true;
-        mod_timer(&(wpen->datatrack.datatrack_timer), jiffies + DATATRACKTIME);
-    }
-    /* changed end. */
 
     return 0;
 
