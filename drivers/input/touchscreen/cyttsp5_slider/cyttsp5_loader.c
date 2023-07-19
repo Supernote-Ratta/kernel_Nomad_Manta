@@ -242,6 +242,7 @@ static u8 *cyttsp5_get_row_(struct device *dev, u8 *row_buf,
 static int cyttsp5_ldr_enter_(struct device *dev, struct cyttsp5_dev_id *dev_id)
 {
 	int rc;
+	int retry = 0;
 	u8 return_data[8];
 	u8 mode;
 
@@ -251,7 +252,11 @@ static int cyttsp5_ldr_enter_(struct device *dev, struct cyttsp5_dev_id *dev_id)
 
 	cmd->request_reset(dev);
 
-	rc = cmd->request_get_mode(dev, 0, &mode);
+	//after soft reset, the i2c of first cmd will fail;
+	while (retry++ < 5) {
+		rc = cmd->request_get_mode(dev, 0, &mode);
+		if (!rc) break;
+	}
 	if (rc < 0)
 		return rc;
 
@@ -372,8 +377,10 @@ static int cyttsp5_load_app_(struct device *dev, const u8 *fw, int fw_size)
 		rc = -ENOMEM;
 		goto _cyttsp5_load_app_exit;
 	}
-
+	//if no CYTTSP_WATCHDOG_DELAY_ENBALE, update by i2c will crash.
+#ifdef CYTTSP_WATCHDOG_DELAY_ENBALE
 	cmd->request_stop_wd(dev);
+#endif
 
 	dev_info(dev, "%s: Send BL Loader Enter\n", __func__);
 #ifdef TTHE_TUNER_SUPPORT
