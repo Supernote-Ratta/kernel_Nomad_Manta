@@ -17,6 +17,8 @@
 #include <linux/input.h>
 #include <linux/fb.h>
 #include <linux/notifier.h>
+#include <linux/suspend.h>
+#include <linux/wakelock.h>
 
 const char *FUSB_DT_INTERRUPT_INTN = "fsc_interrupt_int_n";
 
@@ -565,6 +567,8 @@ struct fusb30x_chip {
     /* changed tower: add for typec direction. */
     struct kobject kobj;
     u8 direction_status;
+	int enable_wake;
+	struct wake_lock		suspend_lock;
     /* changed end. */
 };
 

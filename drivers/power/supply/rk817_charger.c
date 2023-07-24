@@ -971,6 +971,7 @@ static void rk817_charge_host_evt_worker(struct work_struct *work)
     /* Determine cable/charger type */
     if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) > 0) {
         printk("receive type-c notifier event: OTG ON...\n");
+		wake_lock(&charge->suspend_lock);
         if (charge->dc_in && charge->pdata->power_dc2otg) {
             if (charge->otg_in) {
                 rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
@@ -982,6 +983,7 @@ static void rk817_charge_host_evt_worker(struct work_struct *work)
         rk817_charge_set_otg_in(charge, ONLINE);
     } else if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) == 0) {
         printk("receive type-c notifier event: OTG OFF...\n");
+		wake_unlock(&charge->suspend_lock);
         rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
         rk817_charge_set_otg_in(charge, OFFLINE);
     }
@@ -1614,6 +1616,7 @@ static int rk817_charge_probe(struct platform_device *pdev)
     rk817_chage_debug(charge);
     /* changed tower: for battmanager. */
     rk817_charge_set_charger(charge);
+	wake_lock_init(&charge->suspend_lock, WAKE_LOCK_SUSPEND, "rk817");
     /* changed end. */
     printk("driver version: %s\n", CHARGE_DRIVER_VERSION);
 

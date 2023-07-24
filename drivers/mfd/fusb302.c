@@ -2847,9 +2847,9 @@ static void fusb_try_detach(struct fusb30x_chip *chip)
 static void state_machine_typec(struct fusb30x_chip *chip)
 {
     u32 evt = 0;
-
     tcpc_alert(chip, &evt);
     mux_alert(chip, &evt);
+
     if (!evt) {
         goto BACK;
     }
@@ -2876,7 +2876,7 @@ static void state_machine_typec(struct fusb30x_chip *chip)
         }
     }
 
-    //printk(KERN_INFO "CC connect state: %d\n", chip->conn_state);
+	//printk(KERN_INFO "CC connect state: %d\n", chip->conn_state);
     switch (chip->conn_state) {
         case disabled:
             fusb_state_disabled(chip, evt);
@@ -3091,6 +3091,7 @@ static irqreturn_t cc_interrupt_handler(int irq, void *dev_id)
 {
     struct fusb30x_chip *chip = dev_id;
 
+	wake_lock_timeout(&chip->suspend_lock, 4*HZ);
     queue_work(chip->fusb30x_wq, &chip->work);
     fusb_irq_disable(chip);
     return IRQ_HANDLED;
@@ -3266,7 +3267,7 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long actio
 {
     struct fusb30x_chip *chip = NULL;
     chip = container_of(self, struct fusb30x_chip, fb_notify);
-
+	printk("fusb302 fb_notifier_callback action:%d \n",action);
     if (!chip) {
 	    return NOTIFY_OK;
     }
@@ -3425,6 +3426,7 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
     }
 
     i2c_set_clientdata(client, chip);
+	wake_lock_init(&chip->suspend_lock, WAKE_LOCK_SUSPEND, "fusb302");
 
     spin_lock_init(&chip->irq_lock);
     chip->enable_irq = 1;
@@ -3461,6 +3463,12 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
         dev_err(chip->dev, "Can't register input device: %d\n", ret);
         goto IRQ_ERR;
     }
+	ret = device_init_wakeup(&client->dev, true);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s: Error, device_init_wakeup rc:%d\n", __func__, ret);
+	}
+	enable_irq_wake(chip->gpio_int_irq);//chip->gpio_int_irq client->irq
+	chip->enable_wake = 1;
 
     /* changed: tower for deep sleep the type c power will down, so when screen on we will init cc again. */
     memset(&chip->fb_notify, 0, sizeof( struct notifier_block));
@@ -3508,10 +3516,36 @@ static void fusb30x_shutdown(struct i2c_client *client)
 static int fusb30x_pm_suspend(struct device *dev)
 {
     struct fusb30x_chip *chip = dev_get_drvdata(dev);
+	printk("fusb30x_pm_suspend mem_sleep_current:%d chip->suspended:%d enable_irq:%d enable_wake:%d\n",mem_sleep_current,chip->suspended,chip->enable_irq,chip->enable_wake);
+	if(mem_sleep_current == PM_SUSPEND_MEM_LITE){
+		if (chip->enable_wake == 0) {
+			enable_irq_wake(chip->gpio_int_irq);
+			chip->enable_wake = 1;
+			dev_info(chip->dev, "enable irq wake.\n");
+		}
+		return 0;
+	}
 
-    fusb_irq_disable(chip);
-    chip->suspended = true;
+	if (chip->enable_wake == 1) {
+		disable_irq_wake(chip->gpio_int_irq);
+		chip->enable_wake = 0;
+		dev_info(chip->dev, "disable irq wake.\n");
+	}
+	if (chip->enable_irq) {
+		printk("fusb30x_pm_suspend irq_disable \n");
+        disable_irq(chip->gpio_int_irq);
+        chip->enable_irq = 0;
+    } else {
+        dev_warn(chip->dev, "irq have already disabled\n");
+    }
     cancel_work_sync(&chip->work);
+		//tcpm_init(chip);
+		//tcpm_set_rx_enable(chip, 0);
+		//chip->conn_state = unattached;
+		//tcpm_set_cc(chip, chip->role);
+	chip->suspended = true;
+	//fusb302_pd_reset(chip);
+	//regmap_write(chip->regmap, FUSB_REG_POWER, 0x0);
 
     return 0;
 }
@@ -3519,11 +3553,17 @@ static int fusb30x_pm_suspend(struct device *dev)
 static int fusb30x_pm_resume(struct device *dev)
 {
     struct fusb30x_chip *chip = dev_get_drvdata(dev);
-
-    fusb_irq_enable(chip);
-    chip->suspended = false;
-    queue_work(chip->fusb30x_wq, &chip->work);
-
+	printk("fusb30x_pm_resume mem_sleep_current:%d chip->suspended:%d enable_irq:%d\n",mem_sleep_current,chip->suspended,chip->enable_irq);
+	if(chip->suspended){
+		tcpm_init(chip);
+		tcpm_set_rx_enable(chip, 0);
+		chip->conn_state = unattached;
+		tcpm_set_cc(chip, chip->role);
+		chip->suspended = false;
+		queue_work(chip->fusb30x_wq, &chip->work);
+	}
+	if(chip->enable_irq == 0)
+		fusb_irq_enable(chip);
     return 0;
 }
 

@@ -28,6 +28,7 @@
 #include <linux/rtc.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/wakelock.h>
 
 #define MAX_FIELDS 40
 
@@ -103,4 +104,5 @@ struct rk817_charger {
     u8 plugout_trigger;
     int plugin_irq;
     int plugout_irq;
+	struct wake_lock		suspend_lock;
 };
