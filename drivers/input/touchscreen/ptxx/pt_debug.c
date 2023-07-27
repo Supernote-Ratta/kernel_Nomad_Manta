@@ -267,7 +267,7 @@ static int pt_debug_attention(struct device *dev)
 		return 0;
 
 	/* core handles handshake */
-	rc = pt_xy_worker(dd);
+	//rc = pt_xy_worker(dd);
 	if (rc < 0)
 		pt_debug(dev, DL_ERROR, "%s: xy_worker error r=%d\n",
 			__func__, rc);

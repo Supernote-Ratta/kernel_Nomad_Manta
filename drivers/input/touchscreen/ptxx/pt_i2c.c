@@ -362,6 +362,7 @@ static int __init pt_i2c_init(void)
 	return rc;
 }
 module_init(pt_i2c_init);
+//device_initcall_sync(pt_i2c_init); //20230721:after cyttsp5_slide.
 
 /*******************************************************************************
  * FUNCTION: pt_i2c_exit

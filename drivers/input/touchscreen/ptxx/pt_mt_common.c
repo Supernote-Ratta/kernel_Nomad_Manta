@@ -282,6 +282,13 @@ static void pt_get_mt_touches(struct pt_mt_data *md,
 			continue;
 		}
 
+		/* use 0 based track id's */
+		t -= md->t_min;
+
+        if(md->input_filter && md->input_filter(md, tch, num_cur_tch)) {
+            continue;
+        }
+
 		/* Lift-off */
 		if (tch->abs[PT_TCH_E] == PT_EV_LIFTOFF) {
 			pt_debug(dev, DL_INFO, "%s: t=%d e=%d lift-off\n",
@@ -291,9 +298,6 @@ static void pt_get_mt_touches(struct pt_mt_data *md,
 
 		/* Process touch */
 		pt_mt_process_touch(md, tch);
-
-		/* use 0 based track id's */
-		t -= md->t_min;
 
 		sig = MT_PARAM_SIGNAL(md, PT_ABS_ID_OST);
 		if (sig != PT_IGNORE_VALUE) {
@@ -911,6 +915,7 @@ int pt_mt_probe(struct device *dev)
 			PT_MT_NAME, pt_setup_input_attention, 0);
 	}
 
+    pt_slider_probe(dev);
 	return 0;
 
 error_init_input:

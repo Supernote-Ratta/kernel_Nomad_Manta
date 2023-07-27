@@ -28,6 +28,8 @@
 
 #include "cyttsp5_regs.h"
 
+#include "cyttsp5_listener.h"
+
 #define CYTTSP5_MT_NAME "cyttsp5_mt"
 
 #define MT_PARAM_SIGNAL(md, sig_ost) PARAM_SIGNAL(md->pdata->frmwrk, sig_ost)
@@ -35,6 +37,12 @@
 #define MT_PARAM_MAX(md, sig_ost) PARAM_MAX(md->pdata->frmwrk, sig_ost)
 #define MT_PARAM_FUZZ(md, sig_ost) PARAM_FUZZ(md->pdata->frmwrk, sig_ost)
 #define MT_PARAM_FLAT(md, sig_ost) PARAM_FLAT(md->pdata->frmwrk, sig_ost)
+
+static touch_listener       tp_listener = NULL;
+void cyttsp5_register_listener(touch_listener listener) {
+    printk("%s: listner=%pf\n", __func__, listener);
+    tp_listener = listener;
+}
 
 static void cyttsp5_mt_lift_all(struct cyttsp5_mt_data *md)
 {
@@ -226,19 +234,27 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 			continue;
 		}
 
+		/* use 0 based track id's */
+		t -= md->t_min;
+
 		/* Lift-off */
 		if (tch->abs[CY_TCH_E] == CY_EV_LIFTOFF) {
 			parade_debug(dev, DEBUG_LEVEL_1, "%s: t=%d e=%d lift-off\n",
 				__func__, t, tch->abs[CY_TCH_E]);
+			if(tp_listener != NULL) {
+                tp_listener(dev, t, 0, 0, 0);
+                //continue;
+            }
 			goto cyttsp5_get_mt_touches_pr_tch;
 		}
 
 		/* Process touch */
 		cyttsp5_mt_process_touch(md, tch);
 
-		/* use 0 based track id's */
-		t -= md->t_min;
-
+        if(tp_listener != NULL) {
+            tp_listener(dev, t, tch->abs[CY_TCH_X], tch->abs[CY_TCH_Y], 1);
+            continue;
+        }
 		sig = MT_PARAM_SIGNAL(md, CY_ABS_ID_OST);
 		if (sig != CY_IGNORE_VALUE) {
 			if (md->mt_function.input_report)

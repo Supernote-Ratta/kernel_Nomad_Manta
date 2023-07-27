@@ -67,15 +67,11 @@ static int cyttsp5_i2c_read_default_nosize(struct device *dev, u8 *buf, u32 max)
 		return (rc < 0) ? rc : -EIO;
 
 	size = get_unaligned_le16(&buf[0]);
-    parade_debug(dev, DEBUG_LEVEL_2, "%s: size:%d\n",
-		__func__,size);
-
-
-
+    parade_debug(dev, DEBUG_LEVEL_2, "%s: size:%d\n", __func__, size);
 
     if(size>255)
         rc = i2c_master_recv(client, buf, 255);
-    else
+    else if(size > 0)
     	rc = i2c_master_recv(client, buf, size);
 //for(i=0;i<size;i++){
 //    	parade_debug(dev, DEBUG_LEVEL_2, "%s: buf[%d]:0x%x\n",
@@ -221,7 +217,8 @@ static int __init cyttsp5_i2c_init(void)
 			__func__, CY_DRIVER_VERSION, rc);
 	return rc;
 }
-module_init(cyttsp5_i2c_init);
+//module_init(cyttsp5_i2c_init);
+device_initcall_sync(pt_i2c_init); //20230721:after tpxx touch.
 
 static void __exit cyttsp5_i2c_exit(void)
 {

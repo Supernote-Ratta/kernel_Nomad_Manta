@@ -11785,8 +11785,8 @@ static int parse_touch_input(struct pt_core_data *cd, int size)
 	int report_id = cd->input_buf[2];
 	int rc = -EINVAL;
 
-	pt_debug(cd->dev, DL_DEBUG, "%s: Received touch report\n",
-		__func__);
+	pt_debug(cd->dev, DL_DEBUG, "%s: Received touch report,protocol_mode=%d,report_id=%d\n",
+		__func__, cd->protocol_mode, report_id);
 	if (!si->ready) {
 		pt_debug(cd->dev, DL_ERROR,
 			"%s: Need system information to parse touches\n",
@@ -12573,7 +12573,7 @@ irqreturn_t pt_irq(int irq, void *handle)
 {
 	struct pt_core_data *cd = handle;
 	int rc = 0;
-	printk("pt_irq \n");
+	//printk("pt_irq \n");
 
 	if (!pt_check_irq_asserted(cd))
 		return IRQ_HANDLED;

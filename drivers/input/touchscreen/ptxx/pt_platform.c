@@ -1106,9 +1106,9 @@ int pt_setup_power(struct pt_core_platform_data *pdata, int on,
 	 * panels will not have slept yet so do full 10ms sleep.
 	 */
 	if (sleep_time < 8)
-		usleep_range(10000, 11000);
+		usleep_range(100000, 110000);
 	else
-		usleep_range(2000, 3000);
+		usleep_range(20000, 30000);
 
 	/* Force part out of RESET by releasing XRES#(TP_XRES) */
 	if (pdata->rst_gpio)

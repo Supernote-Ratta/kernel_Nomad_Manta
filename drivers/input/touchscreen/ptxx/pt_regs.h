@@ -144,11 +144,12 @@ enum PT_DEBUG_LEVEL {
 	DL_QUIET	= 0,
 	DL_ERROR	= 1,
 	DL_WARN		= 2,
-	DL_INFO		= 3,
-	DL_DEBUG	= 4,
+	DL_LISTEN	= 3,
+	DL_INFO		= 4,
+	DL_DEBUG	= 5,
 	DL_MAX
 };
-#define PT_INITIAL_DEBUG_LEVEL DL_WARN
+#define PT_INITIAL_DEBUG_LEVEL DL_LISTEN//DL_WARN
 
 /* Startup DUT enum status bitmask */
 enum PT_STARTUP_STATUS {
@@ -270,7 +271,7 @@ enum PT_HID_REPORT_ID {
 /*  Timeouts in ms */
 #define PT_PTSBC_INIT_WATCHDOG_TIMEOUT         20000
 #define PT_REQUEST_EXCLUSIVE_TIMEOUT            8000
-#define PT_WATCHDOG_TIMEOUT                     2000
+#define PT_WATCHDOG_TIMEOUT                     5000 // 2000
 #define PT_FW_EXIT_BOOT_MODE_TIMEOUT            1000
 #define PT_BL_WAIT_FOR_SENTINEL                  500
 #define PT_REQUEST_ENUM_TIMEOUT                 4000
@@ -1517,6 +1518,10 @@ struct pt_mt_data {
 	struct pt_sysinfo *si;
 	struct input_dev *input;
 	struct pt_mt_function mt_function;
+
+	// 20230721,hsl add.
+	struct input_dev *input_key;
+	int (*input_filter)(struct pt_mt_data *md, struct pt_touch *tch, int num_cur_tch);
 	struct mutex mt_lock;
 	bool is_suspended;
 	bool input_device_registered;
@@ -2148,5 +2153,7 @@ void pt_unregister_module(struct pt_module *module);
 
 void *pt_get_module_data(struct device *dev,
 		struct pt_module *module);
+
+int pt_slider_probe(struct device *dev);
 
 #endif /* _PT_REGS_H */

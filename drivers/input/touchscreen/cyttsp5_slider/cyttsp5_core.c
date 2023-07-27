@@ -4273,7 +4273,7 @@ static irqreturn_t cyttsp5_irq(int irq, void *handle)
 {
 	struct cyttsp5_core_data *cd = handle;
 	int rc;
-printk("cyttsp5_irq \n");
+    //printk("cyttsp5_irq \n");
 	if (!cyttsp5_check_irq_asserted(cd))
 		return IRQ_HANDLED;
 
