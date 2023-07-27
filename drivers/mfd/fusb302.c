@@ -3272,8 +3272,8 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long actio
 	    return NOTIFY_OK;
     }
     mutex_lock(&chip->fb_lock);
-    //if (action == EBC_FB_UNBLANK) // for rk ebc
-    if (action == FB_BLANK_UNBLANK) {  // for htfy ebc
+
+    if (action == EINK_NOTIFY_EVENT_SCREEN_ON) {  // from htfy ebc
         tcpm_init(chip);
         tcpm_set_rx_enable(chip, 0);
         chip->conn_state = unattached;
