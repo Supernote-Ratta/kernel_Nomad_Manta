@@ -232,7 +232,7 @@
     panel,height = <1404>;
     panel,vir_width = <1872>;
     panel,vir_height = <1404>;
-    panel,sdck = <34000000>;
+    panel,sdck = <35000000>;
     panel,lsl = <18>;
     panel,lbl = <17>;
     panel,ldl = <234>;
@@ -252,7 +252,7 @@
     panel,width-mm = <210>;
     panel,height-mm = <157>;
     panel,dpi = <220>;
-    panel,vcom-mv = <1670>;
+    panel,vcom-mv = <1300>;	//for OED 10.3 LANDSCAPE EPD.
     status = "okay";
 };
 
