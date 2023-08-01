@@ -237,19 +237,24 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 		/* use 0 based track id's */
 		t -= md->t_min;
 
-		/* Lift-off */
-		if (tch->abs[CY_TCH_E] == CY_EV_LIFTOFF) {
-			parade_debug(dev, DEBUG_LEVEL_1, "%s: t=%d e=%d lift-off\n",
-				__func__, t, tch->abs[CY_TCH_E]);
-			if(tp_listener != NULL) {
-                tp_listener(dev, t, 0, 0, 0);
-                //continue;
-            }
-			goto cyttsp5_get_mt_touches_pr_tch;
-		}
 
 		/* Process touch */
 		cyttsp5_mt_process_touch(md, tch);
+
+		/* Lift-off */
+		if (tch->abs[CY_TCH_E] == CY_EV_LIFTOFF) {
+			parade_debug(dev, DEBUG_LEVEL_1, "%s: t=%d e=%d tip=%d lift-off\n",
+				__func__, t, tch->abs[CY_TCH_E], tch->abs[CY_TCH_TIP]);
+			if(tp_listener != NULL) {
+				md->num_prv_rec = num_cur_tch;
+				if(tch->abs[CY_TCH_TIP]==0) {
+                	tp_listener(dev, t, tch->abs[CY_TCH_X], tch->abs[CY_TCH_Y], 0);
+				}
+                continue;
+            }else {
+				goto cyttsp5_get_mt_touches_pr_tch;
+			}
+		}
 
         if(tp_listener != NULL) {
             tp_listener(dev, t, tch->abs[CY_TCH_X], tch->abs[CY_TCH_Y], 1);
@@ -333,6 +338,8 @@ static int cyttsp5_xy_worker(struct cyttsp5_mt_data *md)
 		num_cur_tch = max_tch;
 	}
 
+	//if(num_cur_tch > 1)
+	//	return 0;
 	if (tch.hdr[CY_TCH_LO]) {
 		parade_debug(dev, DEBUG_LEVEL_1, "%s: Large area detected\n",
 			__func__);

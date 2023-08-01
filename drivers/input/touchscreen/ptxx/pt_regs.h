@@ -1523,6 +1523,8 @@ struct pt_mt_data {
 	struct input_dev *input_key;
 	int (*input_filter)(struct pt_mt_data *md, struct pt_touch *tch, int num_cur_tch);
 	struct mutex mt_lock;
+	struct workqueue_struct		*slider_report_wq;
+	struct delayed_work handle_work;
 	bool is_suspended;
 	bool input_device_registered;
 	bool input_device_allocated;
