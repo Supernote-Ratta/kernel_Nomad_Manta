@@ -177,7 +177,7 @@ static int slider_touch_up(struct device *dev)
 				if(p->y == slider_areas[j].slider_y && (p->tip == 0)) {
 					os = ktime_to_ms(ktime_sub(p->up_time, p->down_time));
 					if(os > MAX_TP_SLIDER_DELAYMS_FOR_SWAP) {
-						kc = slider_areas[i].slider_press_keycode;
+						kc = slider_areas[j].slider_press_keycode;
 						pt_reset_slide_touch(p);
 						break;
 					}
