@@ -1,0 +1,3 @@
+#define  MODEM_ENABLE_GPIO   	1
+#define  HOST_WAKEUP_GPIO_IN 	2
+#define  MODEM_WAKEUP_GPIO_OUT  3

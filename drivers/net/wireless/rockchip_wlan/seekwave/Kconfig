@@ -1,0 +1,12 @@
+config WLAN_VENDOR_SEEKWAVE
+	tristate "Seekwave chipset 802.11ax support"
+	depends on CFG80211
+	help
+	This module adds support for SeekWave 802.11ax wireless adapter chipset.
+
+	If you have a wireless card belonging to this class, say Y.
+
+	Note that the answer to this question doesn't directly affect the
+	kernel: saying N will just cause the configurator to skip all the
+	questions about these cards. If you say Y, you will be asked for
+	your specific card in the following questions.

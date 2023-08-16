@@ -1,0 +1,606 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/******************************************************************************
+ *
+ * Copyright(c) 2020-2030  Seekwave Corporation.
+ *
+ *****************************************************************************/
+#ifndef __SKW_CFG80211_H__
+#define __SKW_CFG80211_H__
+
+#include <linux/ieee80211.h>
+#include "skw_msg.h"
+#include "skw_iface.h"
+
+#define SKW_CONNECT_TIMEOUT               msecs_to_jiffies(4000)
+#define SKW_STEP_TIMEOUT                  msecs_to_jiffies(200)
+#define SKW_MAX_SCAN_SSID                 4
+#define SKW_SCAN_TIMEOUT                  8000
+#define SKW_MAX_STA_AUTH_ASSOC_RETRY      3
+
+/* hostap mac acl mode */
+#define SKW_MAX_ACL_ENTRIES               16
+
+#define SKW_WOW_DISCONNECT                BIT(0)
+#define SKW_WOW_MAGIC_PKT                 BIT(1)
+#define SKW_WOW_GTK_REKEY_FAIL            BIT(2)
+#define SKW_WOW_EAP_IDENTITY_REQ          BIT(3)
+#define SKW_WOW_FOUR_WAY_HANDSHAKE        BIT(4)
+#define SKW_WOW_RFKILL_RELEASE            BIT(5)
+
+enum SKW_IP_VERSION {
+	SKW_IP_IPV4 = 0,
+	SKW_IP_IPV6,
+};
+
+struct skw_bss_priv {
+	u8 bssid_index;
+	u8 max_bssid_indicator;
+	u16 resv;
+};
+
+struct skw_suspend_t {
+	u8 wow_enable;
+	u8 reserved;
+	/* reference SKW_WOW_*,
+	 * set wow_flags to 0 if wakeup any
+	 */
+	u16 wow_flags;
+};
+
+#define SKW_SUITE(oui, id)                  (((oui) << 8) | (id))
+#define SKW_CIPHER_SUITE_WEP40              SKW_SUITE(0x000FAC, 1)
+#define SKW_CIPHER_SUITE_TKIP               SKW_SUITE(0x000FAC, 2)
+#define SKW_CIPHER_SUITE_CCMP               SKW_SUITE(0x000FAC, 4)
+#define SKW_CIPHER_SUITE_WEP104             SKW_SUITE(0x000FAC, 5)
+#define SKW_CIPHER_SUITE_AES_CMAC           SKW_SUITE(0x000FAC, 6)
+#define SKW_CIPHER_SUITE_GCMP               SKW_SUITE(0x000FAC, 8)
+#define SKW_CIPHER_SUITE_GCMP_256           SKW_SUITE(0x000FAC, 9)
+#define SKW_CIPHER_SUITE_CCMP_256           SKW_SUITE(0x000FAC, 10)
+#define SKW_CIPHER_SUITE_BIP_GMAC_128       SKW_SUITE(0x000FAC, 11)
+#define SKW_CIPHER_SUITE_BIP_GMAC_256       SKW_SUITE(0x000FAC, 12)
+#define SKW_CIPHER_SUITE_BIP_CMAC_256       SKW_SUITE(0x000FAC, 13)
+
+#define SKW_CIPHER_SUITE_SMS4               SKW_SUITE(0x001472, 1)
+
+enum SKW_CIPHER_TYPE {
+	SKW_CIPHER_TYPE_INVALID = 0,
+	SKW_CIPHER_TYPE_WEP40 = 1,
+	SKW_CIPHER_TYPE_WEP104 = 2,
+	SKW_CIPHER_TYPE_TKIP = 3,
+	SKW_CIPHER_TYPE_SMS4 = 4,
+	SKW_CIPHER_TYPE_CCMP = 8,
+	SKW_CIPHER_TYPE_CCMP_256 = 9,
+	SKW_CIPHER_TYPE_GCMP = 10,
+	SKW_CIPHER_TYPE_GCMP_256 = 11,
+	SKW_CIPHER_TYPE_AES_CMAC = 12, /* BIP_CMAC_128 */
+	SKW_CIPHER_TYPE_BIP_CMAC_256 = 13,
+	SKW_CIPHER_TYPE_BIP_GMAC_128 = 14,
+	SKW_CIPHER_TYPE_BIP_GMAC_256 = 15,
+};
+
+enum SKW_WIPHY_PARAM_TLV_ID {
+	WIPHY_PARAM_RTS_THRESHOLD_TLV_ID = 1,
+	WIPHY_PARAM_FRAG_THRESHOLD_TLV_ID,
+	WIPHY_PARAM_COVERAGE_CLASS_TLV_ID,
+	WIPHY_PARAM_RETRY_SHORT_TLV_ID,
+	WIPHY_PARAM_RETRY_LONG_TLV_ID,
+	WIPHY_PARAM_DYN_ACK_TLV_ID,
+	WIPHY_PARAM_TXQ_LIMIT_TLV_ID,
+	WIPHY_PARAM_TXQ_MEMORY_LIMIT_TLV_ID,
+	WIPHY_PARAM_TXQ_QUANTUM_TLV_ID,
+	WIPHY_PARAM_DOT11_OMI_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_MODE_B_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_MODE_G_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_MODE_A_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_MODE_HT_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_MODE_VHT_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_MODE_HE_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_MODE_GONLY_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_MODE_HTONLY_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_CBW_20M_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_CBW_40M_ABOVE_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_CBW_40M_BELOW_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_CBW_80M_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_CBW_160M_MIB_TLV_ID,
+	WIPHY_PARAM_DOT11_CBW_80P80M_MIB_TLV_ID,
+
+	WIPHY_PARAM_DOT11_CLR_ALL_TLV_ID = 0xFFFF,
+
+};
+
+enum SKW_CHAN_BW_INFO {
+	SKW_CHAN_WIDTH_20,
+	SKW_CHAN_WIDTH_40,
+	SKW_CHAN_WIDTH_80,
+	SKW_CHAN_WIDTH_80P80,
+	SKW_CHAN_WIDTH_160,
+
+	SKW_CHAN_WIDTH_MAX,
+};
+
+#define SKW_BW_2GHZ_20M             BIT(0)
+#define SKW_BW_2GHZ_40M             BIT(1)
+#define SKW_BW_5GHZ_20M             BIT(2)
+#define SKW_BW_5GHZ_40M             BIT(3)
+#define SKW_BW_5GHZ_80M             BIT(4)
+#define SKW_BW_5GHZ_160M            BIT(5)
+#define SKW_BW_5GHZ_8080M           BIT(6)
+
+
+enum SKW_CMD_DISCONNECT_TYPE_E {
+	SKW_DISCONNECT_ONLY = 0,
+	SKW_DISCONNECT_SEND_DISASSOC = 1,
+	SKW_DISCONNECT_SEND_DEAUTH = 2,
+};
+
+enum interface_mode {
+	SKW_NONE_MODE = 0,
+	SKW_STA_MODE = 1,
+	SKW_AP_MODE = 2,
+	SKW_GC_MODE = 3,
+	SKW_GO_MODE = 4,
+	SKW_P2P_DEV_MODE = 5,
+	SKW_IBSS_MODE = 6,
+
+	MAX_MODE_TYPE,
+};
+
+struct skw_sync_ver_param {
+	u8 cmd_ver[256];
+	u8 event_ver[256];
+} __packed;
+
+struct skw_open_dev_param {
+	u16 mode;
+	u16 flags;
+	u8 mac_addr[6];
+} __packed;
+
+#define SKW_SCAN_FLAG_RND_MAC         BIT(0)
+#define SKW_SCAN_FLAG_ACS             BIT(1)
+#define SKW_SCAN_FLAG_PASSIVE         BIT(15)
+
+struct skw_scan_param {
+	u16 flags;  /* reference SKW_SCAN_FLAG_ */
+	u8 rand_mac[6];
+	u32 nr_chan;
+	u32 chan_offset;
+	u32 n_ssid;
+	u32 ssid_offset;
+	u32 ie_len;
+	u32 ie_offset;
+	u8 ie[];
+} __packed;
+
+struct skw_sched_match_sets {
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u16 ssid_len;
+	u8 bssid[ETH_ALEN];
+	s32 rssi_thold;
+} __packed;
+
+struct skw_sched_scan_param {
+	u32 req_id;
+	u32 flags;
+	s32 min_rssi_thold;
+	u32 delay;
+	u8 mac_addr[ETH_ALEN];
+	u8 mac_addr_mask[ETH_ALEN];
+	u8 relative_rssi_set;
+	s8 relative_rssi;
+	u8 scan_width;
+
+	u8 n_ssids;
+	u32 n_ssids_len;
+	u32 n_ssid_offset;
+
+	u32 ie_len;
+	u32 ie_offset;
+
+	u8 n_channels;
+	u32 channels_len;
+	u32 channels_offset;
+
+	u8 n_match_sets;
+	u32 match_sets_len;
+	u32 match_sets_offset;
+
+	u8 n_scan_plans;
+	u32 scan_plans_len;
+	u32 scan_plans_offset;
+	u8 data[0];
+} __packed;
+
+struct skw_center_chn {
+	u32 bw;
+	u16 center_chn1;
+	u16 center_chn2;
+};
+
+struct skw_he_cap_elem {
+	u8 mac_cap_info[6];
+	u8 phy_cap_info[11];
+} __packed;
+
+struct skw_join_param {
+	u8 chan_num;
+	u8 center_chn1;
+	u8 center_chn2;
+	u8 bandwidth;
+	u16 beacon_interval;
+	u16 capability;
+	u8 bssid_index;
+	u8 max_bssid_indicator;
+	u8 bssid[6];
+	u16 roaming:1;
+	u16 reserved:15;
+	u16 bss_ie_offset;
+	u32 bss_ie_len;
+	u8 bss_ie[];
+} __packed;
+
+struct skw_join_resp {
+	u8 peer_idx;
+} __packed;
+
+struct skw_auth_param {
+	u16 auth_algorithm;
+	u16 key_data_offset;
+	u16 key_data_len;
+	u16 auth_data_offset;
+	u16 auth_data_len;
+	u16 auth_ie_offset;
+	u16 auth_ie_len;
+	u8  data[];
+} __packed;
+
+struct skw_assoc_req_param {
+	struct ieee80211_ht_cap ht_capa;
+	struct ieee80211_vht_cap  vht_capa;
+	u8 bssid[6];
+	u8 pre_bssid[6];
+	u16 req_ie_offset;
+	u16 req_ie_len;
+	u8  req_ie[];
+} __packed;
+
+struct skw_disconnect_param {
+	u8 type;
+	u8 local_state_change;
+	u16 reason_code;
+	u16 ie_offset;
+	u16 ie_len;
+	u8 ie[];
+} __packed;
+
+struct skw_ibss_params {
+	/*
+	 * 0: join ibss
+	 * 1: create ibss
+	 */
+	u8 type;
+	u8 chan;
+	u8 bw;
+	u8 center_chan1;
+	u8 center_chan2;
+
+	u8 ssid_len;
+	u8 ssid[32];
+
+	u8 bssid[ETH_ALEN];
+	u16 atim_win;
+	u16 beacon_int;
+} __packed;
+
+enum SKW_KEY_TYPE {
+	SKW_KEY_TYPE_PTK = 0,
+	SKW_KEY_TYPE_GTK = 1,
+	SKW_KEY_TYPE_IGTK = 2,
+	SKW_KEY_TYPE_BIGTK = 3,
+};
+
+struct skw_key_params {
+	u8 mac_addr[ETH_ALEN];
+	u8 key_type;
+	u8 cipher_type;
+	u8 pn[6];
+	u8 key_id;
+	u8 key_len;
+	u8 key[WLAN_MAX_KEY_LEN];
+} __packed;
+
+struct skw_startap_param {
+	int beacon_int;
+	u8 dtim_period;
+	u8 flags; /* reference SKW_AP_FLAGS_* */
+	u16 chan;
+	u8 chan_width;
+	u8 center_chn1;
+	u8 center_chn2;
+	u8 ssid_len;
+	u8 ssid[32];
+
+	u16 beacon_head_offset;
+	u16 beacon_head_len;
+	u16 beacon_tail_offset;
+	u16 beacon_tail_len;
+	u16 beacon_ies_offset;
+	u16 beacon_ies_len;
+
+	u16 probe_rsp_ies_offset;
+	u16 probe_rsp_ies_len;
+	u16 assoc_rsp_ies_offset;
+	u16 assoc_rsp_ies_len;
+	u8 ies[0];
+} __packed;
+
+struct skw_startap_resp {
+};
+
+//TBD: put skw_beacon_param into skw_startp_param
+struct skw_beacon_params {
+	u16 beacon_head_offset;
+	u16 beacon_head_len;
+	u16 beacon_tail_offset;
+	u16 beacon_tail_len;
+	u16 beacon_ies_offset;
+	u16 beacon_ies_len;
+
+	u16 probe_rsp_ies_offset;
+	u16 probe_rsp_ies_len;
+	u16 assoc_rsp_ies_offset;
+	u16 assoc_rsp_ies_len;
+	u16 probe_rsp_offset;
+	u16 probe_rsp_len;
+	u8 ies[0];
+} __packed;
+
+struct skw_del_sta_param {
+	u8 mac[6];
+	u16 reason_code;
+	u8 tx_frame;
+} __packed;
+
+enum skw_rate_info_bw {
+	SKW_RATE_INFO_BW_20,
+	SKW_RATE_INFO_BW_40,
+	SKW_RATE_INFO_BW_80,
+	SKW_RATE_INFO_BW_HE_RU = 15,
+};
+
+enum skw_rate_info_flags {
+	SKW_RATE_INFO_FLAGS_LEGACY,
+	SKW_RATE_INFO_FLAGS_HT,
+	SKW_RATE_INFO_FLAGS_VHT,
+	SKW_RATE_INFO_FLAGS_HE,
+};
+
+struct skw_get_sta_resp {
+	struct skw_rate tx_rate;
+	s8 signal;
+	u8 noise;
+	u8 reserved;
+	u32 tx_failed;
+} __packed;
+
+struct skw_roc_param {
+	u8 enable;
+	u16 channel_num;
+	u16 channel_type;
+	u32 duration;
+	u64 cookie;
+} __packed;
+
+struct skw_mgmt_tx_param {
+	u32 wait;
+	u64 cookie;
+	u8 channel;
+	u8 dont_wait_for_ack;
+	u16 mgmt_frame_len;
+	struct ieee80211_mgmt mgmt[0];
+} __packed;
+
+struct skw_mgmt_register_param {
+	u16 frame_type;
+	u8 reg;
+	u8 resv[5];
+	u64 timestamp;
+} __packed;
+
+struct skw_station_params {
+	u8 mac[ETH_ALEN];
+	u16 resv;
+
+	u64 timestamp;
+};
+
+#define SKW_CQM_DEFAUT_RSSI_THOLD	(-70)
+#define SKW_CQM_DEFAUT_RSSI_HYST	(40)
+
+struct skw_set_cqm_rssi_param {
+	s32 rssi_thold;
+	u8 rssi_hyst;
+} __packed;
+
+enum SKW_SCAN_TYPE {
+	SKW_SCAN_IDLE,
+	SKW_SCAN_NORMAL,
+	SKW_SCAN_SCHED,
+	SKW_SCAN_BG,
+	SKW_SCAN_AUTO,
+	SKW_SCAN_ROAM,
+#ifdef RRM_SCAN_SUPPORT
+	SKW_SCAN_RRM,
+#endif
+};
+
+enum SKW_CQM_STATUS {
+	CQM_STATUS_RSSI_LOW = 1,
+	CQM_STATUS_RSSI_HIGH = 2,
+	CQM_STATUS_BEACON_LOSS = 3,
+	CQM_STATUS_TDLS_LOSS = 4,
+};
+
+struct skw_cqm_info {
+	u8 cqm_status;
+	s16 cqm_rssi;
+	u8 bssid[ETH_ALEN];
+	u8 chan;
+} __packed;
+
+struct skw_del_sta {
+	u8 reason_code;
+	u8 mac[ETH_ALEN];
+} __packed;
+
+struct skw_mic_failure {
+	u8 is_mcbc;
+	u8 key_id;
+	u8 mac[ETH_ALEN];
+} __packed;
+
+struct skw_tdls_oper {
+	u16 oper; /* reference enum nl80211_tdls_operation */
+	u8 peer_addr[ETH_ALEN];
+};
+
+struct skw_ts_info {
+	u8 tsid;
+	u8 up;
+	u8 peer[ETH_ALEN];
+	__le16 admitted_time;
+} __packed;
+
+struct skw_tdls_chan_switch {
+	u8 addr[6];
+	u8 chn_switch_enable;  /* 0: disable, 1: enable */
+	u8 oper_class;
+	u16 chn;
+	u8 band;               /* enum nl80211_band */
+	u8 chan_width;         /* enum skw_chan_width */
+};
+
+struct skw_setip_param {
+	u8 ip_type;
+	union {
+		__be32 ipv4;
+		u8 ipv6[16];
+	};
+} __packed;
+
+#define SKW_CONN_FLAG_ASSOCED            BIT(0)
+#define SKW_CONN_FLAG_KEY_VALID          BIT(1)
+#define SKW_CONN_FLAG_USE_MFP            BIT(2)
+#define SKW_CONN_FLAG_AUTH_AUTO          BIT(3)
+#define SKW_CONN_FLAG_SAE_AUTH           BIT(4)
+
+struct skw_connect_param {
+	struct mutex lock;
+
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u16 ssid_len;
+	u8 bssid[ETH_ALEN];
+
+	u8 key[32];
+	u8 key_len, key_idx;
+
+	u8 prev_bssid[ETH_ALEN];
+
+	enum SKW_STATES state;
+	enum nl80211_auth_type auth_type;
+
+	u32 flags; /* reference SKW_CONN_FLAG_ */
+
+	u8 *assoc_ie;
+	size_t assoc_ie_len;
+
+	struct ieee80211_ht_cap ht_capa, ht_capa_mask;
+	struct ieee80211_vht_cap vht_capa, vht_capa_mask;
+
+	struct ieee80211_channel *channel;
+
+	struct cfg80211_crypto_settings crypto;
+};
+
+static inline struct skw_bss_priv *skw_bss_priv(struct cfg80211_bss *bss)
+{
+	return (struct skw_bss_priv *)bss->priv;
+}
+
+static inline int skw_to_freq(u16 chan)
+{
+	enum nl80211_band band;
+
+	band = chan > 14 ? NL80211_BAND_5GHZ : NL80211_BAND_2GHZ;
+	return ieee80211_channel_to_frequency(chan, band);
+}
+
+static inline void skw_join_resp_handler(struct skw_core *skw,
+					 struct skw_iface *iface,
+					 struct skw_join_resp *resp)
+{
+	SKW_BUG_ON(skw_lmac_bind_iface(iface->skw, iface, 0));
+	iface->default_multicast = resp->peer_idx;
+}
+
+static inline void skw_startap_resp_handler(struct skw_core *skw,
+					    struct skw_iface *iface,
+					    struct skw_startap_resp *resp)
+{
+	SKW_BUG_ON(skw_lmac_bind_iface(iface->skw, iface, 0));
+	iface->default_multicast = iface->id;
+}
+
+struct wiphy *skw_alloc_wiphy(int priv_size);
+int skw_setup_wiphy(struct wiphy *wiphy, struct skw_chip_info *chip);
+int skw_set_ip(struct wiphy *wiphy, struct net_device *ndev,
+		struct skw_setip_param *ip);
+
+int skw_mgmt_tx(struct wiphy *wiphy, struct skw_iface *iface,
+		struct ieee80211_channel *chan, u32 wait, u64 *cookie,
+		bool dont_wait_ack, const void *frame, int frame_len);
+
+int skw_cmd_del_sta(struct wiphy *wiphy, struct net_device *dev,
+		const u8 *mac, u8 type, u16 reason, bool tx_frame);
+
+int skw_delete_station(struct wiphy *wiphy, struct net_device *dev,
+			const u8 *mac, u8 subtype, u16 reason);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
+int skw_change_station(struct wiphy *wiphy, struct net_device *dev,
+		const u8 *mac, struct station_parameters *params);
+int skw_add_station(struct wiphy *wiphy, struct net_device *dev,
+		    const u8 *mac, struct station_parameters *params);
+#else
+int skw_change_station(struct wiphy *wiphy, struct net_device *dev,
+			u8 *mac, struct station_parameters *params);
+int skw_add_station(struct wiphy *wiphy, struct net_device *dev,
+		u8 *mac, struct station_parameters *params);
+#endif
+
+void skw_scan_done(struct skw_core *skw, struct skw_iface *iface, bool abort);
+
+int add_tlv_element(u8 *p, u16 *offset, u16 id, u16 len, u8 *data);
+
+void skw_set_state(struct skw_sm *sm, enum SKW_STATES state);
+int skw_roam_connect(struct skw_iface *iface, const u8 *bssid, u8 chn);
+
+int skw_sta_leave(struct wiphy *wiphy, struct net_device *dev,
+		const u8 *bssid, u16 reason, bool tx_frame);
+
+void skw_tx_mlme_mgmt(struct net_device *dev, u16 stype,
+		      const u8 *bssid, const u8 *da, u16 reason);
+
+int skw_connect_sae_auth(struct wiphy *wiphy, struct net_device *dev,
+			 struct cfg80211_bss *bss);
+int skw_connect_auth(struct wiphy *wiphy, struct net_device *dev,
+		struct skw_connect_param *conn, struct cfg80211_bss *bss);
+int skw_connect_assoc(struct wiphy *wiphy, struct net_device *ndev,
+		struct skw_connect_param *conn);
+void skw_connected(struct net_device *dev, struct skw_connect_param *conn,
+		   const u8 *req_ie, int req_ie_len, const u8 *resp_ie,
+		   int resp_ie_len, u16 status, gfp_t gfp);
+void skw_disconnected(struct net_device *dev, u16 reason,
+		bool local_gen, gfp_t gfp);
+int skw_cmd_unjoin(struct wiphy *wiphy, struct net_device *ndev,
+		   const u8 *addr, u16 reason, bool tx_frame);
+#endif
