@@ -35,4 +35,14 @@ config I2C_HID_WACOM_10S12MI
 
       If unsure, say N.
 
+config I2C_HID_WACOM_HT
+    tristate "HID over I2C transport layer OF WACOM"
+    default n
+    depends on I2C && INPUT
+    select HID
+    ---help---
+      Say Y here if you use WACOM 10S12MI PENCIL HID devices which is connected to your computer via I2C.
+
+      If unsure, say N.
+
 endmenu

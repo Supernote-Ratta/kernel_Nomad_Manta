@@ -114,10 +114,10 @@
         //pinctrl-names = "default";
         //pinctrl-0 = <&ble_det_gpio>;
         irq-gpio = <&gpio0 RK_PB7 IRQ_TYPE_EDGE_BOTH>;
-		power-gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+        power-gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
     };
-	
-	hall_sensor: hall-wh2506d {
+
+    hall_sensor: hall-wh2506d {
         status = "okay";
         compatible = "hall-wh2506d";
         pinctrl-names = "default";
@@ -627,9 +627,9 @@
         battery {
             compatible = "rk817,battery";
             ocv_table = <
-				3400 3654 3679 3702 3729 3747 3764
-				3781 3797 3817 3839 3867 3911 3962
-				4004 4052 4101 4153 4207 4263 4323>;
+                3400 3654 3679 3702 3729 3747 3764
+                3781 3797 3817 3839 3867 3911 3962
+                4004 4052 4101 4153 4207 4263 4323>;
             tempadc_table = <
                 272 261 250 240 230 220 211 203 194
                 187 179 172 165 159 152 147 141 135
@@ -722,7 +722,6 @@
     };
 #endif
 #ifdef TYPEC_fusb30x
-
     usbc0: fusb30x@22 {
         status = "okay";
         compatible = "fairchild,fusb302";
@@ -737,7 +736,6 @@
     };
 
 #else
-
     usbc0: et7303@4e {
         status = "okay";
         compatible = "etek,et7303";
@@ -773,6 +771,7 @@
         power-off-in-suspend = <1>;
     };
 #endif
+
     touchscreen: goodix-gtx8@5d {
          compatible = "goodix,gt9886";
          reg = <0x5d>;
@@ -791,114 +790,113 @@
     };
 
     tsc@24 {
-			compatible = "parade,pt_i2c_adapter";
-			reg = <0x24>;
-			//status = "disabled";
-			status = "okay";
-			//interrupt-parent = <&msmgpio>;
-			//interrupts = <59 0x2>;
-			parade,adapter_id = "pt_i2c_adapter";
-			pinctrl-names = "default";
-			pinctrl-0 = <&tsc_gpio>;
-			vcc-supply = <&vcc_tp>;
-			//vddi-supply = <&vddd_touch>;
+        compatible = "parade,pt_i2c_adapter";
+        reg = <0x24>;
+        //status = "disabled";
+        status = "okay";
+        //interrupt-parent = <&msmgpio>;
+        //interrupts = <59 0x2>;
+        parade,adapter_id = "pt_i2c_adapter";
+        pinctrl-names = "default";
+        pinctrl-0 = <&tsc_gpio>;
+        vcc-supply = <&vcc_tp>;
+        //vddi-supply = <&vddd_touch>;
 
-			parade,core {
-				parade,name = "pt_core";
-
-				parade,irq_gpio = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
-				//parade,rst_gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>; //reset only can set for silde
-				//parade,runfw_gpio = <64>;
-				parade,hid_desc_register = <1>;
-				/* 
-				 * PT_CORE_FLAG_NONE = 0x00
-				 * PT_CORE_FLAG_POWEROFF_ON_SLEEP = 0x02
-				 * PT_CORE_FLAG_RESTORE_PARAMETERS = 0x04
-				 * PT_CORE_FLAG_DEEP_STANDBY = 0x08
-				 * PT_CORE_FLAG_SKIP_SYS_SLEEP = 0x10
-				 * PT_CORE_FLAG_SKIP_RUNTIME = 0x20
-				 * PT_CORE_FLAG_SKIP_RESUME = 0x40
-				 */
-				parade,flags = <6>; //4
-				/* PT_CORE_EWG_NONE */
-				parade,easy_wakeup_gesture = <0>;
-				/* 0:AUTO 1:PIP1_ONLY 2:PIP2_CAPABLE*/
-				parade,config_dut_generation = <2>;
-				/* 0:False 1:True*/
-				parade,watchdog_force_stop = <0>;
-				/* 
-				 * PT_PANEL_ID_DISABLE = 0x00
-				 * PT_PANEL_ID_BY_BL = 0x01
-				 * PT_PANEL_ID_BY_SYS_INFO = 0x02
-				 * PT_PANEL_ID_BY_MFG_DATA  = 0x04
-				 */
-				parade,panel_id_support = <0>;
-				/* 0:PIP, 1: Hybrid HID, 2: pure HID */
-				parade,protocol_mode = <0>;
+        parade,core {
+            parade,name = "pt_core";
+            parade,irq_gpio = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
+            //parade,rst_gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>; //reset only can set for silde
+            //parade,runfw_gpio = <64>;
+            parade,hid_desc_register = <1>;
+            /*
+             * PT_CORE_FLAG_NONE = 0x00
+             * PT_CORE_FLAG_POWEROFF_ON_SLEEP = 0x02
+             * PT_CORE_FLAG_RESTORE_PARAMETERS = 0x04
+             * PT_CORE_FLAG_DEEP_STANDBY = 0x08
+             * PT_CORE_FLAG_SKIP_SYS_SLEEP = 0x10
+             * PT_CORE_FLAG_SKIP_RUNTIME = 0x20
+             * PT_CORE_FLAG_SKIP_RESUME = 0x40
+             */
+            parade,flags = <6>; //4
+            /* PT_CORE_EWG_NONE */
+            parade,easy_wakeup_gesture = <0>;
+            /* 0:AUTO 1:PIP1_ONLY 2:PIP2_CAPABLE*/
+            parade,config_dut_generation = <2>;
+            /* 0:False 1:True*/
+            parade,watchdog_force_stop = <0>;
+            /*
+             * PT_PANEL_ID_DISABLE = 0x00
+             * PT_PANEL_ID_BY_BL = 0x01
+             * PT_PANEL_ID_BY_SYS_INFO = 0x02
+             * PT_PANEL_ID_BY_MFG_DATA  = 0x04
+             */
+            parade,panel_id_support = <0>;
+            /* 0:PIP, 1: Hybrid HID, 2: pure HID */
+            parade,protocol_mode = <0>;
 #if 0
-				parade,btn_keys = <172 /* KEY_HOMEPAGE */
-					   	   /* previously was KEY_HOME, new Android versions use KEY_HOMEPAGE */
-				               139 /* KEY_MENU */
-				               158 /* KEY_BACK */
-				               217 /* KEY_SEARCH */
-				               114 /* KEY_VOLUMEDOWN */
-				               115 /* KEY_VOLUMEUP */
-				               212 /* KEY_CAMERA */
-				               116>; /* KEY_POWER */
-				parade,btn_keys-tag = <0>;
+            parade,btn_keys = <172 /* KEY_HOMEPAGE */
+                /* previously was KEY_HOME, new Android versions use KEY_HOMEPAGE */
+                139 /* KEY_MENU */
+                158 /* KEY_BACK */
+                217 /* KEY_SEARCH */
+                114 /* KEY_VOLUMEDOWN */
+                115 /* KEY_VOLUMEUP */
+                212 /* KEY_CAMERA */
+                116>; /* KEY_POWER */
+            parade,btn_keys-tag = <0>;
 #endif
-				parade,mt {
-					parade,name = "pt_mt";
+            parade,mt {
+                parade,name = "pt_mt";
 
-					parade,inp_dev_name = "pt_mt";
-					/*
-					 * PT_MT_FLAG_NONE = 0x00
-					 * PT_MT_FLAG_FLIP = 0x08
-					 * PT_MT_FLAG_INV_X = 0x10
-					 * PT_MT_FLAG_INV_Y = 0x20
-					 * PT_MT_FLAG_VKEYS = 0x40
-					 */
-					parade,flags = <0x28>;
-					parade,abs =
-						/* ABS_MT_POSITION_X, PT_ABS_MIN_X, PT_ABS_MAX_X, 0, 0 */
-						<0x35 0 880 0 0
-						/* ABS_MT_POSITION_Y, PT_ABS_MIN_Y, PT_ABS_MAX_Y, 0, 0 */
-						0x36 0 1280 0 0
-						/* ABS_MT_PRESSURE, PT_ABS_MIN_P, PT_ABS_MAX_P, 0, 0 */
-						0x3a 0 255 0 0
-						/* PT_IGNORE_VALUE, PT_ABS_MIN_W, PT_ABS_MAX_W, 0, 0 */
-						0xffff 0 255 0 0
-						/* ABS_MT_TRACKING_ID, PT_ABS_MIN_T, PT_ABS_MAX_T, 0, 0 */
-						0x39 0 15 0 0
-						/* ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0 */
-						0x30 0 255 0 0
-						/* ABS_MT_TOUCH_MINOR, 0, 255, 0, 0 */
-						0x31 0 255 0 0
-						/* ABS_MT_ORIENTATION, -127, 127, 0, 0 */
-						0x34 0xffffff81 127 0 0
-						/* ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0 */
-						0x37 0 1 0 0
-						/* ABS_DISTANCE, 0, 255, 0, 0 */
-						0x19 0 255 0 0>;
+                parade,inp_dev_name = "pt_mt";
+                /*
+                 * PT_MT_FLAG_NONE = 0x00
+                 * PT_MT_FLAG_FLIP = 0x08
+                 * PT_MT_FLAG_INV_X = 0x10
+                 * PT_MT_FLAG_INV_Y = 0x20
+                 * PT_MT_FLAG_VKEYS = 0x40
+                 */
+                parade,flags = <0x28>;
+                parade,abs =
+                    /* ABS_MT_POSITION_X, PT_ABS_MIN_X, PT_ABS_MAX_X, 0, 0 */
+                    <0x35 0 880 0 0
+                    /* ABS_MT_POSITION_Y, PT_ABS_MIN_Y, PT_ABS_MAX_Y, 0, 0 */
+                    0x36 0 1280 0 0
+                    /* ABS_MT_PRESSURE, PT_ABS_MIN_P, PT_ABS_MAX_P, 0, 0 */
+                    0x3a 0 255 0 0
+                    /* PT_IGNORE_VALUE, PT_ABS_MIN_W, PT_ABS_MAX_W, 0, 0 */
+                    0xffff 0 255 0 0
+                    /* ABS_MT_TRACKING_ID, PT_ABS_MIN_T, PT_ABS_MAX_T, 0, 0 */
+                    0x39 0 15 0 0
+                    /* ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0 */
+                    0x30 0 255 0 0
+                    /* ABS_MT_TOUCH_MINOR, 0, 255, 0, 0 */
+                    0x31 0 255 0 0
+                    /* ABS_MT_ORIENTATION, -127, 127, 0, 0 */
+                    0x34 0xffffff81 127 0 0
+                    /* ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0 */
+                    0x37 0 1 0 0
+                    /* ABS_DISTANCE, 0, 255, 0, 0 */
+                    0x19 0 255 0 0>;
 
-					parade,vkeys_x = <720>;
-					parade,vkeys_y = <1280>;
+                parade,vkeys_x = <720>;
+                parade,vkeys_y = <1280>;
 #if 0
-					parade,virtual_keys = /* KeyCode CenterX CenterY Width Height */
-						/* KEY_BACK */
-						<158 90 1360 160 180
-						/* KEY_MENU */
-						139 270 1360 160 180
-						/* KEY_HOMEPAGE */
-						172 450 1360 160 180
-						/* KEY SEARCH */
-						217 630 1360 160 180>;
+                parade,virtual_keys = /* KeyCode CenterX CenterY Width Height */
+                    /* KEY_BACK */
+                    <158 90 1360 160 180
+                    /* KEY_MENU */
+                    139 270 1360 160 180
+                    /* KEY_HOMEPAGE */
+                    172 450 1360 160 180
+                    /* KEY SEARCH */
+                    217 630 1360 160 180>;
 #endif
-				};
-			};
-		};
+            };
+        };
+    };
 #if 0
-	iqs360: slide@64 {
+    iqs360: slide@64 {
          compatible = "iqs360";
          reg = <0x64>;
          status = "okay";
@@ -911,7 +909,7 @@
          //iqs360,panel-max-y = <1872>;
          //tp-support-wakeup;
     };
-	#endif
+#endif
 };
 
 &i2c3 {
@@ -922,18 +920,15 @@
 
     wacom: wacom@09 {
         status = "okay";
-        compatible = "wacom,10S12MI";
+        compatible = "wacom,hidx";
         reg = <0x09>;
         hid-descr-addr = <0x0001>;
         pwr-supply = <&vcc_tp>;
         pinctrl-names = "default";
         pinctrl-0 = <&emr_gpio>;
-        gpio_detect = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
-        gpio_intr = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
-        gpio_rst = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
-        revert_x = <0>;
-        revert_y = <0>;
-        xy_exchange = <0>;
+        detect-gpios = <&gpio0 RK_PB5 IRQ_TYPE_LEVEL_LOW>;
+        int-gpios = <&gpio0 RK_PB6 IRQ_TYPE_LEVEL_LOW>;
+        rst-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
         wacom-support-wakeup;
     };
 
@@ -955,6 +950,7 @@
         xy_exchange = <0>;
         //wacom-support-wakeup;
     };
+
     hdx8801: hdx8801@11 {
         status = "disabled";
         compatible = "hdx8801_touch";
@@ -1013,8 +1009,9 @@
         power-off-in-suspend = <1>;
         layout = <7>;
     };
+
     cyttsp5: slide@28 {
-		//status = "disabled";
+        //status = "disabled";
         status = "okay";
         compatible = "cy,cyttsp5_i2c_silder";
         reg = <0x28>;
@@ -1025,7 +1022,7 @@
         cy,core {
             cy,name = "cyttsp5_core";
             cy,irq_gpio =  <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
-            //cy,rst_gpio =  <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
+            //cy,rst_gpio =  <&gpio2 RK_PC6 GPIO_ACTIVE_HIGH>;
             cy,hid_desc_register = <1>;
             /* CY_CORE_FLAG_RESTORE_PARAMETERS */
             cy,flags = <6>;
@@ -1033,74 +1030,74 @@
             cy,easy_wakeup_gesture = <0>;
 #if 0
             cy,btn_keys = <172 /* KEY_HOMEPAGE */
-					   /* previously was KEY_HOME, new Android versions use KEY_HOMEPAGE */
-				       139 /* KEY_MENU */
-				       158 /* KEY_BACK */
-				       217 /* KEY_SEARCH */
-				       114 /* KEY_VOLUMEDOWN */
-				       115 /* KEY_VOLUMEUP */
-				       212 /* KEY_CAMERA */
-				       116>; /* KEY_POWER */
-			cy,btn_keys-tag = <0>;
+                       /* previously was KEY_HOME, new Android versions use KEY_HOMEPAGE */
+                       139 /* KEY_MENU */
+                       158 /* KEY_BACK */
+                       217 /* KEY_SEARCH */
+                       114 /* KEY_VOLUMEDOWN */
+                       115 /* KEY_VOLUMEUP */
+                       212 /* KEY_CAMERA */
+                       116>; /* KEY_POWER */
+            cy,btn_keys-tag = <0>;
 #endif
-			cy,mt {
-				cy,name = "cyttsp5_mt";
+            cy,mt {
+                cy,name = "cyttsp5_mt";
 
-				cy,inp_dev_name = "cyttsp5_mt";
-				/* CY_MT_FLAG_FLIP | CY_MT_FLAG_INV_X | CY_MT_FLAG_INV_Y */
-				cy,flags = <0x38>;
-				cy,abs =
-					/* ABS_MT_POSITION_X, CY_ABS_MIN_X, CY_ABS_MAX_X, 0, 0 */
-					<0x35 0 880 0 0
-					/* ABS_MT_POSITION_Y, CY_ABS_MIN_Y, CY_ABS_MAX_Y, 0, 0 */
-					0x36 0 1280 0 0
-					/* ABS_MT_PRESSURE, CY_ABS_MIN_P, CY_ABS_MAX_P, 0, 0 */
-					0x3a 0 255 0 0
-					/* CY_IGNORE_VALUE, CY_ABS_MIN_W, CY_ABS_MAX_W, 0, 0 */
-					0xffff 0 255 0 0
-					/* ABS_MT_TRACKING_ID, CY_ABS_MIN_T, CY_ABS_MAX_T, 0, 0 */
-					0x39 0 15 0 0
-					/* ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0 */
-					0x30 0 255 0 0
-					/* ABS_MT_TOUCH_MINOR, 0, 255, 0, 0 */
-					0x31 0 255 0 0
-					/* ABS_MT_ORIENTATION, -127, 127, 0, 0 */
-					0x34 0xffffff81 127 0 0
-					/* ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0 */
-					0x37 0 1 0 0
-					/* ABS_MT_DISTANCE, 0, 255, 0, 0 */
-					0x3b 0 255 0 0>;
+                cy,inp_dev_name = "cyttsp5_mt";
+                /* CY_MT_FLAG_FLIP | CY_MT_FLAG_INV_X | CY_MT_FLAG_INV_Y */
+                cy,flags = <0x38>;
+                cy,abs =
+                    /* ABS_MT_POSITION_X, CY_ABS_MIN_X, CY_ABS_MAX_X, 0, 0 */
+                    <0x35 0 880 0 0
+                    /* ABS_MT_POSITION_Y, CY_ABS_MIN_Y, CY_ABS_MAX_Y, 0, 0 */
+                    0x36 0 1280 0 0
+                    /* ABS_MT_PRESSURE, CY_ABS_MIN_P, CY_ABS_MAX_P, 0, 0 */
+                    0x3a 0 255 0 0
+                    /* CY_IGNORE_VALUE, CY_ABS_MIN_W, CY_ABS_MAX_W, 0, 0 */
+                    0xffff 0 255 0 0
+                    /* ABS_MT_TRACKING_ID, CY_ABS_MIN_T, CY_ABS_MAX_T, 0, 0 */
+                    0x39 0 15 0 0
+                    /* ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0 */
+                    0x30 0 255 0 0
+                    /* ABS_MT_TOUCH_MINOR, 0, 255, 0, 0 */
+                    0x31 0 255 0 0
+                    /* ABS_MT_ORIENTATION, -127, 127, 0, 0 */
+                    0x34 0xffffff81 127 0 0
+                    /* ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0 */
+                    0x37 0 1 0 0
+                    /* ABS_MT_DISTANCE, 0, 255, 0, 0 */
+                    0x3b 0 255 0 0>;
 
-				cy,vkeys_x = <720>;
-				cy,vkeys_y = <1280>;
+                cy,vkeys_x = <720>;
+                cy,vkeys_y = <1280>;
 #if 0
-				cy,virtual_keys = /* KeyCode CenterX CenterY Width Height */
-					/* KEY_BACK */
-					<158 1360 90 160 180
-					/* KEY_MENU */
-					139 1360 270 160 180
-					/* KEY_HOMEPAGE */
-					172 1360 450 160 180
-					/* KEY SEARCH */
-					217 1360 630 160 180>;
+                cy,virtual_keys = /* KeyCode CenterX CenterY Width Height */
+                    /* KEY_BACK */
+                    <158 1360 90 160 180
+                    /* KEY_MENU */
+                    139 1360 270 160 180
+                    /* KEY_HOMEPAGE */
+                    172 1360 450 160 180
+                    /* KEY SEARCH */
+                    217 1360 630 160 180>;
 #endif
-			};
+            };
 #if 0
 
-			cy,btn {
-				cy,name = "cyttsp5_btn";
+            cy,btn {
+                cy,name = "cyttsp5_btn";
 
-				cy,inp_dev_name = "cyttsp5_btn";
-			};
+                cy,inp_dev_name = "cyttsp5_btn";
+            };
 
-			cy,proximity {
-				cy,name = "cyttsp5_proximity";
+            cy,proximity {
+                cy,name = "cyttsp5_proximity";
 
-				cy,inp_dev_name = "cyttsp5_proximity";
-				cy,abs =
-					/* ABS_DISTANCE, CY_PROXIMITY_MIN_VAL, CY_PROXIMITY_MAX_VAL, 0, 0 */
-					<0x19 0 1 0 0>;
-			};
+                cy,inp_dev_name = "cyttsp5_proximity";
+                cy,abs =
+                    /* ABS_DISTANCE, CY_PROXIMITY_MIN_VAL, CY_PROXIMITY_MAX_VAL, 0, 0 */
+                    <0x19 0 1 0 0>;
+            };
 #endif
         };
     };
@@ -1255,13 +1252,13 @@
 
     };
 
-	//blepower {
-	//	ble_det_gpio: ble-det-gpio {
-	//		rockchip,pins =
-	//			<0 RK_PB7 RK_FUNC_GPIO  &pcfg_pull_none>,
-	//			<0 RK_PC0 RK_FUNC_GPIO  &pcfg_pull_none>;
+    //blepower {
+    //  ble_det_gpio: ble-det-gpio {
+    //      rockchip,pins =
+    //          <0 RK_PB7 RK_FUNC_GPIO  &pcfg_pull_none>,
+    //          <0 RK_PC0 RK_FUNC_GPIO  &pcfg_pull_none>;
     //    };
-	//};
+    //};
 
     typec {
         et7303_int: et7303-int {
@@ -1296,17 +1293,18 @@
                 <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
         };
     };
-	
-	slide {
+
+    slide {
         slide_gpio: slide-gpio {
             rockchip,pins = 
-			//<0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,// TP_RST_L
-			<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+            <2 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,// TP_RST_L
+            <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
         };
     };
 };
 
 &xin32k {
+    status = "disabled";
     pinctrl-names = "default";
     pinctrl-0 = <&clk32k_out1>;
 };
@@ -1376,13 +1374,13 @@
 &rockchip_suspend {
     status = "okay";
     rockchip,sleep-mode-config = <
-		(0
-		 | RKPM_SLP_ARMOFF_LOGOFF
-		 | RKPM_SLP_CENTER_OFF
-		 | RKPM_SLP_HW_PLLS_OFF
-		 | RKPM_SLP_PMUALIVE_32K
-		 | RKPM_SLP_PMIC_LP
-		 | RKPM_SLP_32K_PVTM
+        (0
+         | RKPM_SLP_ARMOFF_LOGOFF
+         | RKPM_SLP_CENTER_OFF
+         | RKPM_SLP_HW_PLLS_OFF
+         | RKPM_SLP_PMUALIVE_32K
+         | RKPM_SLP_PMIC_LP
+         | RKPM_SLP_32K_PVTM
         )
     >;
     rockchip,regulator-off-in-mem-lite =
@@ -1431,13 +1429,14 @@
     card-detect-delay = <300>;//can wait the power is stabled.
     vmmc-supply = <&vccio_sd>;//the sdcard work power.
     vqmmc-supply = <&vccio_sd>;//the sdcard io power.
-	power-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+    power-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
     pinctrl-names = "default";
     pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd>;
     cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
     //cd-inverted;
     status = "okay";
 };
+
 &sdmmc1 {
     max-frequency = <150000000>;
     supports-sdio;
