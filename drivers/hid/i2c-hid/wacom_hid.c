@@ -1301,7 +1301,7 @@ static int wacom_hid_suspend(struct device *dev)
     wacom_hid_dbg(ihid, "%s\n", __func__);
 
     if (!ihid->screen_off) {
-        if (device_may_wakeup(&client->dev)) {
+        if (device_may_wakeup(dev)) {
             enable_irq_wake(ihid->detect_irq);
         }
     }
@@ -1316,8 +1316,8 @@ static int wacom_hid_resume(struct device *dev)
 
     wacom_hid_dbg(ihid, "%s\n", __func__);
 
-    if (ihid->screen_off) {
-        if (device_may_wakeup(&client->dev)) {
+    if (!ihid->screen_off) {
+        if (device_may_wakeup(dev)) {
             disable_irq_wake(ihid->detect_irq);
         }
     }
