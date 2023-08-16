@@ -3038,12 +3038,10 @@ static int cyttsp5_hw_soft_reset(struct cyttsp5_core_data *cd)
 
 static int cyttsp5_hw_hard_reset(struct cyttsp5_core_data *cd)
 {
-	//if (cd->cpdata->xres) {
-	//	cd->cpdata->xres(cd->cpdata, cd->dev);
-	//	parade_debug(cd->dev, DEBUG_LEVEL_1, "%s: execute HARD reset\n",
-	//		__func__);
-	//	return 0;
-	//}
+	if (cd->cpdata->xres) {
+		parade_debug(cd->dev, DEBUG_LEVEL_1, "%s: execute HARD reset\n", __func__);
+		return cd->cpdata->xres(cd->cpdata, cd->dev);
+	}
 	printk( "%s: FAILED to execute HARD reset\n", __func__);
 	return -ENODEV;
 }

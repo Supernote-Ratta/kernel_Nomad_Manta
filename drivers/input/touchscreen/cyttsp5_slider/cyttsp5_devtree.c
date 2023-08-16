@@ -548,7 +548,8 @@ static struct cyttsp5_core_platform_data *create_and_get_core_pdata(
 	int rc;
 	int i;
     int reset_gpio = -1, irq_gpio = -1;
-printk("%s: \n",__func__);
+
+    printk("%s: \n",__func__);
 	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
 		rc = -ENOMEM;
@@ -570,7 +571,7 @@ printk("%s: \n",__func__);
     }else{
         pdata->rst_gpio = NULL;
     }
-printk("%s:pdata->irq_gpio=%d \n",__func__,pdata->irq_gpio);
+    printk("%s:pdata->irq_gpio=%d \n",__func__,pdata->irq_gpio);
 
 	rc = of_property_read_u32(core_node, "cy,hid_desc_register", &value);
 	if (rc)

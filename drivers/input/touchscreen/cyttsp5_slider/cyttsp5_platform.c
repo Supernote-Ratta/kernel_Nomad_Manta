@@ -167,8 +167,7 @@ struct cyttsp5_loader_platform_data _cyttsp5_loader_platform_data = {
 	.flags = CY_LOADER_FLAG_NONE,
 };
 
-int cyttsp5_xres(struct cyttsp5_core_platform_data *pdata,
-		struct device *dev)
+int cyttsp5_xres(struct cyttsp5_core_platform_data *pdata, struct device *dev)
 {
 	int rst_gpio = pdata->rst_gpio;
 	int rc = 0;
@@ -179,14 +178,11 @@ int cyttsp5_xres(struct cyttsp5_core_platform_data *pdata,
 	msleep(40);
 	gpio_set_value(rst_gpio, 1);
 	msleep(20);
-	dev_info(dev,
-		"%s: RESET CYTTSP gpio=%d r=%d\n", __func__,
-		pdata->rst_gpio, rc);
+	dev_info(dev, "%s: RESET CYTTSP gpio=%d r=%d\n", __func__, pdata->rst_gpio, rc);
 	return rc;
 }
 
-int cyttsp5_init(struct cyttsp5_core_platform_data *pdata,
-		int on, struct device *dev)
+int cyttsp5_init(struct cyttsp5_core_platform_data *pdata, int on, struct device *dev)
 {
 	int rst_gpio = pdata->rst_gpio;
 	int irq_gpio = pdata->irq_gpio;
@@ -263,8 +259,7 @@ int cyttsp5_irq_stat(struct cyttsp5_core_platform_data *pdata,
 }
 
 #ifdef CYTTSP5_DETECT_HW
-int cyttsp5_detect(struct cyttsp5_core_platform_data *pdata,
-		struct device *dev, cyttsp5_platform_read read)
+int cyttsp5_detect(struct cyttsp5_core_platform_data *pdata, struct device *dev, cyttsp5_platform_read read)
 {
 	int retry = 3;
 	int rc;
@@ -272,17 +267,15 @@ int cyttsp5_detect(struct cyttsp5_core_platform_data *pdata,
 
 	while (retry--) {
 		/* Perform reset, wait for 100 ms and perform read */
-		parade_debug(dev, DEBUG_LEVEL_2, "%s: Performing a reset\n",
-			__func__);
+		parade_debug(dev, DEBUG_LEVEL_2, "%s: Performing a reset\n", __func__);
         if (pdata->xres)
-		pdata->xres(pdata, dev);
+            pdata->xres(pdata, dev);
 		msleep(100);
 		rc = read(dev, buf, 1);
 		if (!rc)
 			return 0;
 
-		parade_debug(dev, DEBUG_LEVEL_2, "%s: Read unsuccessful, try=%d\n",
-			__func__, 3 - retry);
+		parade_debug(dev, DEBUG_LEVEL_2, "%s: Read unsuccessful, try=%d\n", __func__, 3 - retry);
 	}
 
 	return rc;

@@ -1022,7 +1022,7 @@
         cy,core {
             cy,name = "cyttsp5_core";
             cy,irq_gpio =  <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
-            //cy,rst_gpio =  <&gpio2 RK_PC6 GPIO_ACTIVE_HIGH>;
+            cy,rst_gpio =  <&gpio2 RK_PC6 GPIO_ACTIVE_HIGH>;
             cy,hid_desc_register = <1>;
             /* CY_CORE_FLAG_RESTORE_PARAMETERS */
             cy,flags = <6>;
