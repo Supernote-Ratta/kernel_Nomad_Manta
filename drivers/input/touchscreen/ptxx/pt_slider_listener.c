@@ -10,9 +10,11 @@
 #include "pt_regs.h"
 
 #include "../cyttsp5_slider/cyttsp5_listener.h"
-#define SLIDER_DRV_VER "230801"
-//230727 ֧���ڻ�
-//230801 ֧�ֵ���¼����ڻ��͵����ͬʱ����
+#define SLIDER_DRV_VER "230817"
+//230727 支持内滑
+//230801 支持点击事件，内滑和点击可同时进行
+//230817 支持上下滑动，tp最新版本4,滑条版本0x0004
+
 
 // max time from slider up to tp down for swap.
 #define MAX_TP_SLIDER_DELAYMS_FOR_SWAP      80 // ms
@@ -54,6 +56,8 @@ struct pt_slider_area {
     int     slider_y;
     int     slider_keycode;
 	int 	slider_press_keycode;
+	int 	slider_down_keycode;
+	int 	slider_up_keycode;
 
     int     tp_min_y;
     int     tp_max_y;
@@ -69,6 +73,8 @@ struct pt_slider_touch {
     int         t;
     int         x;
     int         y;
+	int         down_x;
+    int         down_y;
     ktime_t     up_time;
 	ktime_t 	down_time;
 	int 		status;
@@ -99,16 +105,16 @@ static struct pt_core_data *tp_cd = NULL;
 // define the TP touch area for slider-swap.
 const struct pt_slider_area   slider_areas[MAX_SLIDER_TRACK] = {
     // AREA-A: RIGHT-TOP
-	{'A', 1, 110, 30/*slider y*/, 292, KEY_F1, 1, MAX_TPY_AB, MAX_FIRST_TPX_AD/*tp_first_y*/},
+	{'A', 1, 110, 30/*slider y*/, 292, KEY_F1, KEY_F5, KEY_F9, 1, MAX_TPY_AB, MAX_FIRST_TPX_AD/*tp_first_y*/},
 	
 	// AREA-B: LEFT-TOP
-	{'B', 1, 110, 70/*slider y*/, 293, KEY_F2, 1, MAX_TPY_AB, MIN_FIRST_TPX_BC/*tp_first_y*/},
+	{'B', 1, 110, 70/*slider y*/, 293, KEY_F2, KEY_F6, KEY_F10, 1, MAX_TPY_AB, MIN_FIRST_TPX_BC/*tp_first_y*/},
 	
 	// AREA-C: LEFT-BOTTOM
-	{'C', 140, 230, 50/*slider y*/, 294, KEY_F3, MIN_TPY_CD, 1872, MIN_FIRST_TPX_BC/*tp_first_y*/},
+	{'C', 140, 230, 50/*slider y*/, 294, KEY_F3, KEY_F7, KEY_F11, MIN_TPY_CD, 1872, MIN_FIRST_TPX_BC/*tp_first_y*/},
 	
 	// AREA-D: RIGHT-BOTTOM
-	{'D', 140, 230, 10/*slider y*/, KEY_BACK, KEY_F4, MIN_TPY_CD, 1872, MAX_FIRST_TPX_AD/*tp_first_y*/},
+	{'D', 140, 230, 10/*slider y*/, KEY_BACK, KEY_F4, KEY_F8, KEY_F12, MIN_TPY_CD, 1872, MAX_FIRST_TPX_AD/*tp_first_y*/},
 
 };
 
@@ -153,6 +159,10 @@ static void pt_reset_slide_touch(struct pt_slider_touch* p)
     p->up_time = UPTIME_IDLE;
     p->t = -1;
     p->area = NULL;
+	p->x = 0;
+	p->y = 0;
+	p->down_x = 0;
+	p->down_y = 0;
 	p->status = SLIDER_IDLE;
     mutex_unlock(&slider_mutex);
 }
@@ -172,13 +182,24 @@ static int slider_touch_up(struct device *dev)
 			pt_debug(dev, DL_LISTEN,"%s: p->y=%d down_time=%lld up_time=%lld \n",
 				__func__, p->y, p->down_time, p->up_time, os);
 			for(j = 0; j < MAX_SLIDER_TRACK; j++){
-				pt_debug(dev, DL_LISTEN,"%s: p->y=%d slider_y=%d down_time=%lld up_time=%lld tip:%d\n",
-				__func__, p->y, slider_areas[j].slider_y, p->down_time, p->up_time, p->tip);
+				pt_debug(dev, DL_LISTEN,"%s: p->x=%d p->y=%d down_x:%d down_y:%d slider_y=%d down_time=%lld up_time=%lld tip:%d\n",
+				__func__, p->x, p->y, p->down_x, p->down_y ,slider_areas[j].slider_y, p->down_time, p->up_time, p->tip);
 				if(p->y == slider_areas[j].slider_y && (p->tip == 0)) {
 					os = ktime_to_ms(ktime_sub(p->up_time, p->down_time));
 					if(os > MAX_TP_SLIDER_DELAYMS_FOR_SWAP) {
-						kc = slider_areas[j].slider_press_keycode;
+						if(abs(p->x-p->down_x)<10){
+							kc = slider_areas[j].slider_press_keycode;
+						}
+ 						else if(p->x-p->down_x > 40) {
+							kc = slider_areas[j].slider_up_keycode;
+						}
+							
+						else if(p->down_x-p->x > 40){
+							kc = slider_areas[j].slider_down_keycode;
+						}
 						pt_reset_slide_touch(p);
+						pt_debug(dev, DL_LISTEN,"%s: x=%d,y=%d,os=%lldms,kc=%d areas:%c.\n",
+    						__func__, p->x, p->y, os, kc ,slider_areas[j].id);
 						break;
 					}
 				}
@@ -186,8 +207,7 @@ static int slider_touch_up(struct device *dev)
 		}
 	}
 
-    pt_debug(dev, DL_LISTEN,"%s: x=%d,y=%d,os=%lldms,kc=%d areas:%c.\n",
-    	__func__, p->x, p->y, os, kc ,slider_areas[j].id);
+
     if(kc!=0 && os > MAX_TP_SLIDER_DELAYMS_FOR_SWAP) {
 		printk("%s: slider-touchup: x=%d,y=%d, t=%d,keycode=%d\n",
                     __func__, p->x, p->y, p->t, kc);
@@ -278,6 +298,8 @@ static void pt_update_slider_touch(struct device *dev,int t, int x, int y, int t
         if(tip) {
             slider_track_mask |= (1<<t);
             p->t = t;
+			p->down_x = x;
+			p->down_y = y;
             p->x = x;
             p->y = y;
 			p->tip = tip;
@@ -624,6 +646,14 @@ static int pt_setup_input_device(struct device *dev)
 	__set_bit(KEY_F2, md->input_key->keybit);
 	__set_bit(KEY_F3, md->input_key->keybit);
 	__set_bit(KEY_F4, md->input_key->keybit);
+	__set_bit(KEY_F5, md->input_key->keybit);
+	__set_bit(KEY_F6, md->input_key->keybit);
+	__set_bit(KEY_F7, md->input_key->keybit);
+	__set_bit(KEY_F8, md->input_key->keybit);
+	__set_bit(KEY_F9, md->input_key->keybit);
+	__set_bit(KEY_F10, md->input_key->keybit);
+	__set_bit(KEY_F11, md->input_key->keybit);
+	__set_bit(KEY_F12, md->input_key->keybit);
 
 	rc = input_register_device(md->input_key);
 	if (rc < 0)
