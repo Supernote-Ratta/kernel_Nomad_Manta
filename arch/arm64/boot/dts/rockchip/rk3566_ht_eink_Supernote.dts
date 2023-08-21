@@ -39,7 +39,7 @@
     charge_animation: charge-animation {
         status = "okay";
         compatible = "rockchip,uboot-charge";
-        rockchip,uboot-charge-on = <1>;
+        rockchip,uboot-charge-on = <0>;
         rockchip,android-charge-on = <0>;
         rockchip,uboot-low-power-voltage = <3350>;
         rockchip,screen-on-voltage = <3400>;
