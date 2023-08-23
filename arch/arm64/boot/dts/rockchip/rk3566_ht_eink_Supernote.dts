@@ -646,6 +646,7 @@
             design_capacity = <2700>;
             design_qmax = <2970>;
             bat_res = <150>;
+			bat_temp_res = <34>;
             sleep_enter_current = <150>;
             sleep_exit_current = <180>;
             sleep_filter_current = <100>;

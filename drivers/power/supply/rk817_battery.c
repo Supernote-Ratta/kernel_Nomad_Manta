@@ -108,7 +108,10 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 //        2.rsoc=100,(rsoc-dsoc)>20,when dsoc>90,dsoc increasing to fast.
 // 221124 1.printk -> DBG
 // 221227 1.Add sleep current(current last 3bits,0.xxxmA"
-#define DRIVER_VERSION	"221227"
+// 230823 1.before charge prob ,rk817_bat_temperature_chrg retrun
+//        2.Add definition of bat_temp_res in dts;
+
+#define DRIVER_VERSION	"230823"
 
 #define SFT_SET_KB	1
 
@@ -550,6 +553,7 @@ struct battery_platform_data {
 	u32 zero_algorithm_vol;
 	u32 zero_reserve_dsoc;
 	u32 bat_res;
+	u32 bat_temp_res;
 	u32 design_capacity;
 	u32 design_qmax;
 	u32 sleep_enter_current;
@@ -900,8 +904,8 @@ static int rk817_bat_get_temp(struct rk817_battery_device *battery)
 	temp_value |= rk817_bat_field_read(battery, BAT_TS_L);
 	temp_value1 |= rk817_bat_field_read(battery, REGE9);
 	adc_to_vol = temp_value * 1200 / 65536;
-	adc_to_vol -= (42/2) * battery->current_avg / 1000;
-	//printk("rk817_bat_get_temp:BAT_TS=%d adcv=%d templimit:0x%2x size:%d\n",temp_value,adc_to_vol,temp_value1,battery->pdata->temp_size);
+	adc_to_vol -= (battery->pdata->bat_temp_res/2) * battery->current_avg / 1000;
+	//printk("rk817_bat_get_temp:BAT_TS=%d adcv=%d templimit:0x%2x size:%d res=%d\n",temp_value,adc_to_vol,temp_value1,battery->pdata->temp_size,battery->pdata->bat_temp_res);
 	if((battery->pdata->temp_size==0)||(battery->pdata->tempn_size==0)){
 		return 250;
 	}
@@ -2022,6 +2026,7 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 	battery->pdata = pdata;
 	/* init default param */
 	pdata->bat_res = DEFAULT_BAT_RES;
+	pdata->bat_temp_res = 42;
 	pdata->monitor_sec = DEFAULT_MONITOR_SEC;
 	pdata->pwroff_vol = DEFAULT_PWROFF_VOL_THRESD;
 	pdata->sleep_exit_current = DEFAULT_SLP_EXIT_CUR;
@@ -2169,6 +2174,11 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 	ret = of_property_read_u32(np, "bat_res", &pdata->bat_res);
 	if (ret < 0)
 		dev_err(dev, "bat_res missing!\n");
+
+	ret = of_property_read_u32(np, "bat_temp_res", &pdata->bat_temp_res);
+	if (ret < 0)
+		dev_err(dev, "bat_temp_res missing!\n");
+
 
 	ret = of_property_read_u32(np, "sleep_enter_current",
 				   &pdata->sleep_enter_current);
@@ -2775,6 +2785,10 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 // 10-45 正常充电
 	struct rk817_charger* charge = rk817_charge_get_charger();
 	int status;
+	
+	if(charge == NULL){
+		return 0;
+	}
 	//int power_supply;//0-battery 1-usb 2-charger
 	status = rk817_bat_field_read(battery, CHG_STS);
 
