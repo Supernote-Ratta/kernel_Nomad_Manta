@@ -2799,6 +2799,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 	DBG("=====rk817_bat_temperature_chrg temp:%d temperature_disable_charge:%d charge_enable:%d charge_supply_power:%d battery_protect:%d battery_maintain:%d temperature_charge_reset:%d current:%d l:%d rl:%d\n",
 		temp,temperature_disable_charge,charge_enable,charge_supply_power,
 		battery->open_battery_protect,battery->open_battery_maintain,temperature_charge_reset,battery->current_avg,battery->dsoc,battery->rsoc);
+//printk("rk817_bat_temperature_chrg max_current:%d\n",charge->pdata->max_chrg_current);
 	if ((temp <= 0)||(temp >= 50)){
 		if(temperature_disable_charge == 0) {
 			temperature_disable_charge = 1;
@@ -3030,6 +3031,10 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 			charge_supply_power = 1;
 		}
 	}
+	if(charge_current_limit > charge->pdata->max_chrg_current){
+		charge_current_limit = charge->pdata->max_chrg_current;
+	}
+
 	rk817_bat_set_charge_voltage(battery,charge_vol_limit);
 	rk817_bat_set_charge_current(battery,charge_current_limit);
 	if(charge_enable){
