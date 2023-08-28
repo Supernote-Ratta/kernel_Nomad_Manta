@@ -19,7 +19,7 @@
 #define TYPEC_fusb30x
 
 / {
-    model = "Rockchip RK3566 EINK Supernote 10.3 DVT1 Board II";
+    model = "Rockchip RK3566 EINK Supernote 7.8 DVT0 Board I";
     compatible = "rockchip,rk3566-rk817-eink", "rockchip,rk3566";
 
     ramoops_mem: ramoops_mem {

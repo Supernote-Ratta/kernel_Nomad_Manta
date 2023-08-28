@@ -507,6 +507,7 @@ static void wacom_hid_get_input(struct wacom_hid *ihid)
     //wacom_hid_dbg(ihid, "input: %*ph\n", ret_size, ihid->inbuf);
 
     if (test_bit(WACOM_HID_STARTED, &ihid->flags)) {
+        if(ihid->inbuf[2] == 0x1a) ihid->inbuf[2] = 02;    // change 1a to 02. TEST ok.
         hid_input_report(ihid->hid, HID_INPUT_REPORT, ihid->inbuf + 2, ret_size - 2, 1);
     }
 
