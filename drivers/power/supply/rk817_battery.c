@@ -2787,6 +2787,7 @@ static int rk817_bat_temperature_chrg(struct rk817_battery_device *battery, int 
 	int status;
 	
 	if(charge == NULL){
+		dev_err(battery->dev, "charge == NULL\n");
 		return 0;
 	}
 	//int power_supply;//0-battery 1-usb 2-charger

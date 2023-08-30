@@ -190,8 +190,8 @@ int rfkill_set_wifi_bt_power(int on)
 		if (gpio_is_valid(vbat->io))
 			gpio_direction_output(vbat->io, vbat->enable);
 	} else {
-		if (gpio_is_valid(vbat->io))
-			gpio_direction_output(vbat->io, !(vbat->enable));
+		//if (gpio_is_valid(vbat->io))
+		//	gpio_direction_output(vbat->io, !(vbat->enable));
 	}
 	wifi_bt_vbat_state = on;
 	return 0;

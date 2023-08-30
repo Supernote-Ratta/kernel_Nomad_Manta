@@ -9016,15 +9016,15 @@ static int pt_hw_soft_reset(struct pt_core_data *cd, int protect)
  ******************************************************************************/
 static int pt_hw_hard_reset(struct pt_core_data *cd)
 {
-	//if (cd->cpdata->xres) {
-	//	cd->enum_status = ENUM_STATUS_START;
-	//	pt_debug(cd->dev, DL_DEBUG, "%s: Startup Status Reset\n",
-	//		__func__);
-	//	cd->cpdata->xres(cd->cpdata, cd->dev);
-	//	pt_debug(cd->dev, DL_WARN, "%s: executed HARD reset\n",
-	//		__func__);
-	//	return 0;
-	//}
+	if (cd->cpdata->xres) {
+		cd->enum_status = ENUM_STATUS_START;
+		pt_debug(cd->dev, DL_DEBUG, "%s: Startup Status Reset\n",
+			__func__);
+		cd->cpdata->xres(cd->cpdata, cd->dev);
+		pt_debug(cd->dev, DL_WARN, "%s: executed HARD reset\n",
+			__func__);
+		return 0;
+	}
 	pt_debug(cd->dev, DL_ERROR,
 		"%s: FAILED to execute HARD reset\n", __func__);
 

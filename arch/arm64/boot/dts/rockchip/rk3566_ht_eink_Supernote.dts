@@ -815,7 +815,7 @@
         parade,core {
             parade,name = "pt_core";
             parade,irq_gpio = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
-            //parade,rst_gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>; //reset only can set for silde
+            parade,rst_gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>; //reset only can set for silde
             //parade,runfw_gpio = <64>;
             parade,hid_desc_register = <1>;
             /*
