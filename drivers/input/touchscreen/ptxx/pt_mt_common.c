@@ -28,6 +28,7 @@
  */
 
 #include "pt_regs.h"
+#include "../cyttsp5_slider/cyttsp5_listener.h"
 
 #define MT_PARAM_SIGNAL(md, sig_ost) PARAM_SIGNAL(md->pdata->frmwrk, sig_ost)
 #define MT_PARAM_MIN(md, sig_ost) PARAM_MIN(md->pdata->frmwrk, sig_ost)
@@ -293,11 +294,21 @@ static void pt_get_mt_touches(struct pt_mt_data *md,
 		if (tch->abs[PT_TCH_E] == PT_EV_LIFTOFF) {
 			pt_debug(dev, DL_INFO, "%s: t=%d e=%d lift-off\n",
 				__func__, t, tch->abs[PT_TCH_E]);
+#ifdef SLIDER_NEW
+			//ratta_mt_record(1,1,t,tch->abs,jiffies);
+					//continue;
 			goto pt_get_mt_touches_pr_tch;
+#else
+			goto pt_get_mt_touches_pr_tch;
+#endif
 		}
 
 		/* Process touch */
 		pt_mt_process_touch(md, tch);
+#ifdef SLIDER_NEW
+		//ratta_mt_record(1,1,t,tch->abs,jiffies);
+		//continue;
+#endif
 
 		sig = MT_PARAM_SIGNAL(md, PT_ABS_ID_OST);
 		if (sig != PT_IGNORE_VALUE) {
@@ -395,8 +406,10 @@ static int pt_xy_worker(struct pt_mt_data *md)
 		__func__, num_cur_tch);
 	if (num_cur_tch)
 		pt_get_mt_touches(md, &tch, num_cur_tch);
-	else
+	else{
 		pt_mt_lift_all(md);
+		//ratta_mt_record(1,0,0,tch.abs,jiffies);
+	}
 
 	rc = 0;
 
@@ -915,7 +928,8 @@ int pt_mt_probe(struct device *dev)
 			PT_MT_NAME, pt_setup_input_attention, 0);
 	}
 
-    pt_slider_probe(dev);
+    //pt_slider_probe(dev);
+    ratta_mt_probe(dev);
 	return 0;
 
 error_init_input:

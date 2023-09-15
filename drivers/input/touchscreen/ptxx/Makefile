@@ -7,7 +7,8 @@
 GCOV_PROFILE := y
 
 obj-$(CONFIG_TOUCHSCREEN_PARADE)      += pt.o
-pt-y := pt_core.o pt_mt_common.o pt_slider_listener.o
+pt-y := pt_core.o pt_mt_common.o 
+#pt_slider_listener.o
 pt-$(CONFIG_TOUCHSCREEN_PARADE_MT_A) += pt_mta.o
 pt-$(CONFIG_TOUCHSCREEN_PARADE_MT_B) += pt_mtb.o
 pt-$(CONFIG_TOUCHSCREEN_PARADE_BUTTON) += pt_btn.o

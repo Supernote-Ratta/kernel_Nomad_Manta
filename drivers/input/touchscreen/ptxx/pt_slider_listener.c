@@ -10,6 +10,8 @@
 #include "pt_regs.h"
 
 #include "../cyttsp5_slider/cyttsp5_listener.h"
+#ifndef SLIDER_NEW
+
 #define SLIDER_DRV_VER "230817"
 //230727 支持内滑
 //230801 支持点击事件，内滑和点击可同时进行
@@ -600,7 +602,7 @@ static int pt_filter_by_slider(struct pt_mt_data *md,
 }
 
 
-
+#ifndef SLIDER_NEW
 // 20230724: monitor the slider touch event. tip:1  touch-down, 0: touch-up.
 // when tip = 0,the x/y is not correct.
 static void pt_slider_listener(struct device *dev,int t, int x, int y, int tip)
@@ -619,6 +621,7 @@ static void pt_slider_listener(struct device *dev,int t, int x, int y, int tip)
 	pt_update_slider_touch(tp_cd->dev,t, x, y, tip);
 	if(!tip) pt_dump_slider_touch(tp_cd->dev);
 }
+#endif
 static int pt_setup_input_device(struct device *dev)
 {
 	struct pt_core_data *cd = dev_get_drvdata(dev);
@@ -698,5 +701,5 @@ int pt_slider_probe(struct device *dev)
 
 	return rc;
 }
-
+#endif
 

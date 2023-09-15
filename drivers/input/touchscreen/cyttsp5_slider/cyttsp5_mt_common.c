@@ -38,12 +38,13 @@
 #define MT_PARAM_FUZZ(md, sig_ost) PARAM_FUZZ(md->pdata->frmwrk, sig_ost)
 #define MT_PARAM_FLAT(md, sig_ost) PARAM_FLAT(md->pdata->frmwrk, sig_ost)
 
+#ifndef SLIDER_NEW
 static touch_listener       tp_listener = NULL;
 void cyttsp5_register_listener(touch_listener listener) {
     printk("%s: listner=%pf\n", __func__, listener);
     tp_listener = listener;
 }
-
+#endif
 static void cyttsp5_mt_lift_all(struct cyttsp5_mt_data *md)
 {
 	int max = md->si->tch_abs[CY_TCH_T].max;
@@ -245,6 +246,12 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 		if (tch->abs[CY_TCH_E] == CY_EV_LIFTOFF) {
 			parade_debug(dev, DEBUG_LEVEL_1, "%s: t=%d e=%d tip=%d lift-off\n",
 				__func__, t, tch->abs[CY_TCH_E], tch->abs[CY_TCH_TIP]);
+#ifdef SLIDER_NEW
+			md->num_prv_rec = num_cur_tch;
+			ratta_mt_record(0,1,t,tch->abs,jiffies);
+			//continue;  // 111111111
+            goto cyttsp5_get_mt_touches_pr_tch; //111111111111
+#else
 			if(tp_listener != NULL) {
 				md->num_prv_rec = num_cur_tch;
 				if(tch->abs[CY_TCH_TIP]==0) {
@@ -254,12 +261,18 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
             }else {
 				goto cyttsp5_get_mt_touches_pr_tch;
 			}
+#endif
 		}
-
+#ifdef SLIDER_NEW
+//printk("%s ratta_mt_record \n",__func__);
+		ratta_mt_record(0,1,t,tch->abs,jiffies);
+		//continue; //111111111111
+#else
         if(tp_listener != NULL) {
             tp_listener(dev, t, tch->abs[CY_TCH_X], tch->abs[CY_TCH_Y], 1);
             continue;
         }
+#endif
 		sig = MT_PARAM_SIGNAL(md, CY_ABS_ID_OST);
 		if (sig != CY_IGNORE_VALUE) {
 			if (md->mt_function.input_report)
