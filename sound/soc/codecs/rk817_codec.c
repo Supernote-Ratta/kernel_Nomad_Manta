@@ -30,10 +30,21 @@
 #include "htfyun_es7210.h"
 #endif
 
-#ifdef CONFIG_SND_AMPLIFIER_AW87519
+#ifdef CONFIG_SND_SOC_AW87519
 #include "htfyun_aw87519.h"
 #endif
 
+/* changed tower: add aw87xxx ap. */
+#ifdef CONFIG_SND_SOC_AW87XXX
+extern int aw87xxx_add_codec_controls(void *codec);
+extern int aw87xxx_set_profile(int dev_index, char *profile);
+
+static char *aw_profile[] = {"Music", "Off"}; /*aw87xxx_acf.bin 文件中配置场景*/
+enum aw87xxx_dev_index {
+    AW_DEV_0 = 0,
+};
+#endif
+/* changed end. */
 static int dbg_enable;
 module_param_named(dbg_level, dbg_enable, int, 0644);
 
@@ -45,10 +56,10 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
     } while (0)
 
 /* For route */
-#define RK817_CODEC_PLAYBACK    1
-#define RK817_CODEC_CAPTURE     2
-#define RK817_CODEC_INCALL      4
-#define RK817_CODEC_ALL (RK817_CODEC_PLAYBACK | RK817_CODEC_CAPTURE | RK817_CODEC_INCALL)
+#define RK817_CODEC_PLAYBACK 1
+#define RK817_CODEC_CAPTURE  2
+#define RK817_CODEC_INCALL   4
+#define RK817_CODEC_ALL      (RK817_CODEC_PLAYBACK | RK817_CODEC_CAPTURE | RK817_CODEC_INCALL)
 
 /*
  * DDAC L/R volume setting
@@ -58,7 +69,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
  * 0x7d: -46dB
  * 0xff: -95dB
  */
-#define OUT_VOLUME  (0x03)
+#define OUT_VOLUME (0x03)
 
 /*
  * DADC L/R volume setting
@@ -68,10 +79,10 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
  * 0x7d: -46dB
  * 0xff: -95dB
  */
-#define CAPTURE_VOLUME  (0x0)
+#define CAPTURE_VOLUME (0x0)
 
-#define CODEC_SET_SPK    1
-#define CODEC_SET_HP     2
+#define CODEC_SET_SPK 1
+#define CODEC_SET_HP  2
 
 struct rk817_codec_priv {
     struct snd_soc_component *component;
@@ -102,62 +113,62 @@ struct rk817_codec_priv {
 };
 
 static const struct reg_default rk817_reg_defaults[] = {
-    { RK817_CODEC_DTOP_VUCTL, 0x003 },
-    { RK817_CODEC_DTOP_VUCTIME, 0x00 },
-    { RK817_CODEC_DTOP_LPT_SRST, 0x00 },
-    { RK817_CODEC_DTOP_DIGEN_CLKE, 0x00 },
-    { RK817_CODEC_AREF_RTCFG0, 0x00 },
-    { RK817_CODEC_AREF_RTCFG1, 0x06 },
-    { RK817_CODEC_AADC_CFG0, 0xc8 },
-    { RK817_CODEC_AADC_CFG1, 0x00 },
-    { RK817_CODEC_DADC_VOLL, 0x00 },
-    { RK817_CODEC_DADC_VOLR, 0x00 },
-    { RK817_CODEC_DADC_SR_ACL0, 0x00 },
-    { RK817_CODEC_DADC_ALC1, 0x00 },
-    { RK817_CODEC_DADC_ALC2, 0x00 },
-    { RK817_CODEC_DADC_NG, 0x00 },
-    { RK817_CODEC_DADC_HPF, 0x00 },
-    { RK817_CODEC_DADC_RVOLL, 0xff },
-    { RK817_CODEC_DADC_RVOLR, 0xff },
-    { RK817_CODEC_AMIC_CFG0, 0x70 },
-    { RK817_CODEC_AMIC_CFG1, 0x00 },
-    { RK817_CODEC_DMIC_PGA_GAIN, 0x66 },
-    { RK817_CODEC_DMIC_LMT1, 0x00 },
-    { RK817_CODEC_DMIC_LMT2, 0x00 },
-    { RK817_CODEC_DMIC_NG1, 0x00 },
-    { RK817_CODEC_DMIC_NG2, 0x00 },
-    { RK817_CODEC_ADAC_CFG0, 0x00 },
-    { RK817_CODEC_ADAC_CFG1, 0x07 },
-    { RK817_CODEC_DDAC_POPD_DACST, 0x82 },
-    { RK817_CODEC_DDAC_VOLL, 0x00 },
-    { RK817_CODEC_DDAC_VOLR, 0x00 },
-    { RK817_CODEC_DDAC_SR_LMT0, 0x00 },
-    { RK817_CODEC_DDAC_LMT1, 0x00 },
-    { RK817_CODEC_DDAC_LMT2, 0x00 },
-    { RK817_CODEC_DDAC_MUTE_MIXCTL, 0xa0 },
-    { RK817_CODEC_DDAC_RVOLL, 0xff },
-    { RK817_CODEC_DDAC_RVOLR, 0xff },
-    { RK817_CODEC_AHP_ANTI0, 0x00 },
-    { RK817_CODEC_AHP_ANTI1, 0x00 },
-    { RK817_CODEC_AHP_CFG0, 0xe0 },
-    { RK817_CODEC_AHP_CFG1, 0x1f },
-    { RK817_CODEC_AHP_CP, 0x09 },
-    { RK817_CODEC_ACLASSD_CFG1, 0x69 },
-    { RK817_CODEC_ACLASSD_CFG2, 0x44 },
-    { RK817_CODEC_APLL_CFG0, 0x04 },
-    { RK817_CODEC_APLL_CFG1, 0x00 },
-    { RK817_CODEC_APLL_CFG2, 0x30 },
-    { RK817_CODEC_APLL_CFG3, 0x19 },
-    { RK817_CODEC_APLL_CFG4, 0x65 },
-    { RK817_CODEC_APLL_CFG5, 0x01 },
-    { RK817_CODEC_DI2S_CKM, 0x01 },
-    { RK817_CODEC_DI2S_RSD, 0x00 },
-    { RK817_CODEC_DI2S_RXCR1, 0x00 },
-    { RK817_CODEC_DI2S_RXCR2, 0x17 },
-    { RK817_CODEC_DI2S_RXCMD_TSD, 0x00 },
-    { RK817_CODEC_DI2S_TXCR1, 0x00 },
-    { RK817_CODEC_DI2S_TXCR2, 0x17 },
-    { RK817_CODEC_DI2S_TXCR3_TXCMD, 0x00 },
+    {RK817_CODEC_DTOP_VUCTL, 0x003},
+    {RK817_CODEC_DTOP_VUCTIME, 0x00},
+    {RK817_CODEC_DTOP_LPT_SRST, 0x00},
+    {RK817_CODEC_DTOP_DIGEN_CLKE, 0x00},
+    {RK817_CODEC_AREF_RTCFG0, 0x00},
+    {RK817_CODEC_AREF_RTCFG1, 0x06},
+    {RK817_CODEC_AADC_CFG0, 0xc8},
+    {RK817_CODEC_AADC_CFG1, 0x00},
+    {RK817_CODEC_DADC_VOLL, 0x00},
+    {RK817_CODEC_DADC_VOLR, 0x00},
+    {RK817_CODEC_DADC_SR_ACL0, 0x00},
+    {RK817_CODEC_DADC_ALC1, 0x00},
+    {RK817_CODEC_DADC_ALC2, 0x00},
+    {RK817_CODEC_DADC_NG, 0x00},
+    {RK817_CODEC_DADC_HPF, 0x00},
+    {RK817_CODEC_DADC_RVOLL, 0xff},
+    {RK817_CODEC_DADC_RVOLR, 0xff},
+    {RK817_CODEC_AMIC_CFG0, 0x70},
+    {RK817_CODEC_AMIC_CFG1, 0x00},
+    {RK817_CODEC_DMIC_PGA_GAIN, 0x66},
+    {RK817_CODEC_DMIC_LMT1, 0x00},
+    {RK817_CODEC_DMIC_LMT2, 0x00},
+    {RK817_CODEC_DMIC_NG1, 0x00},
+    {RK817_CODEC_DMIC_NG2, 0x00},
+    {RK817_CODEC_ADAC_CFG0, 0x00},
+    {RK817_CODEC_ADAC_CFG1, 0x07},
+    {RK817_CODEC_DDAC_POPD_DACST, 0x82},
+    {RK817_CODEC_DDAC_VOLL, 0x00},
+    {RK817_CODEC_DDAC_VOLR, 0x00},
+    {RK817_CODEC_DDAC_SR_LMT0, 0x00},
+    {RK817_CODEC_DDAC_LMT1, 0x00},
+    {RK817_CODEC_DDAC_LMT2, 0x00},
+    {RK817_CODEC_DDAC_MUTE_MIXCTL, 0xa0},
+    {RK817_CODEC_DDAC_RVOLL, 0xff},
+    {RK817_CODEC_DDAC_RVOLR, 0xff},
+    {RK817_CODEC_AHP_ANTI0, 0x00},
+    {RK817_CODEC_AHP_ANTI1, 0x00},
+    {RK817_CODEC_AHP_CFG0, 0xe0},
+    {RK817_CODEC_AHP_CFG1, 0x1f},
+    {RK817_CODEC_AHP_CP, 0x09},
+    {RK817_CODEC_ACLASSD_CFG1, 0x69},
+    {RK817_CODEC_ACLASSD_CFG2, 0x44},
+    {RK817_CODEC_APLL_CFG0, 0x04},
+    {RK817_CODEC_APLL_CFG1, 0x00},
+    {RK817_CODEC_APLL_CFG2, 0x30},
+    {RK817_CODEC_APLL_CFG3, 0x19},
+    {RK817_CODEC_APLL_CFG4, 0x65},
+    {RK817_CODEC_APLL_CFG5, 0x01},
+    {RK817_CODEC_DI2S_CKM, 0x01},
+    {RK817_CODEC_DI2S_RSD, 0x00},
+    {RK817_CODEC_DI2S_RXCR1, 0x00},
+    {RK817_CODEC_DI2S_RXCR2, 0x17},
+    {RK817_CODEC_DI2S_RXCMD_TSD, 0x00},
+    {RK817_CODEC_DI2S_TXCR1, 0x00},
+    {RK817_CODEC_DI2S_TXCR2, 0x17},
+    {RK817_CODEC_DI2S_TXCR3_TXCMD, 0x00},
 };
 
 static bool rk817_volatile_register(struct device *dev, unsigned int reg)
@@ -487,15 +498,37 @@ static int rk817_playback_path_put(struct snd_kcontrol *kcontrol, struct snd_ctl
     struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
     struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
     long int pre_path;
-
+    /* changed tower: add aw87xxx ap. */
+#if (defined CONFIG_SND_SOC_AW87519) || (defined CONFIG_SND_SOC_AW87XXX)
+    bool amplifier_en, pre_amplifier_en;
+#endif
+    /* changed end. */
     if (rk817->playback_path == ucontrol->value.integer.value[0]) {
         DBG("%s : playback_path is not changed!\n", __func__);
         return 0;
     }
 
     pre_path = rk817->playback_path;
+    /* changed tower: add aw87xxx ap. */
+#if (defined CONFIG_SND_SOC_AW87519) || (defined CONFIG_SND_SOC_AW87XXX)
+    if (pre_path == SPK_PATH || pre_path == RING_SPK || pre_path == RING_SPK_HP || pre_path == BT) {
+        pre_amplifier_en = true;
+    } else {
+        pre_amplifier_en = false;
+    }
+#endif
+    /* changed end. */
     rk817->playback_path = ucontrol->value.integer.value[0];
-
+    /* changed tower: add aw87xxx ap. */
+#if (defined CONFIG_SND_SOC_AW87519) || (defined CONFIG_SND_SOC_AW87XXX)
+    if (rk817->playback_path == SPK_PATH || rk817->playback_path == RING_SPK || rk817->playback_path == RING_SPK_HP || rk817->playback_path == BT) {
+        amplifier_en = true;
+    } else {
+        amplifier_en = false;
+    }
+    DBG("%s : set amplifier_en %d, pre %d\n", __func__, amplifier_en, pre_amplifier_en);
+#endif
+    /* changed end. */
     DBG("%s : set playback_path %ld, pre_path %ld\n", __func__, rk817->playback_path, pre_path);
 
     if (rk817->playback_path != OFF) {
@@ -512,9 +545,19 @@ static int rk817_playback_path_put(struct snd_kcontrol *kcontrol, struct snd_ctl
                     rk817_codec_power_down(component, RK817_CODEC_ALL);
                 }
             }
-#ifdef CONFIG_SND_AMPLIFIER_AW87519
-            aw87519_set_audio_amplifier_enable(false);
+            /* changed tower: add aw87xxx ap. */
+#if (defined CONFIG_SND_SOC_AW87519) || (defined CONFIG_SND_SOC_AW87XXX)
+            if (pre_amplifier_en != amplifier_en) {
+#ifdef CONFIG_SND_SOC_AW87519
+                aw87519_set_audio_amplifier_enable(false);
 #endif
+#ifdef CONFIG_SND_SOC_AW87XXX
+                /*切换 PA AW_DEV_0 为 Off 场景*/
+                aw87xxx_set_profile(AW_DEV_0, aw_profile[1]);
+#endif
+            }
+#endif
+            /* changed end. */
             break;
         case RCV:
         case SPK_PATH:
@@ -556,11 +599,18 @@ static int rk817_playback_path_put(struct snd_kcontrol *kcontrol, struct snd_ctl
             }
             snd_soc_component_write(component, RK817_CODEC_DDAC_VOLL, rk817->spk_volume);
             snd_soc_component_write(component, RK817_CODEC_DDAC_VOLR, rk817->spk_volume);
-#ifdef CONFIG_SND_AMPLIFIER_AW87519
-            if (pre_path == OFF) {
-                aw87519_set_audio_amplifier_enable(true);
+            /* changed tower: add aw87xxx ap. */
+#if (defined CONFIG_SND_SOC_AW87519) || (defined CONFIG_SND_SOC_AW87XXX)
+            if (pre_amplifier_en != amplifier_en) {
+#ifdef CONFIG_SND_SOC_AW87519
+                aw87519_set_audio_amplifier_enable(amplifier_en);
+#endif
+#ifdef CONFIG_SND_SOC_AW87XXX
+                aw87xxx_set_profile(AW_DEV_0, amplifier_en ? aw_profile[0] : aw_profile[1]);
+#endif
             }
 #endif
+            /* changed end. */
             break;
         case HP_PATH:
         case HP_NO_MIC:
@@ -579,8 +629,33 @@ static int rk817_playback_path_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 
             snd_soc_component_write(component, RK817_CODEC_DDAC_VOLL, rk817->hp_volume);
             snd_soc_component_write(component, RK817_CODEC_DDAC_VOLR, rk817->hp_volume);
+            /* changed tower: add aw87xxx ap. */
+#if (defined CONFIG_SND_SOC_AW87519) || (defined CONFIG_SND_SOC_AW87XXX)
+            if (pre_amplifier_en != amplifier_en) {
+#ifdef CONFIG_SND_SOC_AW87519
+                aw87519_set_audio_amplifier_enable(false);
+#endif
+#ifdef CONFIG_SND_SOC_AW87XXX
+                /*切换 PA AW_DEV_0 为 Off 场景*/
+                aw87xxx_set_profile(AW_DEV_0, aw_profile[1]);
+#endif
+            }
+#endif
+            /* changed end. */
             break;
         case BT:
+            /* changed tower: add aw87xxx ap. */
+#if (defined CONFIG_SND_SOC_AW87519) || (defined CONFIG_SND_SOC_AW87XXX)
+            if (pre_amplifier_en != amplifier_en) {
+#ifdef CONFIG_SND_SOC_AW87519
+                aw87519_set_audio_amplifier_enable(amplifier_en);
+#endif
+#ifdef CONFIG_SND_SOC_AW87XXX
+                aw87xxx_set_profile(AW_DEV_0, amplifier_en ? aw_profile[0] : aw_profile[1]);
+#endif
+            }
+#endif
+            /* changed end. */
             break;
         case SPK_HP:
         case RING_SPK_HP:
@@ -607,6 +682,19 @@ static int rk817_playback_path_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 
             snd_soc_component_write(component, RK817_CODEC_DDAC_VOLL, rk817->hp_volume);
             snd_soc_component_write(component, RK817_CODEC_DDAC_VOLR, rk817->hp_volume);
+            /* changed tower: add aw87xxx ap. */
+#if (defined CONFIG_SND_SOC_AW87519) || (defined CONFIG_SND_SOC_AW87XXX)
+            if (pre_amplifier_en != amplifier_en) {
+#ifdef CONFIG_SND_SOC_AW87519
+                aw87519_set_audio_amplifier_enable(true);
+#endif
+#ifdef CONFIG_SND_SOC_AW87XXX
+                /*切换 PA AW_DEV_0 为 Off 场景*/
+                aw87xxx_set_profile(AW_DEV_0, aw_profile[0]);
+#endif
+            }
+#endif
+            /* changed end. */
             break;
         default:
             return -EINVAL;
@@ -770,9 +858,9 @@ static int rk817_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_h
         dtop_digen_clke = DAC_DIG_CLK_EN;
     } else {
 #ifdef CONFIG_SND_SOC_ES7210
-	    es7210_pcm_hw_params(params);
+        es7210_pcm_hw_params(params);
 #else
-	    dtop_digen_clke = ADC_DIG_CLK_EN;
+        dtop_digen_clke = ADC_DIG_CLK_EN;
 #endif
     }
 
@@ -878,24 +966,11 @@ static int rk817_digital_mute(struct snd_soc_dai *dai, int mute)
     return 0;
 }
 
-#define RK817_PLAYBACK_RATES (SNDRV_PCM_RATE_8000 |\
-                  SNDRV_PCM_RATE_16000 |    \
-                  SNDRV_PCM_RATE_32000 |    \
-                  SNDRV_PCM_RATE_44100 |    \
-                  SNDRV_PCM_RATE_48000 |    \
-                  SNDRV_PCM_RATE_96000)
+#define RK817_PLAYBACK_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000)
 
-#define RK817_CAPTURE_RATES (SNDRV_PCM_RATE_8000 |\
-                  SNDRV_PCM_RATE_16000 |    \
-                  SNDRV_PCM_RATE_32000 |    \
-                  SNDRV_PCM_RATE_44100 |    \
-                  SNDRV_PCM_RATE_48000 |    \
-                  SNDRV_PCM_RATE_96000)
+#define RK817_CAPTURE_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000)
 
-#define RK817_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
-            SNDRV_PCM_FMTBIT_S20_3LE |\
-            SNDRV_PCM_FMTBIT_S24_LE |\
-            SNDRV_PCM_FMTBIT_S32_LE)
+#define RK817_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_ops rk817_dai_ops = {
     .hw_params = rk817_hw_params,
@@ -958,6 +1033,7 @@ static int rk817_resume(struct snd_soc_component *component)
 
 static int rk817_probe(struct snd_soc_component *component)
 {
+    int ret = 0;
     struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
 
     DBG("%s\n", __func__);
@@ -973,6 +1049,15 @@ static int rk817_probe(struct snd_soc_component *component)
 
     rk817_reset(component);
     snd_soc_add_component_controls(component, rk817_snd_path_controls, ARRAY_SIZE(rk817_snd_path_controls));
+    /* changed tower: add aw87xxx ap. */
+#ifdef CONFIG_SND_SOC_AW87XXX
+    ret = aw87xxx_add_codec_controls((void *)component);
+    if (ret < 0) {
+        pr_err("%s: add component controls failed, err %d\n", __func__, ret);
+        return ret;
+    };
+#endif
+    /* changed edn. */
     return 0;
 }
 
@@ -991,7 +1076,6 @@ static void rk817_remove(struct snd_soc_component *component)
     rk817_codec_power_down(component, RK817_CODEC_ALL);
     snd_soc_component_exit_regmap(component);
     mdelay(10);
-
 }
 
 static const struct snd_soc_component_driver soc_codec_dev_rk817 = {
@@ -1002,7 +1086,7 @@ static const struct snd_soc_component_driver soc_codec_dev_rk817 = {
     .idle_bias_on = 1,
     .use_pmdown_time = 1,
     .endianness = 1,
-    .non_legacy_dai_naming = 1
+    .non_legacy_dai_naming = 1,
 };
 
 static int rk817_codec_parse_dt_property(struct device *dev, struct rk817_codec_priv *rk817)
@@ -1164,7 +1248,7 @@ static void rk817_platform_shutdown(struct platform_device *pdev)
 }
 
 static const struct of_device_id rk817_codec_dt_ids[] = {
-    { .compatible = "rockchip,rk817-codec" },
+    {.compatible = "rockchip,rk817-codec"},
     {},
 };
 MODULE_DEVICE_TABLE(of, rk817_codec_dt_ids);

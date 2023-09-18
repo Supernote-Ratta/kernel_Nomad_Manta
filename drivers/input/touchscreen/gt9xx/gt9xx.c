@@ -403,17 +403,13 @@ static u8 gtp_get_points(struct goodix_ts_data *ts,
 		if (ts->pdata->swap_x2y)
 			GTP_SWAP(points[i].x, points[i].y);
 		
-		printk( "bef[%d][%d][%d %d %d]\n",
-			ts->pdata->x2x, ts->pdata->y2y, points[i].x, points[i].y, points[i].p);
+		//printk("bef[%d][%d][%d %d %d]\n",ts->pdata->x2x, ts->pdata->y2y, points[i].x, points[i].y, points[i].p);
 		if (ts->pdata->x2x)
 			points[i].x = ts->pdata->abs_size_x -points[i].x;
 		if (ts->pdata->y2y)
 			points[i].y = ts->pdata->abs_size_y -points[i].y;
-		printk( "abs_size_x[%d] abs_size_y[%d]\n",
-					ts->pdata->abs_size_x, ts->pdata->abs_size_y);
-
-		printk( "[%d][%d %d %d]\n",
-			points[i].id, points[i].x, points[i].y, points[i].p);
+		//printk("abs_size_x[%d] abs_size_y[%d]\n",ts->pdata->abs_size_x, ts->pdata->abs_size_y);
+		//printk("[%d][%d %d %d]\n",points[i].id, points[i].x, points[i].y, points[i].p);
 
 		/* pen device coordinate */
 		if (points[i].id & 0x80) {

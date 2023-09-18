@@ -16,16 +16,7 @@
 #include "rk3568-android.dtsi"
 #include "rk3566-eink.dtsi"
 
-#define KLOUDNOTE_LOW
-//#define EINK10S 
-//#define EINKXK
-#ifdef KLOUDNOTE_LOW
-#define EINK10S
-#define TP_SMALL
-#else
-#define AOYI103
-#endif
-//#define TYPEC_fusb30x
+#define SEEKWAVE
 
 / {
     model = "Rockchip RK3566 EINK KloudNote2 10.3 Board";
@@ -56,7 +47,7 @@
     };
 
     adc_keys: adc-keys {
-        status = "okay";
+        status = "disabled";
         compatible = "adc-keys";
         io-channels = <&saradc 0>;
         io-channel-names = "buttons";
@@ -98,14 +89,14 @@
         pinctrl-0 =<&leds_gpio>;
 
         led@1 {
-            gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+            gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-full";
             label = "battery_full";
             retain-state-suspended;
         };
 
         led@2 {
-            gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
+            gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-charging";
             label = "battery_charging";
             retain-state-suspended;
@@ -113,10 +104,12 @@
     };
 
     hall_sensor: hall-mh248 {
+        status = "okay";
         compatible = "hall-mh248";
+        pinctrl-names = "default";
+        pinctrl-0 = <&hall_irq_gpio>;
         irq-gpio = <&gpio0 RK_PA0 IRQ_TYPE_EDGE_BOTH>;
         hall-active = <1>;
-        status = "disabled";
     };
 
     vccsys: vccsys {
@@ -156,9 +149,10 @@
          * - PDN (power down when low)
          */
         post-power-on-delay-ms = <200>;
-        reset-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
+        reset-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_LOW>;
     };
 
+#ifndef SEEKWAVE
     wireless-wlan {
         compatible = "wlan-platdata";
         rockchip,grf = <&grf>;
@@ -183,19 +177,26 @@
         BT,wake_host_irq = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
         status = "okay";
     };
+#else
+    seekwcn_wifibt:seekwcn_wifibt {
+        status = "okay";
+        compatible = "seekwave,sv6160";
+        pinctrl-names = "default";
+        pinctrl-0 = <&host_wake_gpio &chip_wake_gpio>;
+        sv6160_path = "/vendor/bin/sv6160.bin";
+        sv6160_dram_path = "/vendor/etc/firmware/RAM_RW_KERNEL_DRAM.bin";
+        sv6160_iram_path = "/vendor/etc/firmware/ROM_EXEC_KERNEL_IRAM.bin";
+        dma_type = <1>;/*1:ADMA,2:SDMA*/
+        gpio_host_wake = <&gpio0 RK_PD4 GPIO_ACTIVE_LOW>;
+        gpio_chip_wake = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+    };
+#endif
 };
 
 &ebc {
     /* clock rate 1000M/n, (n=1~32) */
     assigned-clocks = <&cru CPLL_333M>, <&cru DCLK_EBC>;
-	#ifdef EINKXK
     assigned-clock-rates = <34000000>, <34000000>;
-	#elif defined(AOYI103)
-	// stand: 46000000, increase 10%=50600000, set to 49M first.
-	assigned-clock-rates = <49000000>, <49000000>; 
-	#else
-	assigned-clock-rates = <34000000>, <34000000>;
-	#endif 
     status = "okay";
 };
 
@@ -203,18 +204,18 @@
     pmic = <&tps65185 &sy7636a>;
     //backlight = <&backlight>;
     status = "okay";
-	
-    /* ES103TC1 */
-#ifdef EINK10S	
+
+    /* AOYI103 */
     panel,width = <1872>;
     panel,height = <1404>;
     panel,vir_width = <1872>;
     panel,vir_height = <1404>;
-    panel,sdck = <34000000>; // 20220530: fix for new-clk asignment.
+    panel,sdck = <35000000>;
     panel,lsl = <18>;
     panel,lbl = <17>;
     panel,ldl = <234>;
-    panel,lel = <7>;
+    // 15:CKV = 117.7K, EMR NOISE 达到最佳效果。20220712:确认15是最佳效果。
+    panel,lel = <15>;  // 470ns
     panel,gdck-sta = <34>;
     panel,lgonl = <192>;
     panel,fsl = <1>;
@@ -227,56 +228,7 @@
     panel,width-mm = <210>;
     panel,height-mm = <157>;
     panel,dpi = <220>;
-    panel,vcom-mv = <1670>;
-#elif defined(EINKXK)	
-	panel,width = <2480>;
-    panel,height = <1860>;
-    panel,vir_width = <2480>;
-    panel,vir_height = <1860>;
-    panel,sdck = <34000000>; // 20220627: the real clk is 63M HZ.
-    panel,lsl = <14>;
-    panel,lbl = <8>;
-    panel,ldl = <310>;
-    panel,lel = <51>;
-    panel,gdck-sta = <34>;
-    panel,lgonl = <192>;
-    panel,fsl = <2>;
-    panel,fbl = <4>;
-    panel,fdl = <1860>;
-    panel,fel = <4>;
-    panel,mirror = <0>;
-    panel,panel_16bit = <1>;
-    panel,panel_color = <0>;
-    panel,width-mm = <210>;
-    panel,height-mm = <157>;
-    panel,dpi = <300>;
-    panel,vcom-mv = <1670>;
-#elif defined(AOYI103)
-	panel,width = <2240>;
-    panel,height = <1680>;
-    panel,vir_width = <2240>;
-    panel,vir_height = <1680>;
-    panel,sdck = <46000000>; //<34000000>; // 20220530: fix for new-clk asignment.
-    panel,lsl = <18>;
-    panel,lbl = <17>;
-    panel,ldl = <280>;
-    panel,lel = <7>;
-    panel,gdck-sta = <10>;
-    panel,lgonl = <288>;
-    panel,fsl = <1>;
-    panel,fbl = <4>;
-    panel,fdl = <1680>;
-    panel,fel = <5>;
-    panel,mirror = <0>;
-    panel,panel_16bit = <1>;
-    panel,panel_color = <0>;
-    panel,width-mm = <210>;
-    panel,height-mm = <157>;
-    panel,dpi = <300>;
-    panel,vcom-mv = <1830>;
-#else
-	"Error:No EINK-PANEL defined!!"
-#endif 
+    panel,vcom-mv = <1300>; //for OED 10.3 LANDSCAPE EPD.
 };
 
 // 20220523,hsl fix: 6*fb_size + 2*lcd_size + 512K 
@@ -285,15 +237,9 @@
 // 20230213: for serria-C,dither-error-buf is short. 17608192 + 2628288*2 = 22864768 = 0x15CE380
 // OED103H: 8*3763200 + 940800*2 + 524288 = 994688 + 38063104 = 39057792 = 0x253F980
 &display_reserved {
-	#ifdef EINKXK
-	reg = <0x0 0x10900000 0x0 0x1D1A000>;
-	#elif defined(AOYI103)
-	reg = <0x0 0x10900000 0x0 0x2540000>;
-	#else 
-	reg = <0x0 0x10900000 0x0 0x15d0000>;
-	#endif 
+    reg = <0x0 0x10900000 0x0 0x15d0000>;
 };
-		
+
 &cpu0 {
     cpu-supply = <&vdd_cpu>;
 };
@@ -352,9 +298,10 @@
 &i2c0 {
     status = "okay";
 
-    vdd_cpu: tcs4525@1c {
-        compatible = "tcs,tcs452x";
-        reg = <0x1c>;
+    vdd_cpu: syr827@41 {
+        status = "okay";
+        compatible = "silergy,syr827";
+        reg = <0x41>;
         vin-supply = <&vccsys>;
         regulator-compatible = "fan53555-reg";
         regulator-name = "vdd_cpu";
@@ -618,8 +565,8 @@
         battery {
             compatible = "rk817,battery";
             ocv_table = <3400 3513 3578 3687 3734 3752 3763
-                     3766 3771 3784 3804 3836 3885 3925
-                     3962 4005 4063 4114 4169 4227 4303>;
+                3766 3771 3784 3804 3836 3885 3925
+                3962 4005 4063 4114 4169 4227 4303>;
             design_capacity = <4150>;
             design_qmax = <4565>;
             bat_res = <100>;
@@ -645,7 +592,7 @@
             chrg_finish_cur = <300>;
             virtual_power = <0>;
             dc_det_adc = <0>;
-            extcon = <&usb2phy0>;
+            extcon = <&usbc0>;
             gate_function_disable = <1>;
         };
 
@@ -663,6 +610,7 @@
             spk-volume = <3>;
             out-l2spk-r2hp;
             use-ext-amplifier;
+            //spk-ctl-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
             status = "okay";
         };
     };
@@ -670,54 +618,7 @@
 
 &i2c1 {
     status = "okay";
-    tsc@24 {
-        status = "okay";
-        compatible = "cy,cyttsp5_i2c_adapter";
-        reg = <0x24>;
-        cy,adapter_id = "cyttsp5_i2c_adapter";
-        pinctrl-names = "default";
-        pinctrl-0 = <&tsc_gpio>;
-        cytp-supply = <&vcc_tp>;
-        cy,core {
-            cy,name = "cyttsp5_core";
-            cy,irq_gpio =  <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
-            cy,rst_gpio =  <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
-            cy,hid_desc_register = <1>;
-            /* CY_CORE_FLAG_RESTORE_PARAMETERS */
-            cy,flags = <6>;
-            /* CY_CORE_EWG_NONE */
-            cy,easy_wakeup_gesture = <0>;
-            cy,mt {
-                cy,name = "cyttsp5_mt";
-                cy,inp_dev_name = "cyttsp5_mt";
-                cy,flags = <0x00>; //0x20: CY_MT_FLAG_INV_Y  CY_MT_FLAG_FLIP = 0x08 CY_MT_FLAG_INV_X = 0x10,
-                cy,abs =
-                    /* ABS_MT_POSITION_X, CY_ABS_MIN_X, CY_ABS_MAX_X, 0, 0 */
-                    <0x35 0 1872 0 0
-                    /* ABS_MT_POSITION_Y, CY_ABS_MIN_Y, CY_ABS_MAX_Y, 0, 0 */
-                    0x36 0 1404 0 0
-                    /* ABS_MT_PRESSURE, CY_ABS_MIN_P, CY_ABS_MAX_P, 0, 0 */
-                    0x3a 0 255 0 0
-                    /* CY_IGNORE_VALUE, CY_ABS_MIN_W, CY_ABS_MAX_W, 0, 0 */
-                    0xffff 0 255 0 0
-                    /* ABS_MT_TRACKING_ID, CY_ABS_MIN_T, CY_ABS_MAX_T, 0, 0 */
-                    0x39 0 15 0 0
-                    /* ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0 */
-                    0x30 0 255 0 0
-                    /* ABS_MT_TOUCH_MINOR, 0, 255, 0, 0 */
-                    0x31 0 255 0 0
-                    /* ABS_MT_ORIENTATION, -127, 127, 0, 0 */
-                    0x34 0xffffff81 127 0 0
-                    /* ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0 */
-                    0x37 0 1 0 0
-                    /* ABS_DISTANCE, 0, 255, 0, 0 */
-                    0x19 0 255 0 0>;
 
-                    cy,vkeys_x = <1872>;
-                    cy,vkeys_y = <1404>;
-            };
-        };
-    };
     gt9xx@14 {
         compatible = "goodix,gt9xx";
         reg = <0x14>; 
@@ -726,22 +627,15 @@
         //interrupts = <13 0x2800>;
         pinctrl-names = "default";
         pinctrl-0 = <&tsc_gpio>;
-        reset-gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_LOW>;
+        reset-gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
         irq-gpios  = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
         irq-flags = <2>;
-
         touchscreen-max-id = <11>;
-#ifdef TP_SMALL
         touchscreen-size-x = <1872>;
         touchscreen-size-y = <1404>;
-#else
-        touchscreen-size-x = <2240>;
-        touchscreen-size-y = <1680>;
-#endif
         touchscreen-max-w = <512>;
         touchscreen-max-p = <512>;
-        touchscreen-key-map = <172>, <158>; /*KEY_HOMEPAGE=172, KEY_BACK=158��KEY_MENU=139*/
-
+        touchscreen-key-map = <172>, <158>; /*KEY_HOMEPAGE=172, KEY_BACK=158，KEY_MENU=139*/
         goodix,slide-wakeup = <0>;
         goodix,type-a-report = <0>;
         goodix,driver-send-cfg = <1>;
@@ -754,15 +648,20 @@
         goodix,auto-update-cfg = <0>;
         goodix,power-off-sleep = <0>;
         goodix,pen-suppress-finger = <0>;
-#ifdef TP_SMALL
-		goodix,cfg-group0 = [
-			65 50 07 7C 05 0A 05 00 01 0F 28 05 5F 46 03 05 00 00 00 00 00 00 08 00 00 00 00 90 30 CC 65 67 D9 0B 00 00 01 BB 02 1C 00 00 00 00 00 03 00 00 00 00 00 46 78 94 C0 02 07 00 00 04 91 49 00 89 52 00 84 5B 00 7F 66 00 7D 71 00 7D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 04 05 06 07 08 09 0C 0D 0E 0F 10 11 14 15 16 17 18 19 1A 1B 1C 1D 00 00 00 00 00 00 00 02 04 06 07 08 0A 0C 0D 0E 0F 10 11 12 13 14 19 1B 1C 1E 1F 20 21 22 23 24 25 26 27 28 29 2A 00 00 00 00 00 00 00 00 00 00 59 01
-		];
-#else
-		goodix,cfg-group0 = [
-			64 C0 08 90 06 0A 05 00 01 0F 28 05 5F 46 03 05 00 00 00 00 00 00 08 00 00 00 00 90 30 CC 65 67 D9 0B 00 00 01 BB 02 1D 00 00 00 00 00 03 00 00 00 00 00 46 78 94 C0 02 07 00 00 04 91 49 00 89 52 00 84 5B 00 7F 66 00 7D 71 00 7D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 04 05 06 07 08 09 0C 0D 0E 0F 10 11 14 15 16 17 18 19 1A 1B 1C 1D 00 00 00 00 00 00 00 02 04 06 07 08 0A 0C 0D 0E 0F 10 11 12 13 14 19 1B 1C 1E 1F 20 21 22 23 24 25 26 27 28 29 2A 00 00 00 00 00 00 00 00 00 00 D3 01
-		];
-#endif
+        goodix,cfg-group0 = [
+            65 50 07 7C 05 0A 05 00 01 0F 28 05 5F 46 03 05 00 00 00 00 00 00 08 00 00 00 00 90 30 CC 65 67 D9 0B 00 00 01 BB 02 1C 00 00 00 00 00 03 00 00 00 00 00 46 78 94 C0 02 07 00 00 04 91 49 00 89 52 00 84 5B 00 7F 66 00 7D 71 00 7D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 04 05 06 07 08 09 0C 0D 0E 0F 10 11 14 15 16 17 18 19 1A 1B 1C 1D 00 00 00 00 00 00 00 02 04 06 07 08 0A 0C 0D 0E 0F 10 11 12 13 14 19 1B 1C 1E 1F 20 21 22 23 24 25 26 27 28 29 2A 00 00 00 00 00 00 00 00 00 00 59 01
+        ];
+    };
+
+    usbc0: fusb30x@22 {
+        status = "okay";
+        compatible = "fairchild,fusb302";
+        reg = <0x22>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&fusb0_int>;
+        power-supply = <&vcc3v3_pmu>;
+        int-n-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
+        //-gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_LOW>;
     };
 };
 
@@ -781,7 +680,7 @@
         pinctrl-0 = <&wacom_gpio>;
         gpio_detect = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
         gpio_intr = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
-        gpio_rst = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+        gpio_rst = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
         revert_x = <1>;
         revert_y = <1>;
         xy_exchange = <0>;
@@ -808,47 +707,12 @@
         reg = <0x62>;
         pinctrl-names = "default";
         pinctrl-0 = <&einkpmic_gpio>;
-        powerup-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+        powerup-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
         vcomctl-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
         error-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
         vdd-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
-        pmicon-gpios  = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+        //pmicon-gpios  = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
     };
-
-#if 0 //def TYPEC_fusb30x
-    usbc0: fusb30x@22 {
-        status = "okay";
-        compatible = "fairchild,fusb302";
-        reg = <0x22>;
-        pinctrl-names = "default";
-        pinctrl-0 = <&fusb0_int>;
-        //pinctrl-0 = <&fusb0_int>, <&fusb0_switch>;
-        power-supply = <&vccio_sd>;
-        //vbus-5v-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
-        int-n-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
-        switch-gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_LOW>;
-    };
-//#else
-    usbc0: et7303@4e {
-        status = "okay";
-        compatible = "etek,et7303";
-        reg = <0x4e>;
-        interrupt-parent = <&gpio0>;
-        interrupts = <16 IRQ_TYPE_LEVEL_LOW>;
-        pinctrl-names = "default";
-        pinctrl-0 = <&et7303_int>;
-
-        usb_con: connector {
-            data-role = "dual";
-            power-role = "dual";
-            try-power-role = "sink";
-            sink-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)>;
-            source-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)>;
-            op-sink-microwatt = <10000000>;
-        };
-    };
-#endif
-
 };
 
 &i2c4 {
@@ -856,19 +720,28 @@
     pinctrl-names = "default";
     pinctrl-0 = <&i2c4m1_xfer>;
 
-    es7210@40 {
-        compatible = "ES7210_MicArray_0";
-        power-supply = <&vcc_3v3>;
-        reg = <0x40>;
+    gs_mxc6655xa: gsensor@15 {
         status = "okay";
+        compatible = "gs_mxc6655xa";
+        reg = <0x15>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&gsensor_irq_gpio>;
+        irq-gpio = <&gpio0 RK_PD6 IRQ_TYPE_LEVEL_LOW>;
+        irq_enable = <0>;
+        wakeup-source;
+        poll_delay_ms = <20>;
+        type = <SENSOR_TYPE_ACCEL>;
+        power-off-in-suspend = <1>;
+        layout = <7>;
     };
 
-    htfyun-aw87519@58 {
-        compatible = "htfyun-aw87519";
+    htfyun-aw87559@58 {
+        compatible = "awinic,aw87xxx_pa";
         reg = <0x58>;
         pinctrl-names = "default";
-        pinctrl-0 = <&aw87519_reset_pinctrl>;
-        reset-gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
+        pinctrl-0 = <&aw87559_reset_pinctrl>;
+        reset-gpio = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+        dev_index = <0>;
         status = "okay";
     };
 };
@@ -885,19 +758,16 @@
         clocks = <&cru CLK_CAM0_OUT>;
         clock-names = "xvclk";
         power-domains = <&power RK3568_PD_VI>;
-        pinctrl-names = "rockchip,camera_default", "rockchip,camera_sleep", "pwen", "pwdn";
-        pinctrl-0 = <&cam_clkout0>;
-        pinctrl-1 = <&cam_sleep>;
-        pinctrl-2 = <&pwer_en>;
-        pinctrl-3 = <&pwer_dn>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&cam_gpio>;
 
-		//reset pin control by hardware,used this pin switch to mipi input
-		//0->FRONT camera, 1->REAR camera
-        pwen-gpios = <&gpio3 RK_PC3 GPIO_ACTIVE_HIGH>;
-        reset-gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
-        pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+        //reset pin control by hardware,used this pin switch to mipi input
+        //0->FRONT camera, 1->REAR camera
+        pwen-gpios = <&gpio3 RK_PB2 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
+        pwdn-gpios = <&gpio2 RK_PC6 GPIO_ACTIVE_HIGH>;
         rockchip,camera-module-index = <0>;
-        rockchip,camera-module-facing = "front";
+        rockchip,camera-module-facing = "back";
         rockchip,camera-module-name = "P10K";
         rockchip,camera-module-lens-name = "DL5020";
         port {
@@ -907,6 +777,10 @@
             };
         };
     };
+};
+
+&xin32k {
+    status = "disabled";
 };
 
 &i2s0_8ch {
@@ -930,9 +804,8 @@
         compatible = "focaltech,fingerprint-spidev";
         reg = <0>;
         spi-max-frequency = <1000000>;
-        fingerprint,en-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
-        fingerprint,touch-int-gpio = <&gpio0 RK_PC0 IRQ_TYPE_EDGE_RISING>;
-        fingerprint,gpio_reset = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+        fingerprint,touch-int-gpio = <&gpio0 RK_PC5 IRQ_TYPE_EDGE_RISING>;
+        fingerprint,gpio_reset = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
         status = "okay";
     };
 };
@@ -958,36 +831,32 @@
 };
 
 &pinctrl {
+    sensors {
+        hall_irq_gpio: hall-irq-gpio {
+            rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO  &pcfg_pull_up>;
+        };
+
+        gsensor_irq_gpio: gsensor-irq-gpio {
+            rockchip,pins = <0 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+        };
+    };
+
     cam {
-        cam_clkout0: cam-clkout0 {
+        cam_gpio: cam-gpio {
             rockchip,pins =
-                /* cam_clkout0 */
-                <4 RK_PA7 1 &pcfg_pull_none>;
-        };
-
-        cam_sleep: cam-sleep {
-            rockchip,pins =
-                /* cam_sleep */
-                <4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
-        };
-
-        pwer_en: pwer-en {
-            rockchip,pins =
-                <3 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>;
-        };
-
-        pwer_dn: pwer-dn {
-            rockchip,pins =
-                <3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+                <4 RK_PA7 1 &pcfg_pull_none>, /* cam clkout0 */
+                <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>, /* cam power en */
+                <2 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>, /* cam power dn */
+                <2 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>; /* cam rst */
         };
     };
 
     wacom {
         wacom_gpio: wacom-gpio {
             rockchip,pins =
-                <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>,
-                <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>,
-                <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
+                <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,
+                <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>,
+                <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
         };
     };
 
@@ -995,16 +864,12 @@
         fusb0_int: fusb0-int {
             rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>;
         };
-
-        fusb0_switch: fusb0-switch {
-            rockchip,pins = <3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
-        };
     };
 
     tsc {
         tsc_gpio: tsc-gpio {
             rockchip,pins =
-                <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>,
+                <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,
                 <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>;
         };
     };
@@ -1012,17 +877,16 @@
     leds {
         leds_gpio: leds-gpio {
             rockchip,pins =
-                <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>,
-                <3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+                <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>,
+                <2 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
         };
     };
 
-	eink_pmic {
+    eink_pmic {
         einkpmic_gpio: einkpmic-gpio {
             rockchip,pins =
                 <3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,
                 <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,
-                <3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_down>,
                 <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>,
                 <4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
         };
@@ -1052,10 +916,13 @@
 
     sdio-pwrseq {
         wifi_enable_h: wifi-enable-h {
-            rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+            rockchip,pins =
+                <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>,
+                <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;// sdio power on for seekwave
         };
     };
 
+#ifndef SEEKWAVE
     wireless-wlan {
         wifi_vbat: wifi-vbat {
             rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -1083,10 +950,21 @@
             rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>;
         };
     };
+#else
+    wireless-wifibt {
+        host_wake_gpio: host-wake-gpio {
+            rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+        };
 
-    aw87519_reset_pin {
-        aw87519_reset_pinctrl: aw87519-reset-pinctrl {
-            rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+        chip_wake_gpio: chip-wake-gpio {
+            rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+        };
+    };
+#endif
+
+    aw87xxx_reset_pin {
+        aw87559_reset_pinctrl: aw87559-reset-pinctrl {
+            rockchip,pins = <3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
         };
     };
 };
@@ -1239,12 +1117,12 @@
 
 &usb2phy0 {
     status = "okay";
-    //extcon = <&usbc0>;
+    extcon = <&usbc0>;
 };
 
 &usbdrd_dwc3 {
     status = "okay";
-    //extcon = <&usbc0>;
+    extcon = <&usbc0>;
 };
 
 &usbdrd30 {

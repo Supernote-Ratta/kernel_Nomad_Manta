@@ -595,8 +595,8 @@ static int papyrus_probe(struct pmic_sess *pmsess, struct i2c_client *client)
 	sess->pmicon = devm_gpiod_get_optional(&client->dev, "pmicon", GPIOD_OUT_HIGH);
     if (IS_ERR_OR_NULL(sess->pmicon)) {
         printk("sy7636a: failed to find pmicon pin!\n");
-		kfree(sess);
-        return -ENOMEM;
+		//kfree(sess);
+		//return -ENOMEM;
     }
 
     stat = papyrus_hw_init(sess, 0);
