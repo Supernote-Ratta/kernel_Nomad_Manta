@@ -18,6 +18,8 @@
 #define SKW_TXQ_HIGH_THRESHOLD     1000
 #define SKW_TXQ_LOW_THRESHOLD      256
 
+#define SKW_TX_WAIT_TIME 50
+
 struct skw_tx_desc_hdr {
 	/* pading bytes for gap */
 	u16 padding_gap:2;
@@ -59,6 +61,10 @@ struct skw_tx_cb {
 	struct skw_edma_elem e;
 };
 
+static inline void
+skw_set_tx_desc_eth_type(struct skw_tx_desc_hdr *desc_hdr, u16 proto)
+{
+}
 
 int skw_pcie_cmd_xmit(struct skw_core *skw, void *data, int data_len);
 int skw_pcie_xmit(struct skw_core *skw, int lmac_id, struct sk_buff_head *txq);

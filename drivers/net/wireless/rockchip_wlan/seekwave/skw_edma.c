@@ -69,9 +69,9 @@ skw_edma_set_data(struct wiphy *wiphy, struct skw_edma_chn *edma,
 
 	spin_lock_irqsave(&edma->edma_chan_lock, flags);
 	buff = (u8 *)node->buffer;
-	skw_dbg("chan:%d node_id:%d node->used:%d buff:0x%llx +used:0x%llx\n",
-		edma->channel, node->node_id, node->used, (u64)buff,
-		(u64)(buff + node->used));
+	skw_dbg("chan: %d node_id: %d node->used: %d buff: %pad used: %pad\n",
+		edma->channel, node->node_id, node->used, (dma_addr_t *)buff,
+		(dma_addr_t *)(buff + node->used));
 	//skw_dbg("data:%p, data:0x%llx\n", data, (u64) data);
 	memcpy(buff + node->used, data, len);
 	//skw_dbg("%d channel:%d node:%p\n", __LINE__, edma->channel, node);
@@ -151,8 +151,8 @@ static int skw_edma_chn_init(struct skw_core *skw, struct skw_edma_chn *edma,
 	spin_lock_init(&edma->edma_chan_lock);
 	INIT_LIST_HEAD(&edma->node_list);
 
-	skw_dbg("%d channel:%d edma->edma_hdr_pa:0x%llx\n", __LINE__, channel,
-		edma->edma_hdr_pa);
+	skw_dbg("%d channel: %d edma->edma_hdr_pa: %pad\n",
+		__LINE__, channel, (dma_addr_t *)edma->edma_hdr_pa);
 
 	for (i = 0; i < max_node; i++) {
 		next_offset = 8 +
@@ -232,7 +232,7 @@ skw_edma_tx_node_isr(void *priv, void *first_pa, void *last_pa, int count)
 	//		edma_chn->channel, hdr_next);
 
 	//offset = (u64)first_pa - (edma_chn->hdr->hdr_next - 16);
-	offset = skw->hw_pdata->pcieaddr_to_phyaddr((u64 ) first_pa)
+	offset = skw->hw_pdata->pcieaddr_to_phyaddr((dma_addr_t)first_pa)
 					- 8 - edma_chn->edma_hdr_pa;
 	//skw_dbg("offset:%d channel:%d\n", offset, edma_chn->channel);
 	//edma_hdr = (struct skw_edma_hdr *) (phys_to_virt(first_pa) - 8);
@@ -320,6 +320,7 @@ skw_pci_edma_tx_free(struct skw_core *skw, struct sk_buff_head *free_list,
 
 static void skw_pci_edma_rx_data(struct skw_core *skw, void *data, int data_len)
 {
+#if 0
 	struct skw_rx_desc *desc = NULL;
 	struct sk_buff *skb;
 	int i, total_len;
@@ -345,10 +346,9 @@ static void skw_pci_edma_rx_data(struct skw_core *skw, void *data, int data_len)
 		else
 			pkt_len = desc->msdu_len + 88;
 
-		total_len = pkt_len + skw->skb_share_len;
-		total_len = SKB_DATA_ALIGN(total_len + NET_SKB_PAD);
+		total_len = SKB_DATA_ALIGN(pkt_len) + skw->skb_share_len;
 
-		if (unlikely(total_len > SKW_ADMA_BUF_LEN)) {
+		if (unlikely(total_len > SKW_ADMA_BUFF_LEN)) {
 			skw_hw_assert(skw);
 			skw_warn("total len: %d\n", total_len);
 
@@ -370,6 +370,7 @@ static void skw_pci_edma_rx_data(struct skw_core *skw, void *data, int data_len)
 		skw->rx_packets++;
 		skw_wakeup_rx(skw);
 	}
+#endif
 }
 
 static void skw_pci_edma_rx_filter_data(struct skw_core *skw, void *data, int data_len)
@@ -377,10 +378,9 @@ static void skw_pci_edma_rx_filter_data(struct skw_core *skw, void *data, int da
 	struct sk_buff *skb;
 	int total_len;
 
-	total_len = data_len + skw->skb_share_len;
-	total_len = SKB_DATA_ALIGN(total_len + NET_SKB_PAD);
+	total_len = SKB_DATA_ALIGN(data_len) + skw->skb_share_len;
 
-	if (unlikely(total_len > SKW_ADMA_BUF_LEN)) {
+	if (unlikely(total_len > SKW_ADMA_BUFF_LEN)) {
 		skw_warn("total_len: %d\n", total_len);
 		skw_compat_page_frag_free(data);
 		return;
@@ -420,9 +420,8 @@ void skw_pcie_edma_rx_cb(void *priv, void *data, u16 data_len)
 	if (channel == SKW_EDMA_WIFI_SHORT_EVENT_CHN || channel == SKW_EDMA_WIFI_LONG_EVENT_CHN) {
 		//skw_hex_dump("rx_cb data:", data, 16, 1);
 
-		total_len = data_len + skw->skb_share_len;
-		total_len = SKB_DATA_ALIGN(total_len + NET_SKB_PAD);
-		if (unlikely(total_len > SKW_ADMA_BUF_LEN)) {
+		total_len = SKB_DATA_ALIGN(data_len) + skw->skb_share_len;
+		if (unlikely(total_len > SKW_ADMA_BUFF_LEN)) {
 			skw_warn("data: %d\n", data_len);
 			skw_compat_page_frag_free(data);
 			return;
@@ -537,8 +536,8 @@ int skw_edma_cfg_chan(struct skw_core *skw, struct skw_edma_chn *edma_ch,
 
 	cfg->node_count = edma_ch->max_node_num;
 	cfg->header = edma_ch->hdr[cfg->node_count - 1].hdr_next;
-	skw_dbg("channel:%d header pa:0x%llx\n",
-		edma_ch->context.channel, cfg->header);
+	skw_dbg("channel: %d header pa: %pad\n",
+		edma_ch->context.channel, (dma_addr_t *)cfg->header);
 	cfg->complete_callback = skw->edma_cmd.isr;
 	cfg->rx_callback = skw_pcie_edma_rx_cb;
 	cfg->context = &skw->edma_cmd.context;

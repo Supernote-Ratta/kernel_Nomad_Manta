@@ -44,6 +44,7 @@
 
 #define SKW_KMEMDUP(s, l, f)     (((s) != NULL) ? kmemdup(s, l, f) : NULL)
 #define SKW_MGMT_SFC(fc)         (le16_to_cpu(fc) & IEEE80211_FCTL_STYPE)
+#define SKW_WDEV_TO_IFACE(w)     container_of(w, struct skw_iface, wdev)
 
 #define SKW_OUI(a, b, c)                                       \
 	(((a) & 0xff) << 16 | ((b) & 0xff) << 8 | ((c) & 0xff))
@@ -53,7 +54,7 @@
 	list_entry((pos)->member.next, typeof(*(pos)), member)
 #endif
 
-#ifdef CONFIG_SKW_BUG_ON
+#ifdef SKWIFI_ASSERT
 #define SKW_BUG_ON(c)     BUG_ON(c)
 #else
 #define SKW_BUG_ON(c)     WARN_ON(c)
@@ -87,6 +88,18 @@ static inline void u64_stats_init(struct u64_stats_sync *syncp)
 	pcpu_stats;						\
 })
 #endif
+
+#define skw_foreach_element(_elem, _data, _datalen)			     \
+	for (_elem = (struct skw_element *)(_data);                          \
+	     (const u8 *)(_data) + (_datalen) - (const u8 *)_elem >=	     \
+		(int)sizeof(*_elem) &&					     \
+	     (const u8 *)(_data) + (_datalen) - (const u8 *)_elem >=	     \
+		(int)sizeof(*_elem) + _elem->datalen;			     \
+	     _elem = (struct skw_element *)(_elem->data + _elem->datalen))
+
+#define skw_foreach_element_id(element, _id, data, datalen)		     \
+	skw_foreach_element(element, data, datalen)			     \
+		if (element->id == (_id))
 
 struct skw_tp_rate {
 	union {
@@ -138,17 +151,16 @@ struct skw_element {
 	u8 data[];
 } __packed;
 
-#define skw_foreach_element(_elem, _data, _datalen)			\
-	for (_elem = (struct skw_element *)(_data);	\
-	     (const u8 *)(_data) + (_datalen) - (const u8 *)_elem >=	\
-		(int)sizeof(*_elem) &&					\
-	     (const u8 *)(_data) + (_datalen) - (const u8 *)_elem >=	\
-		(int)sizeof(*_elem) + _elem->datalen;			\
-	     _elem = (struct skw_element *)(_elem->data + _elem->datalen))
+struct skw_tlv {
+	u16 type;
+	u16 len;
+	char value[0];
+};
 
-#define skw_foreach_element_id(element, _id, data, datalen)		\
-	skw_foreach_element(element, data, datalen)			\
-		if (element->id == (_id))
+struct skw_tlv_conf {
+	void *buff;
+	int buff_len, total_len;
+};
 
 static inline struct skw_arphdr *skw_arp_hdr(struct sk_buff *skb)
 {
@@ -198,6 +210,11 @@ static inline void *skw_put_skb_zero(struct sk_buff *skb, unsigned int len)
 	return tmp;
 }
 
+static inline struct ethhdr *skw_eth_hdr(const struct sk_buff *skb)
+{
+	return (struct ethhdr *)skb->data;
+}
+
 static inline void skw_set_thread_priority(struct task_struct *thread,
 					   int policy, int priority)
 {
@@ -234,6 +251,16 @@ static inline const char *skw_iftype_name(enum nl80211_iftype iftype)
 	return ifname[iftype];
 }
 
+#ifdef SKW_IMPORT_NS
+struct file *skw_file_open(const char *path, int flags, int mode);
+int skw_file_read(struct file *fp, unsigned char *data,
+		size_t size, loff_t offset);
+int skw_file_write(struct file *fp, unsigned char *data,
+		size_t size, loff_t offset);
+int skw_file_sync(struct file *fp);
+void skw_file_close(struct file *fp);
+#endif
+
 int skw_key_idx(u16 bitmap);
 char *skw_mgmt_name(u16 fc);
 int skw_freq_to_chn(int freq);
@@ -245,4 +272,8 @@ const u8 *skw_find_ie_match(u8 eid, const u8 *ies, int len, const u8 *match,
 
 int skw_get_rx_rate(struct skw_rate *rate, u8 bw, u8 mode, u8 gi,
 		    u8 nss, u8 dcm, u16 data_rate);
+void skw_tlv_free(struct skw_tlv_conf *conf);
+void *skw_tlv_reserve(struct skw_tlv_conf *conf, int len);
+int skw_tlv_alloc(struct skw_tlv_conf *conf, int len, gfp_t gfp);
+int skw_tlv_add(struct skw_tlv_conf *conf, int type, void *dat, int dat_len);
 #endif

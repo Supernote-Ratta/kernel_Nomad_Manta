@@ -14,8 +14,6 @@ config SEEKWAVE_PLD_RELEASE
 
 #seekwave`s wifi bluetooth device driver etc
 if  SEEKWAVE_BSP_DRIVERS
-
-
 source "drivers/misc/seekwaveplatform/sdio/Kconfig"
 source "drivers/misc/seekwaveplatform/skwutil/Kconfig"
 endif

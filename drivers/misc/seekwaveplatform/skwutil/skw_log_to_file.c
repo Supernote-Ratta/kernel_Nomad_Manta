@@ -38,7 +38,7 @@
 
 #include "skw_log_to_file.h"
 #include "sv6160_mem_map.h"
-
+extern int cp_exception_sts;
 static char *log_path = "/data";
 module_param(log_path, charp, 0644);
 
@@ -139,6 +139,8 @@ static int modem_event_notifier(struct notifier_block *nb, unsigned long action,
 		case DEVICE_ASSERT_EVENT:
 		{
 			struct log_com_dev *ucom = log_com;
+			skwboot_log("the BSPASSERT EVENT Comming in !!!!\n");
+			cp_exception_sts = 1;
 			skw_sdio_log_start_rec();
 			spin_lock_irqsave(&ucom->lock, flags);
 			if(ucom->tx_busy) {
@@ -159,6 +161,7 @@ static int modem_event_notifier(struct notifier_block *nb, unsigned long action,
 		break;
 		case DEVICE_BSPREADY_EVENT:
 		{
+			cp_exception_sts = 0;
 			skwboot_log("the BSPREADY EVENT Comming in !!!!\n");
 			skw_sdio_log_start_rec();
 			skw_sdio_dumpmodem_stop_rec();
@@ -166,6 +169,7 @@ static int modem_event_notifier(struct notifier_block *nb, unsigned long action,
 		break;
 		case DEVICE_DUMPDONE_EVENT:
 		{
+			cp_exception_sts = 2;
 			skwboot_log("the DUMPDONE EVENT Comming in !!!!\n");
 			skw_sdio_log_stop_rec();
 			skw_sdio_log_set_assert_status(0);
@@ -173,6 +177,7 @@ static int modem_event_notifier(struct notifier_block *nb, unsigned long action,
 		break;
 		case DEVICE_BLOCKED_EVENT:
 		{
+			cp_exception_sts = 3;
 			skwboot_log("the BLOCKED EVENT Comming in !!!!\n");
 			skw_sdio_dumpmodem_start_rec();
 		}
@@ -324,14 +329,14 @@ check_rx_busy:
 				}
 			}
 
-			if((port_data->bus_type == USB_LINK)){
+			if (port_data->bus_type == USB_LINK) {
 				if(ret < 0){
 					skwlog_err("%s read log data err:%d, stop log work \n",__func__, ret);
 					skw_sdio_log_set_assert_status(0);
 					skw_sdio_log_stop_rec();
 				}
 			}
-			else if((port_data->bus_type == SDIO_LINK)){
+			else if (port_data->bus_type == SDIO_LINK) {
 				if(ret == -ENOTCONN){
 					skw_sdio_log_set_assert_status(0);
 					skw_sdio_log_stop_rec();
@@ -430,6 +435,7 @@ static void skw_sdio_dump_modem_mem_work(struct work_struct *data)
 	skw_cp_exception_reboot();
 #else
 	skw_sdio_save_dumpmem();
+	skw_cp_exception_reboot();
 #endif
 }
 
@@ -453,9 +459,7 @@ int skw_sdio_save_mem(char *mem_path,unsigned int mem_len, unsigned int mem_addr
 	unsigned int read_len=0;
 	unsigned int mem_size = mem_len;
 
-	skwlog_log("The Enter ----\n");
 	memset(dump_mem_file, 0, sizeof(dump_mem_file));
-
 	sprintf(dump_mem_file,"%s/%s", log_path, mem_path);
 	data_mem = kzalloc(SKW_MAX_BUF_SIZE, GFP_KERNEL);
 	if(!data_mem){
@@ -481,16 +485,18 @@ int skw_sdio_save_mem(char *mem_path,unsigned int mem_len, unsigned int mem_addr
 	set_fs(KERNEL_DS);
 #endif
 
-	skwlog_log("open file pass!\n");
-
-	while(mem_size){
-		if(mem_size<SKW_MAX_BUF_SIZE){
+	while(mem_size)
+	{
+		if(mem_size<SKW_MAX_BUF_SIZE)
+		{
 			read_len = mem_size;
 		}else{
 			read_len = SKW_MAX_BUF_SIZE;
 		}
 		//skwlog_log("the read_len =0x%x mem_size= 0x%x\n", read_len, mem_size);
 		ret = log_com->pdata->skw_dump_mem(mem_addr+(mem_len-mem_size),(void *)data_mem,read_len);
+		if(ret< 0)
+			break;
 
 		//print_hex_dump(KERN_ERR, "img data ", 0, 16, 1,data_mem, 32, 1);
 		//pos=(unsigned long)offset;
@@ -498,7 +504,8 @@ int skw_sdio_save_mem(char *mem_path,unsigned int mem_len, unsigned int mem_addr
 		nwrite=skw_write_file(fp, data_mem,read_len, &pos);
 		//offset +=nwrite;
 
-		if(mem_size>=SKW_MAX_BUF_SIZE){
+		if(mem_size>=SKW_MAX_BUF_SIZE)
+		{
 			mem_size=mem_size-SKW_MAX_BUF_SIZE;
 		}else{
 			mem_size =0;
@@ -509,8 +516,9 @@ int skw_sdio_save_mem(char *mem_path,unsigned int mem_len, unsigned int mem_addr
 #else
 	set_fs(old_fs);
 #endif
-	skwlog_log("Dump modem memory done !!\n");
-	if(fp){
+	skwlog_log("Dump %s memory done !!\n", mem_path);
+	if(fp)
+	{
 		filp_close(fp,NULL);
 		skwlog_log("the file close!!!\n");
 	}
@@ -532,30 +540,85 @@ int skw_sdio_save_dumpmem(void)
 	skwlog_log("The ------Enter ----\n");
 	//DATA MEM
 	ret = skw_sdio_save_mem(skw_data_mem,DATA_MEM_SIZE, DATA_MEM_BASE_ADDR);
+	if(ret !=0)
+	{
+		skwlog_log("dump %s mem fail ret: %d\n", skw_data_mem, ret);
+		return -1;
+	}
 	//CODE MEM
 	ret = skw_sdio_save_mem(skw_code_mem,CODE_MEM_SIZE, CODE_MEM_BASE_ADDR);
+	if(ret !=0)
+	{
+		skwlog_log("dump %s mem fail ret: %d\n", skw_code_mem,ret);
+		return -1;
+	}
 	//CSCB MEM
 	ret = skw_sdio_save_mem(skw_cscb_mem,CSCB_MEM_SIZE, CSCB_MEM_BASE_ADDR);
+	if(ret !=0)
+	{
+		skwlog_log("dump %s mem fail ret: %d\n", skw_cscb_mem,ret);
+		return -1;
+	}
 	//WREG MEM
 	ret = skw_sdio_save_mem(skw_wreg_mem,WREG_MEM_SIZE, WREG_MEM_BASE_ADDR);
+	if(ret !=0)
+	{
+		skwlog_log("dump %s mem fail ret: %d\n", skw_wreg_mem,ret);
+		return -1;
+	}
 	//PHYR MEM
 	ret = skw_sdio_save_mem(skw_phyr_mem,PHYR_MEM_SIZE, PHYR_MEM_BASE_ADDR);
+	if(ret !=0)
+	{
+		skwlog_log("dump %s mem fail ret: %d\n", skw_phyr_mem,ret);
+		return -1;
+	}
 	//SMEM MEM
 	ret = skw_sdio_save_mem(skw_smem_mem,SMEM_MEM_SIZE, SMEM_MEM_BASE_ADDR);
+	if(ret !=0)
+	{
+		skwlog_log("dump %s mem fail ret: %d\n", skw_smem_mem,ret);
+		return -1;
+	}
 	//UMEM MEM
 	ret = skw_sdio_save_mem(skw_umem_mem,UMEM_MEM_SIZE, UMEM_MEM_BASE_ADDR);
+	if(ret !=0)
+	{
+		skwlog_log("dump %s mem fail ret: %d\n", skw_umem_mem,ret);
+		return -1;
+	}
 	//SDIO MEM
 	ret = skw_sdio_save_mem(skw_sdio_mem,SDIO_MEM_SIZE, SDIO_MEM_BASE_ADDR);
+	if(ret !=0)
+	{
+		skwlog_log("dump %s mem fail ret: %d\n",skw_sdio_mem,ret);
+		return -1;
+	}
 	//BTDM MEM
 	ret = skw_sdio_save_mem(skw_btdm_mem,BTDM_MEM_SIZE, BTDM_MEM_BASE_ADDR);
+	if(ret !=0)
+	{
+		skwlog_log("dump %s mem fail ret: %d\n", skw_btdm_mem,ret);
+		return -1;
+	}
 	//BTBT MEM
 	ret = skw_sdio_save_mem(skw_btbt_mem,BTBT_MEM_SIZE, BTBT_MEM_BASE_ADDR);
+	if(ret !=0)
+	{
+		skwlog_log("dump %s mem fail ret: %d\n", skw_btbt_mem,ret);
+		return -1;
+	}
 	//BTLE MEM
 	ret = skw_sdio_save_mem(skw_btle_mem,BTLE_MEM_SIZE, BTLE_MEM_BASE_ADDR);
+	if(ret !=0)
+	{
+		skwlog_log("dump %s mem fail ret: %d\n", skw_btle_mem,ret);
+		return -1;
+	}
 	//BTEM MEM
 	ret = skw_sdio_save_mem(skw_btem_mem,BTEM_MEM_SIZE, BTEM_MEM_BASE_ADDR);
 	if(ret !=0){
-		skwlog_log("dump file fail \n");
+		skwlog_log("dump %s mem fail ret: %d\n",skw_btem_mem,ret);
 		return -1;
 	}
 	return ret;
@@ -704,6 +767,7 @@ void skw_sdio_log_stop_rec(void)
 
 	if(record_flag)
 		record_flag = 0;
+	log_com->pdata->close_port(log_com->portno);
 	return;
 }
 

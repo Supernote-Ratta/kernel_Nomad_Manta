@@ -26,11 +26,14 @@
 #define SKW_BUS_SDIO                        SDIO_LINK
 #define SKW_BUS_USB                         USB_LINK
 #define SKW_BUS_PCIE                        PCIE_LINK
-#define SKW_BUS_SDIO_V2                     SDIO2_LINK
+#define SKW_BUS_SDIO2                       SDIO2_LINK
+#define SKW_BUS_USB2                        USB2_LINK
 
 #define SKW_BSP_NF_ASSERT                   DEVICE_ASSERT_EVENT
 #define SKW_BSP_NF_BLOCKED                  DEVICE_BLOCKED_EVENT
 #define SKW_BSP_NF_READY                    DEVICE_BSPREADY_EVENT
+
+#define SKW_FW_IPV6_COUNT_LIMIT             3
 
 /*sap capa flag */
 #define SKW_CAPA_HT                         BIT(0)
@@ -40,6 +43,7 @@
 /* capability */
 #define SKW_NR_LMAC                         1
 #define SKW_NR_IFACE                        4
+#define SKW_LAST_IFACE_ID                   (SKW_NR_IFACE - 1)
 #define SKW_MAX_PEER_SUPPORT                32
 #define SKW_MAX_STA_ALLOWED                 10
 #define SKW_MAX_SG_NENTS                    128
@@ -89,6 +93,7 @@
 #define SKW_FLAG_STA_SME_EXTERNAL           (9)
 #define SKW_FLAG_MBSSID_PRIV                (10)
 #define SKW_FLAG_MP_MODE                    (11)
+#define SKW_FLAG_LEGACY_P2P                 (12)
 
 /* SKW_LMAC_FLAG_* */
 #define SKW_LMAC_FLAG_INIT                   BIT(0)
@@ -193,8 +198,14 @@ struct skw_chip_info {
 	u8 fw_bt_ver[16];
 
 	u32 fw_timestamp;
+	u32 fw_chip_type;
 
 	u32 fw_ext_capa;
+} __packed;
+
+struct skw_chip_type_id_map {
+	u32 chip_type;
+	char chip_id[16];
 } __packed;
 
 struct skw_hw_extra {
@@ -260,6 +271,7 @@ struct skw_core {
 	wait_queue_head_t tx_wait_q, rx_wait_q;
 
 	struct sk_buff_head free_skb_list;
+	unsigned long trans_start;
 #ifdef SKW_TX_WORKQUEUE
 	struct task_struct *rx_thread;
 
@@ -356,6 +368,13 @@ struct compat_android_wifi_priv_cmd {
 	int total_len;
 };
 #endif
+
+struct skw_calib_param {
+	u8 seq;
+	u8 end;
+	u16 len;
+	u8 data[512];
+} __packed;
 
 extern int skw_start_wifi_service(void);
 extern int skw_stop_wifi_service(void);
@@ -604,11 +623,8 @@ static inline void skw_stop_dev_queue(struct skw_core *skw)
 
 static inline void skw_sub_credit(struct skw_core *skw, int lmac_id, int used)
 {
+	smp_rmb();
 	atomic_sub(used, &skw->hw.lmac[lmac_id].fw_credit);
-
-#ifdef SKW_CREDIT_DEBUG
-	skw_dbg_sub_credit(skw, lmac_id, used);
-#endif
 }
 
 static inline bool skw_is_local_addr6(struct in6_addr *addr)
@@ -645,7 +661,9 @@ int skw_netdev_init(struct wiphy *wiphy, struct net_device *ndev, u8 *addr);
 void skw_add_credit(struct skw_core *skw, int lmac_id, int cred);
 int skw_sync_chip_info(struct wiphy *wiphy, struct skw_chip_info *chip);
 int skw_sync_cmd_event_version(struct wiphy *wiphy);
-#ifdef SKW_CREDIT_DEBUG
-void skw_dbg_credit_dump(void);
-#endif
+void skw_get_dev_ip(struct net_device * ndev);
+void skw_set_ip_to_fw(struct wiphy *wiphy, struct net_device *ndev);
+int skw_calib_download(struct wiphy *wiphy, const char *fname);
+struct skw_ctx_entry *skw_get_ctx_entry(struct skw_core *skw, const u8 *addr);
+
 #endif

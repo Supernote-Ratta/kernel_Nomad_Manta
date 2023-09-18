@@ -4,8 +4,8 @@
  * Copyright(c) 2020, Seekwave Corporation. All right reserved.
  *
  *****************************************************************************/
-#ifndef __SKW_ADJUST_H__
-#define __SKW_ADJUST_H__
+#ifndef __SKW_CALIB_H__
+#define __SKW_CALIB_H__
 
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
@@ -24,13 +24,19 @@
 #define SKW_DPD_MATRIX_LEN                     (1088)
 #define SKW_DPD_RESULT_LEN                     (32 * 4)
 #define SKW_DPD_ILC_TIMEOUT                    (msecs_to_jiffies(5000))
-#define SKW_DPD_RESOURCE_DATA_CNT              (SKW_DPD_CHN_CNT\
-		* sizeof(struct skw_ilc_result_param))
+#define SKW_DPD_RESOURCE_DATA_CNT              (SKW_DPD_CHN_CNT * sizeof(struct skw_ilc_result_param))
 #define SKW_DPD_RESOURCE_CRC_CNT               (4)
-#define SKW_GEAR_S		(4)
-#define SKW_GEAR_E		(8)
-#define SKW_GEAR_NUM	(SKW_GEAR_E - SKW_GEAR_S + 1)
+#define SKW_GEAR_S                             (4)
+#define SKW_GEAR_E                             (8)
+#define SKW_GEAR_NUM                           (SKW_GEAR_E - SKW_GEAR_S + 1)
 
+struct skw_dpd {
+	void *resource;
+	struct completion cmpl;
+	int size;
+};
+
+#ifdef SKW_CALIB_DPD
 struct skw_ilc_cali_param {
 	u8 gear;
 	u8 seq;
@@ -67,25 +73,9 @@ struct skw_event_ilc_gear_cmpl {
 	u16 rsv;
 } __packed;
 
-struct skw_phy_bb_param {
-	u8 seq;
-	u8 end;
-	u16 len;
-	u8 data[512];
-} __packed;
-
-struct skw_dpd {
-	void *resource;
-	struct completion cmpl;
-	int size;
-};
-
-int skw_calib_download(struct wiphy *wiphy, const char *fname);
-
-#ifdef SKW_DPD_CALI_EN
-int skw_dpd_set_coeff_params(struct wiphy *wiphy,
-	struct net_device *ndev, u8 chn, u8 center_chan,
-	u8 center_chan_two, u8 bandwidth);
+int skw_dpd_set_coeff_params(struct wiphy *wiphy, struct net_device *ndev,
+			     u8 chn, u8 center_chan,
+			     u8 center_chan_two, u8 bandwidth);
 int skw_dpd_gear_cmpl_handler(struct skw_core *skw, void *buf, int len);
 int skw_dpd_coeff_result_handler(struct skw_core *skw, void *buf, int len);
 int skw_dpd_init(struct skw_dpd *dpd);
@@ -93,20 +83,20 @@ void skw_dpd_deinit(struct skw_dpd *dpd);
 int skw_dpd_download(struct wiphy *wiphy, struct skw_dpd *dpd);
 #else
 static inline int skw_dpd_set_coeff_params(struct wiphy *wiphy,
-	struct net_device *ndev, u8 chn, u8 center_chan_num,
-	u8 center_two_chan_num, u8 bandwidth)
+		struct net_device *ndev, u8 chn, u8 center_chan_num,
+		u8 center_two_chan_num, u8 bandwidth)
 {
 	return 0;
 }
 
 static inline int skw_dpd_gear_cmpl_handler(struct skw_core *skw,
-	void *buf, int len)
+				void *buf, int len)
 {
 	return 0;
 }
 
 static inline int skw_dpd_coeff_result_handler(struct skw_core *skw,
-	void *buf, int len)
+				void *buf, int len)
 {
 	return 0;
 }

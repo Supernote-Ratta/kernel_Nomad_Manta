@@ -96,14 +96,6 @@
 #define	SDIO2_LOOPCHECK_PORT	1
 #define	SDIO2_MAX_CH_NUM	12
 
-enum sdio_chip_reset{
-	FIRST_CHIP_EN_RST=0,
-	CHIP_EN_RST,
-	CIA_FUNC_RST,
-	CIA_FORCE_CHIP_RST,
-	NO_CHIP_RST,
-};
-
 struct skw_sdio_data_t {
 	struct task_struct *rx_thread;
 	struct completion rx_completed;
@@ -116,6 +108,7 @@ struct skw_sdio_data_t {
 #endif
 	atomic_t rx_wakelocked;
 	struct mutex transfer_mutex;
+	struct mutex except_mutex;
 	atomic_t resume_flag;
 	atomic_t online;
 	bool threads_exit;
@@ -161,7 +154,7 @@ void skw_sdio_rx_up(struct skw_sdio_data_t *skw_sdio);
 int skw_sdio_rx_thread(void *p);
 
 void skw_sdio_unlock_rx_ws(struct skw_sdio_data_t *skw_sdio);
-int skw_recovery_mode(int recovery_mode);
+int skw_recovery_mode(void);
 int skw_sdio_sdma_write(unsigned char *src, unsigned int len);
 int skw_sdio_sdma_read(unsigned char *src, unsigned int len);
 int skw_sdio_adma_write(int portno, struct scatterlist *sgs, int sg_count, int total);
@@ -191,7 +184,9 @@ void modem_notify_event(int event);
 int loopcheck_send_data(char *buffer, int size);
 void skw_get_port_statistic(char *buffer, int size);
 int skw_sdio_cp_log(int disable);
+int skw_sdio_recovery_debug(int disable);
 int skw_sdio_cp_log_status(void);
+int skw_sdio_recovery_debug_status(void);
 
 #define skwsdio_log(fmt, args...) \
 	pr_info("[SKWSDIO]:" fmt, ## args)

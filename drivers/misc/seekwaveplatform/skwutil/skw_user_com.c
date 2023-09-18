@@ -1,8 +1,10 @@
 #include <linux/kernel.h>
 #include <linux/cdev.h>
 #include <linux/module.h>
+#include <linux/compat.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 #include <linux/scatterlist.h>
@@ -12,8 +14,8 @@
 #include "skw_log_to_file.h"
 #define UCOM_PORTNO_MAX		13
 #define UCOM_DEV_PM_OPS NULL
+int cp_exception_sts=0;
 extern int skw_reset_bootloader_cp(void);
-
 static int	skw_major = 0;
 static struct class *skw_com_class = NULL;
 struct ucom_dev	{
@@ -38,6 +40,9 @@ static int user_boot_open(struct inode *ip, struct file *fp)
 	struct cdev *char_dev;
 	int ret = -EIO, i;
 	struct ucom_dev *ucom=NULL;
+	int count=100;
+	while(cp_exception_sts &&count--)
+		msleep(10);
 
 	char_dev = ip->i_cdev;
 	for(i=0; i< UCOM_PORTNO_MAX; i++) {
@@ -53,7 +58,9 @@ static int user_boot_open(struct inode *ip, struct file *fp)
 			return -EBUSY;
 		atomic_inc(&ucom->open);
 		fp->private_data = ucom;
-		ucom->pdata->open_port(ucom->portno, NULL, NULL);
+		if(!cp_exception_sts)
+			ucom->pdata->open_port(ucom->portno, NULL, NULL);
+
 		printk("Open user_boot device: 0x%x task %d\n", char_dev->dev, (int)current->pid);
 	}
 	return ret;
@@ -62,11 +69,19 @@ static int user_boot_open(struct inode *ip, struct file *fp)
 static int user_boot_release(struct inode *ip, struct file *fp)
 {
 	struct ucom_dev *ucom = fp->private_data;
+	int count=100;
+	while(cp_exception_sts &&count--)
+		msleep(10);
 
-	ucom->pdata->close_port(ucom->portno);
-	atomic_dec(&ucom->open);
+	if(ucom){
+		if(!cp_exception_sts)
+			ucom->pdata->close_port(ucom->portno);
+
+		atomic_dec(&ucom->open);
+	}
 	return 0;
 }
+
 static int ucom_open(struct inode *ip, struct file *fp)
 {
 	struct cdev *char_dev;
@@ -102,7 +117,6 @@ static int ucom_release(struct inode *ip, struct file *fp)
 	struct ucom_dev *ucom = fp->private_data;
 
 	fp->private_data = NULL;
-
 	if(ucom) {
 		atomic_dec(&ucom->open);
 		wake_up(&ucom->wq);
@@ -193,6 +207,16 @@ static ssize_t ucom_write(struct file *fp, const char __user *buf, size_t count,
 		count -= ret;
 		buf += ret;
 	}
+	if (r > 1 && ucom->pdata->port_name && !strncmp(ucom->pdata->port_name, "ATC", 3)) {
+		u16 end_data =  ucom->tx_buf[r-2];
+
+		end_data = (end_data<<8) | ucom->tx_buf[r-1];
+		if (end_data != 0x0D0A) {
+			ucom->tx_buf[0] = 0x0D;
+			ucom->tx_buf[1] = 0x0A;
+			ucom->pdata->hw_sdma_tx(ucom->portno, ucom->tx_buf, 2);
+		}
+	}
 	ucom->tx_busy = 0;
 	pr_debug("%s %s ret = %d\n", __func__,current->comm,(int)r);
 	return r;
@@ -208,16 +232,34 @@ static long ucom_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	}
 	return 0;
 }
-
+#ifdef CONFIG_COMPAT
+static long ucom_compat_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
+{
+	return ucom_ioctl(fp, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
 static ssize_t boot_read(struct file *fp, char __user *buf, size_t count, loff_t *pos)
 {
-	return 0;
+	u32 status;
+	struct ucom_dev *ucom = fp->private_data;
+	int ret = 0;
+
+	ret = ucom->pdata->hw_sdma_rx(ucom->portno, (char *)&status, 4);
+	if (ret > 0)
+		ret = copy_to_user(buf, &status, ret);
+	return ret;
 }
 
 
 static ssize_t boot_write(struct file *fp, const char __user *buf, size_t count, loff_t *pos)
 {
-	return 0;
+	struct ucom_dev *ucom = fp->private_data;
+	int ret = 0;
+
+	ret = ucom->pdata->hw_sdma_tx(ucom->portno, "WAKE", 4);
+	if(ret > 0)
+		return count;
+	return ret;
 }
 static long boot_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
@@ -232,6 +274,9 @@ static const struct file_operations skw_ucom_ops = {
 	.read	= ucom_read,
 	.write	= ucom_write,
 	.unlocked_ioctl = ucom_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = ucom_compat_ioctl,
+#endif
 	.release= ucom_release,
 };
 static const struct file_operations skw_user_boot_ops = {
@@ -277,7 +322,8 @@ static int skw_ucom_probe(struct platform_device *pdev)
 			}
 			ret =__register_chrdev(skw_major, pdata->data_port+1, 1, pdata->port_name, &skw_ucom_ops);
 		} else {
-			ret =__register_chrdev(skw_major, pdata->data_port+1, 1,
+			pdata->data_port = UCOM_PORTNO_MAX - 1;
+			ret =__register_chrdev(skw_major, UCOM_PORTNO_MAX, 1,
 					pdata->port_name, &skw_user_boot_ops);
 		}
 		if(ret < 0) {
@@ -363,5 +409,6 @@ int skw_ucom_init(void)
 
 void skw_ucom_exit(void)
 {
+	cp_exception_sts=0;
 	platform_driver_unregister(&skw_ucom_driver);
 }

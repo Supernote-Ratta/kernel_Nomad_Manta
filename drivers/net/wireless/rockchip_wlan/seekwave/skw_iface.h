@@ -11,6 +11,7 @@
 #include <net/cfg80211.h>
 #include "skw_work.h"
 #include "skw_util.h"
+#include "skw_dfs.h"
 
 #ifndef IEEE80211_CCMP_PN_LEN
 #define IEEE80211_CCMP_PN_LEN		6
@@ -36,6 +37,7 @@
 #define SKW_PEER_FLAG_ACTIVE            BIT(3)
 #define SKW_PEER_FLAG_DEAUTHED          BIT(4)
 
+#define SKW_IFACE_FLAG_LEGACY_P2P       BIT(0)
 /**
  * enum SKW_STATES - STA state
  *
@@ -139,8 +141,10 @@ struct skw_rx_timer {
 };
 
 struct skw_reorder_rx {
-	u32 tid: 8;
-	u32 resv: 24;
+	u32 tid: 4;
+	u32 inst: 2;
+	u32 peer_idx: 5;
+	u32 resv: 21;
 
 	atomic_t ref_cnt;
 	struct skw_core *skw;
@@ -213,6 +217,10 @@ struct skw_stats_info {
 	u64 drops;
 	u64 cal_time;
 	u64 cal_bytes;
+	u8  tx_psr;
+	u32 tx_failed;
+	u16 filter_cnt[35];
+	u16 filter_drop_offload_cnt[35];
 	struct skw_rate rate;
 };
 
@@ -354,7 +362,8 @@ struct skw_iface {
 
 	struct skw_wmm_info wmm;
 
-	u8 rand_mac_oui[4];
+	u8 flags;  /* reference SKW_IFACE_FLAG_ */
+	u8 rand_mac_oui[3];
 	s16 default_multicast;
 	u16 mgmt_frame_bitmap;
 	struct skw_mode_flags iw_flags;
@@ -362,6 +371,7 @@ struct skw_iface {
 	struct sk_buff_head txq[SKW_WMM_AC_MAX + 1];
 	struct sk_buff_head tx_cache[SKW_WMM_AC_MAX + 1];
 	struct skw_frag_entry frag[SKW_MAX_DEFRAG_ENTRY];
+	struct skw_dfs_ctxt dfs;
 
 	union {
 		struct {
@@ -409,6 +419,8 @@ struct skw_iface {
 	};
 };
 
+bool skw_acl_allowed(struct skw_iface *iface, u8 *addr);
+
 static inline const char *skw_state_name(enum SKW_STATES state)
 {
 	static const char * const st_name[] = {"NONE", "AUTHING", "AUTHED",
@@ -442,18 +454,6 @@ static inline void skw_list_del(struct skw_list *list, struct list_head *entry)
 static inline void *skw_ctx_entry(const struct skw_peer *peer)
 {
 	return (char *)peer + ALIGN(sizeof(struct skw_peer), SKW_PEER_ALIGN);
-}
-
-bool skw_acl_allowed(struct skw_iface *iface, u8 *addr);
-
-static inline bool skw_sta_access_allowed(struct skw_iface *iface, u8 *mac)
-{
-	bool max_allowed;
-	u32 bitmap = ((BIT(iface->sap.max_sta_allowed) << 4) - 1) & 0xfffffff0;
-
-	max_allowed = (atomic_read(&iface->peer_map) & bitmap) == bitmap;
-
-	return (!max_allowed && skw_acl_allowed(iface, mac));
 }
 
 static inline bool skw_is_ap_mode(struct skw_iface *iface)
@@ -500,7 +500,8 @@ static inline void skw_sta_assert_lock(struct skw_sta_core *core)
 }
 
 struct skw_iface *skw_add_iface(struct wiphy *wiphy, const char *name,
-				enum nl80211_iftype iftype, u8 *mac, u8 id);
+				enum nl80211_iftype iftype, u8 *mac,
+				u8 id, bool need_ndev);
 int skw_del_iface(struct wiphy *wiphy, struct skw_iface *iface);
 
 void skw_iface_set_wmm_capa(struct skw_iface *iface, const u8 *ies,

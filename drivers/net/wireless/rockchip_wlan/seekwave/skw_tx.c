@@ -2,6 +2,7 @@
 
 #include <linux/kthread.h>
 #include <linux/ip.h>
+#include <linux/ctype.h>
 
 #include "skw_core.h"
 #include "skw_tx.h"
@@ -34,6 +35,60 @@ struct skw_tx_lmac {
 
 static void *sdma_buff;
 static struct skw_packet_header *eof_blk;
+static unsigned int tx_wait_time;
+
+static int skw_tx_time_show(struct seq_file *seq, void *data)
+{
+	seq_printf(seq, "current tx_wait_time = %dus\n", tx_wait_time);
+	return 0;
+}
+
+static int skw_tx_time_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, skw_tx_time_show, inode->i_private);
+}
+
+static ssize_t skw_tx_time_write(struct file *fp, const char __user *buf,
+				size_t len, loff_t *offset)
+{
+	int i;
+	char cmd[32] = {0};
+	unsigned int res = 0;
+
+	for (i = 0; i < 32; i++) {
+		char c;
+
+		if (get_user(c, buf))
+			return -EFAULT;
+
+		if (c == '\n' || c == '\0')
+			break;
+
+		if (isdigit(c) != 0)
+			cmd[i] = c;
+		else {
+			skw_warn("set fail, not number\n");
+			return -EFAULT;
+		}
+		buf++;
+	}
+
+	if (kstrtouint(cmd, 10, &res))
+		return -EFAULT;
+
+	skw_info("set tx_wait_time = %dus\n", res);
+	tx_wait_time = res;
+
+	return len;
+}
+
+static const struct file_operations skw_tx_time_fops = {
+	.owner = THIS_MODULE,
+	.open = skw_tx_time_open,
+	.read = seq_read,
+	.release = single_release,
+	.write = skw_tx_time_write,
+};
 
 int skw_pcie_cmd_xmit(struct skw_core *skw, void *data, int data_len)
 {
@@ -125,11 +180,25 @@ static int skw_sync_adma_tx(struct skw_core *skw, struct sk_buff_head *list,
 			int lmac_id, int port, struct scatterlist *sgl,
 			int nents, int tx_len)
 {
-	skw->hw_pdata->hw_adma_tx(port, sgl, nents, tx_len);
+	struct sk_buff *skb, *tmp;
+	int ret;
+
+	ret = skw->hw_pdata->hw_adma_tx(port, sgl, nents, tx_len);
+	skw->trans_start = jiffies;
 
 	if (list) {
 		skw_sub_credit(skw, lmac_id, skb_queue_len(list));
-		__skb_queue_purge(list);
+		//__skb_queue_purge(list);
+		skb_queue_walk_safe(list, skb, tmp) {
+			if (likely(0 == ret)) {
+				skb->dev->stats.tx_packets++;
+				skb->dev->stats.tx_bytes += SKW_SKB_TXCB(skb)->skb_native_len;
+			} else
+				skb->dev->stats.tx_errors++;
+
+			__skb_unlink(skb, list);
+			kfree_skb(skb);
+		}
 	}
 
 	return 0;
@@ -139,20 +208,18 @@ static int skw_async_adma_tx(struct skw_core *skw, struct sk_buff_head *list,
 			int lmac_id, int port, struct scatterlist *sgl,
 			int nents, int tx_len)
 {
-	int ret;
+	int ret, qlen;
 	unsigned long flags;
 	struct scatterlist *sg_list;
 
-	sg_list = kcalloc(SKW_MAX_SG_NENTS, sizeof(*sg_list), GFP_KERNEL);
 	if (!sgl) {
-		if (list) {
-			skw_sub_credit(skw, lmac_id, skb_queue_len(list));
-			__skb_queue_purge(list);
-		}
-
-		return -ENOMEM;
+		ret = -ENOMEM;
+		skw_err("sgl is NULL\n");
+		goto __ret;
 	}
+	sg_list = kcalloc(SKW_MAX_SG_NENTS, sizeof(*sg_list), GFP_KERNEL);
 
+	qlen = skb_queue_len(list);
 	spin_lock_irqsave(&skw->txq_free_list.lock, flags);
 	skb_queue_splice_tail_init(list, &skw->txq_free_list);
 	spin_unlock_irqrestore(&skw->txq_free_list.lock, flags);
@@ -160,18 +227,16 @@ static int skw_async_adma_tx(struct skw_core *skw, struct sk_buff_head *list,
 	ret = skw->hw_pdata->hw_adma_tx_async(port, sgl, nents, tx_len);
 	if (ret < 0) {
 		skw_err("failed, ret: %d\n", ret);
-
-		if (list) {
-			skw_sub_credit(skw, lmac_id, skb_queue_len(list));
-			__skb_queue_purge(list);
-		}
-
 		SKW_KFREE(sgl);
-	}
+	} else
+		skw_sub_credit(skw, lmac_id, qlen);
 
 	skw->sg_list = sg_list;
+__ret:
+	if (ret != 0 && list)
+		__skb_queue_purge(list);
 
-	return 0;
+	return ret;
 }
 
 static int skw_async_adma_tx_free(int id, struct scatterlist *sg, int nents,
@@ -223,6 +288,7 @@ int skw_sdio_xmit(struct skw_core *skw, int lmac_id, struct sk_buff_head *txq)
 	skw_set_extra_hdr(skw, eof_blk, lmac->lport, skw->hw.align, 0, 1);
 	sg_set_buf(&skw->sg_list[nents++], eof_blk, skw->hw.align);
 	tx_bytes += skw->hw.align;
+	skw_detail("nents:%d", nents);
 
 	return skw->hw.dat_xmit(skw, txq, lmac_id, lmac->dport,
 				skw->sg_list, nents, tx_bytes);
@@ -368,7 +434,6 @@ static bool skw_is_peer_data_valid(struct skw_core *skw, struct sk_buff *skb)
 }
 
 #ifdef SKW_TX_WORKQUEUE
-
 void skw_tx_worker(struct work_struct *work)
 {
 	int i, ac, mac;
@@ -436,7 +501,7 @@ void skw_tx_worker(struct work_struct *work)
 		for (mac = 0; mac < SKW_NR_LMAC; mac++)
 			all_credit += skw_get_hw_credit(skw, mac);
 		if (0 == all_credit) {
-			if (test_bit(SKW_CMD_FLAG_XMIT, &skw->cmd.flags))
+			if (jiffies_to_usecs(jiffies - skw->trans_start) < tx_wait_time)
 				continue;
 			else
 				return;
@@ -685,12 +750,13 @@ static int __skw_tx_init(struct skw_core *skw)
 	cpumask_set_cpu(cpumask_last(cpu_online_mask), wq_attrs.cpumask);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0) && LINUX_VERSION_CODE <= KERNEL_VERSION(5, 2, 0)
-	apply_workqueue_attrs(skw->tx_wq, &wq_attrs);
+	//apply_workqueue_attrs(skw->tx_wq, &wq_attrs);
 #endif
 
 	INIT_WORK(&skw->tx_worker, skw_tx_worker);
 	//queue_work(skw->tx_wq, &skw->tx_worker);
 	queue_work_on(cpumask_last(cpu_online_mask), skw->tx_wq, &skw->tx_worker);
+	skw->trans_start = 0;
 
 	return 0;
 }
@@ -1009,6 +1075,8 @@ static int __skw_tx_init(struct skw_core *skw)
 	skw_set_thread_priority(skw->tx_thread, SCHED_RR, 1);
 	set_user_nice(skw->tx_thread, MIN_NICE);
 	wake_up_process(skw->tx_thread);
+
+	return 0;
 }
 
 static void __skw_tx_deinit(struct skw_core *skw)
@@ -1115,6 +1183,8 @@ int skw_tx_init(struct skw_core *skw)
 		SKW_KFREE(eof_blk);
 		SKW_KFREE(sdma_buff);
 	}
+	tx_wait_time = SKW_TX_WAIT_TIME;
+	skw_add_debugfs("tx_wait_time", 0666, NULL, &skw_tx_time_fops);
 
 	return ret;
 }

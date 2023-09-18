@@ -11,17 +11,7 @@
 #include "skw_tx.h"
 #include "skw_compat.h"
 #include "skw_msg.h"
-
-enum {
-	WMM_TYPE_INFO,
-	WMM_TYPE_PARAMETER,
-} WMM_TYPE;
-
-enum tdls_peer_capability {
-	TDLS_PEER_HT = BIT(0),
-	TDLS_PEER_VHT = BIT(1),
-	TDLS_PEER_WMM = BIT(2),
-};
+#include "skw_tdls.h"
 
 static size_t skw_skip_ie(const u8 *ies, size_t ielen, size_t pos)
 {
@@ -44,13 +34,12 @@ static size_t skw_skip_ie(const u8 *ies, size_t ielen, size_t pos)
 
 static bool skw_id_in_list(const u8 *ids, int n_ids, u8 id, bool id_ext)
 {
-	int i;
+	int i = 0;
 
 	/* Make sure array values are legal */
 	if (WARN_ON(ids[n_ids - 1] == SKW_WLAN_EID_EXTENSION))
 		return false;
 
-	i = 0;
 	while (i < n_ids) {
 		if (ids[i] == SKW_WLAN_EID_EXTENSION) {
 			if (id_ext && (ids[i + 1] == id))
@@ -65,6 +54,7 @@ static bool skw_id_in_list(const u8 *ids, int n_ids, u8 id, bool id_ext)
 
 		i++;
 	}
+
 	return false;
 }
 
@@ -270,7 +260,7 @@ static void skw_tdls_add_link_ie(struct net_device *ndev, struct sk_buff *skb,
 	memcpy(lnk->resp_sta, dst_addr, ETH_ALEN);
 }
 
-int skw_add_srates_ie(struct net_device *ndev, struct sk_buff *skb,
+static int skw_add_srates_ie(struct net_device *ndev, struct sk_buff *skb,
 		bool need_basic, enum nl80211_band band)
 {
 	struct ieee80211_supported_band *sband;
@@ -314,10 +304,9 @@ int skw_add_srates_ie(struct net_device *ndev, struct sk_buff *skb,
 	}
 
 	return 0;
-
 }
 
-int skw_add_ext_srates_ie(struct net_device *ndev,
+static int skw_add_ext_srates_ie(struct net_device *ndev,
 				struct sk_buff *skb, bool need_basic,
 				enum nl80211_band band)
 {
@@ -365,6 +354,7 @@ int skw_add_ext_srates_ie(struct net_device *ndev,
 			*pos++ = basic | (u8) rate;
 		}
 	}
+
 	return 0;
 }
 
@@ -500,7 +490,7 @@ static void skw_tdls_add_ext_capab(struct net_device *ndev,
  * @brief append wmm ie
  *
  * @param skb              A pointer to sk_buff structure
- * @param wmm_type         WMM_TYPE_INFO/WMM_TYPE_PARAMETER
+ * @param wmm_type         SKW_WMM_TYPE_INFO/SKW_WMM_TYPE_PARAMETER
  * @param pQosInfo         A pointer to qos info
  *
  * @return                      N/A
@@ -525,7 +515,7 @@ skw_add_wmm_ie(struct skw_iface *iface, struct sk_buff *skb,
 	qosInfo = (pQosInfo == NULL) ? 0xf : (*pQosInfo);
 
 	/*wmm parameter */
-	if (wmm_type == WMM_TYPE_PARAMETER) {
+	if (wmm_type == SKW_WMM_TYPE_PARAMETER) {
 		pos = skb_put(skb, wmmParamIe_len + 2);
 		len = wmmParamIe_len;
 	} else {
@@ -537,7 +527,7 @@ skw_add_wmm_ie(struct skw_iface *iface, struct sk_buff *skb,
 	*pos++ = len;
 
 	/*wmm parameter */
-	if (wmm_type == WMM_TYPE_PARAMETER) {
+	if (wmm_type == SKW_WMM_TYPE_PARAMETER) {
 		memcpy(pos, wmmParamElement, sizeof(wmmParamElement));
 		pos += sizeof(wmmParamElement);
 	} else {
@@ -547,7 +537,7 @@ skw_add_wmm_ie(struct skw_iface *iface, struct sk_buff *skb,
 	*pos++ = qosInfo;
 
 	/* wmm parameter */
-	if (wmm_type == WMM_TYPE_PARAMETER) {
+	if (wmm_type == SKW_WMM_TYPE_PARAMETER) {
 		*pos++ = reserved;
 		/* Use the same WMM AC parameters as STA for TDLS link */
 		memcpy(pos, &iface->wmm.ac[0], sizeof(struct skw_ac_param));
@@ -586,6 +576,7 @@ skw_tdls_add_oper_classes(struct net_device *ndev, struct sk_buff *skb)
 	*pos++ = op_class; /* give current operating class as alternate too */
 }
 
+#if 0
 u8 *skw_ie_build_ht_cap(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			      u16 cap)
 {
@@ -641,6 +632,7 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 
 	return pos;
 }
+#endif
 
 static void
 skw_tdls_add_setup_start_ies(struct net_device *ndev, struct sk_buff *skb,
@@ -689,7 +681,7 @@ skw_tdls_add_setup_start_ies(struct net_device *ndev, struct sk_buff *skb,
 
 	/* add the QoS element if we support it */
 	if (action_code != WLAN_PUB_ACTION_TDLS_DISCOVER_RES)
-		skw_add_wmm_ie(iface, skb, WMM_TYPE_INFO, NULL);
+		skw_add_wmm_ie(iface, skb, SKW_WMM_TYPE_INFO, NULL);
 
 	/* add any custom IEs that go before HT capabilities */
 	if (ies_len) {
@@ -723,9 +715,9 @@ skw_tdls_add_setup_start_ies(struct net_device *ndev, struct sk_buff *skb,
 
 static void
 skw_tdls_add_setup_cfm_ies(struct net_device *ndev,
-				 struct sk_buff *skb, const u8 *peer,
-				u32 peer_cap, bool initiator,
-				const u8 *extra_ies, size_t extra_ies_len)
+			struct sk_buff *skb, const u8 *peer,
+			u32 peer_cap, bool initiator,
+			const u8 *extra_ies, size_t extra_ies_len)
 {
 	struct skw_iface *iface = netdev_priv(ndev);
 	size_t offset = 0, noffset;
@@ -752,8 +744,8 @@ skw_tdls_add_setup_cfm_ies(struct net_device *ndev,
 		offset = noffset;
 	}
 	/* add the QoS param IE if both the peer and we support it */
-	if (peer_cap & TDLS_PEER_WMM)
-		skw_add_wmm_ie(iface, skb, WMM_TYPE_PARAMETER, NULL);
+	if (peer_cap & SKW_TDLS_PEER_WMM)
+		skw_add_wmm_ie(iface, skb, SKW_WMM_TYPE_PARAMETER, NULL);
 
 	/* add any custom IEs that go before HT operation */
 	if (extra_ies_len) {
@@ -1014,10 +1006,10 @@ skw_tdls_build_send_direct(struct net_device *dev,
 	return ret;
 }
 
-static int skw_tdls_build_send_mgmt(struct skw_core *skw,
-		struct net_device *ndev, const u8 *peer, u8 action_code,
-		u8 dialog_token, u16 status_code, u32 peer_cap,
-		bool initiator, const u8 *ies, size_t ies_len)
+int skw_tdls_build_send_mgmt(struct skw_core *skw, struct net_device *ndev,
+			const u8 *peer, u8 action_code, u8 dialog_token,
+			u16 status_code, u32 peer_cap, bool initiator,
+			const u8 *ies, size_t ies_len)
 {
 	struct sk_buff *skb;
 	unsigned int skb_len;
@@ -1072,53 +1064,6 @@ static int skw_tdls_build_send_mgmt(struct skw_core *skw,
 		ret = -EOPNOTSUPP;
 		break;
 	}
-
-	return ret;
-}
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 11, 0)
-int skw_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
-		  u8 *peer, u8 action_code,  u8 dialog_token,
-		  u16 status_code, const u8 *ies, size_t ies_len)
-#else
-int skw_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
-		  const u8 *peer, u8 action_code,  u8 dialog_token,
-		  u16 status_code, u32 peer_capability,
-		  bool initiator, const u8 *ies, size_t ies_len)
-#endif
-{
-	int ret;
-	struct skw_core *skw = wiphy_priv(wiphy);
-	struct skw_iface *iface;
-
-	if (!dev) {
-		skw_err("net device is null\n");
-		return -EINVAL;
-	}
-	iface = netdev_priv(dev);
-	if (!(wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS))
-		return -ENOTSUPP;
-
-	/* make sure we are in managed mode, and associated */
-	if (iface->wdev.iftype !=  NL80211_IFTYPE_STATION) {
-
-		skw_err("Not station mode or associated\n");
-		return -EINVAL;
-	}
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 11, 0)
-	skw_dbg("dev: %s, peer: %pM, action: %d, status: %d\n",
-		netdev_name(dev), peer, action_code, status_code);
-	ret = skw_tdls_build_send_mgmt(skw, dev, peer,
-				action_code, dialog_token, status_code,
-				0, 0, ies, ies_len);
-#else
-	skw_dbg("dev: %s, peer: %pM, action: %d, status: %d, initiator: %d\n",
-		netdev_name(dev), peer, action_code, status_code, initiator);
-	ret = skw_tdls_build_send_mgmt(skw, dev, peer,
-				action_code, dialog_token, status_code,
-				peer_capability, initiator, ies, ies_len);
-#endif
 
 	return ret;
 }

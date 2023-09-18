@@ -7,402 +7,100 @@
 #ifndef __SKW_VENDOR_H__
 #define __SKW_VENDOR_H__
 
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-#define SKW_OK		0
-#define OUI_BRCM	0x001018
-#define OUI_GOOGLE	0x001A11
-#define DOT11_OUI_LEN                   3       /* d11 OUI length */
-#define SKW_VENDOR_SUBCMD_PRIV_STR	1
-#define ATTRIBUTE_U32_LEN                  (NLA_HDRLEN  + 4)
-#define VENDOR_ID_OVERHEAD                 ATTRIBUTE_U32_LEN
-#define VENDOR_SUBCMD_OVERHEAD             ATTRIBUTE_U32_LEN
-#define VENDOR_DATA_OVERHEAD               (NLA_HDRLEN)
+#define OUI_GOOGLE	                        0x001A11
 
-#define GSCAN_MAX_CH_BUCKETS             8
-#define GSCAN_MAX_CHANNELS_IN_BUCKET     32
-#define GSCAN_MAX_AP_CACHE_PER_SCAN      32
-#define GSCAN_MAX_AP_CACHE               320
+/* Vendor Command ID */
+#define SKW_VCMD_GET_CHANNEL_LIST               0x1009
+#define SKW_VCMD_GET_FEATURE_SET                0x100A
+#define SKW_VCMD_SET_COUNTRY                    0x100E
+#define SKW_VCMD_SET_LATENCY_MODE               0x101B
 
-#define GSCAN_BG_BAND_MASK             (1 << 0)
-#define GSCAN_A_BAND_MASK              (1 << 1)
-#define GSCAN_DFS_MASK                 (1 << 2)
-#define GSCAN_ABG_BAND_MASK            (GSCAN_A_BAND_MASK | GSCAN_BG_BAND_MASK)
-#define GSCAN_BAND_MASK                (GSCAN_ABG_BAND_MASK | GSCAN_DFS_MASK)
-#define PFN_HOTLIST_MAX_NUM_APS   64
-#define MAX_EPNO_SSID_NUM                   64
-#define MAX_EPNO_HIDDEN_SSID    8
-#define MAX_WHITELIST_SSID      2
+#define SKW_VCMD_START_LOGGING                  0x1400
+#define SKW_VCMD_GET_FIRMWARE_DUMP              0x1401
+#define SKW_VCMD_GET_VERSION                    0x1403
+#define SKW_VCMD_GET_RING_BUFFERS_STATUS        0x1404
+#define SKW_VCMD_GET_RING_BUFFER_DATA           0x1405
+#define SKW_VCMD_GET_LOGGER_FEATURE             0x1406
+#define SKW_VCMD_GET_WAKE_REASON_STATS          0x140D
+#define SKW_VCMD_SET_HAL_START                  0x1410
+#define SKW_VCMD_SET_HAL_STOP                   0x1411
+#define SKW_VCMD_SET_HAL_PID                    0x1412
 
-#define VENDOR_REPLY_OVERHEAD	(VENDOR_ID_OVERHEAD + \
-								VENDOR_SUBCMD_OVERHEAD + \
-								VENDOR_DATA_OVERHEAD)
+#define SKW_VCMD_GET_APF_CAPABILITIES           0x1800
+#define SKW_VCMD_SELECT_TX_POWER_SCENARIO       0x1900
 
-#define GSCAN_ATTR_SET1				10
-#define GSCAN_ATTR_SET2				20
-#define GSCAN_ATTR_SET3				30
-#define GSCAN_ATTR_SET4				40
-#define GSCAN_ATTR_SET5				50
-#define GSCAN_ATTR_SET6				60
-#define GSCAN_ATTR_SET7				70
-#define GSCAN_ATTR_SET8				80
-#define GSCAN_ATTR_SET9				90
-#define GSCAN_ATTR_SET10			100
-#define GSCAN_ATTR_SET11			110
-#define GSCAN_ATTR_SET12			120
-#define GSCAN_ATTR_SET13			130
-#define GSCAN_ATTR_SET14			140
+/* Vendor Event ID */
+#define SKW_NL80211_VENDOR_SUBCMD_MONITOR_RSSI  80
 
-/* Basic infrastructure mode	    */
-#define WIFI_FEATURE_INFRA              0x0001
-/* Support for 5 GHz Band	    */
-#define WIFI_FEATURE_INFRA_5G           0x0002
-/* Support for GAS/ANQP    */
-#define WIFI_FEATURE_HOTSPOT            0x0004
-/* Wifi-Direct			    */
-#define WIFI_FEATURE_P2P                0x0008
-/* Soft AP			    */
-#define WIFI_FEATURE_SOFT_AP            0x0010
-/* Google-Scan APIs		    */
-#define WIFI_FEATURE_GSCAN              0x0020
-/* Neighbor Awareness Networking    */
-#define WIFI_FEATURE_NAN                0x0040
-/* Device-to-device RTT		    */
-#define WIFI_FEATURE_D2D_RTT            0x0080
-/* Device-to-AP RTT		    */
-#define WIFI_FEATURE_D2AP_RTT           0x0100
-/* Batched Scan (legacy)	    */
-#define WIFI_FEATURE_BATCH_SCAN         0x0200
-/* Preferred network offload	    */
-#define WIFI_FEATURE_PNO                0x0400
-/* Support for two STAs		    */
-#define WIFI_FEATURE_ADDITIONAL_STA     0x0800
-/* Tunnel directed link setup	    */
-#define WIFI_FEATURE_TDLS               0x1000
-/* Support for TDLS off channel     */
-#define WIFI_FEATURE_TDLS_OFFCHANNEL    0x2000
-/* Enhanced power reporting	    */
-#define WIFI_FEATURE_EPR                0x4000
-/* Support for AP STA Concurrency   */
-#define WIFI_FEATURE_AP_STA             0x8000
-/* Support for Linkstats	    */
-#define WIFI_FEATURE_LINKSTAT           0x10000
-/* WiFi Logger			    */
-#define WIFI_FEATURE_LOGGER             0x20000
-/* WiFi PNO enhanced		    */
-#define WIFI_FEATURE_HAL_EPNO           0x40000
-/* RSSI Monitor			    */
-#define WIFI_FEATURE_RSSI_MONITOR       0x80000
-/* WiFi mkeep_alive		    */
-#define WIFI_FEATURE_MKEEP_ALIVE        0x100000
-/* ND offload configure		    */
-#define WIFI_FEATURE_CONFIG_NDO         0x200000
-/* Capture Tx transmit power levels */
-#define WIFI_FEATURE_TX_TRANSMIT_POWER  0x400000
-/* Enable/Disable firmware roaming */
-#define WIFI_FEATURE_CONTROL_ROAMING    0x800000
-/* Probe req ie filter		    */
-#define WIFI_FEATURE_FILTER_IE          0x1000000
-/* Support MAC & Prb SN randomization */
-#define WIFI_FEATURE_SCAN_RAND          0x2000000
-/* Invalid Feature		    */
-#define WIFI_FEATURE_INVALID            0xFFFFFFFF
+/* ATTR IE Start */
 
-typedef enum wifi_error {
-	WIFI_SUCCESS = 0,
-	WIFI_ERROR_NONE = 0,
-	WIFI_ERROR_UNKNOWN = -1,
-	WIFI_ERROR_UNINITIALIZED = -2,
-	WIFI_ERROR_NOT_SUPPORTED = -3,
-	WIFI_ERROR_NOT_AVAILABLE = -4,
-	WIFI_ERROR_INVALID_ARGS = -5,
-	WIFI_ERROR_INVALID_REQUEST_ID = -6,
-	WIFI_ERROR_TIMED_OUT = -7,
-	WIFI_ERROR_TOO_MANY_REQUESTS = -8,
-	WIFI_ERROR_OUT_OF_MEMORY = -9,
-	WIFI_ERROR_BUSY = -10
-} wifi_error_t;
+/* ATTR SET HAL */
+#define SKW_ATTR_SET_HAL_DEINIT                 1
+#define SKW_ATTR_SET_HAL_INIT                   2
+#define SKW_ATTR_SET_HAL_PID                    3
+#define SKW_ATTR_SET_HAL_MAX                    4
 
+/* ATTR VERSION*/
+#define SKW_ATTR_VER_DRIVER                     1
+#define SKW_ATTR_VER_FIRMWARE                   2
+#define SKW_ATTR_VER_MAX                        3
 
-typedef enum {
-	/* don't use 0 as a valid subcommand */
-	VENDOR_NL80211_SUBCMD_UNSPECIFIED,
+/* ATTR DEBUG */
+#define SKW_ATTR_RING_ID                        3
+#define SKW_ATTR_RING_NAME                      4
+#define SKW_ATTR_RING_FLAGS                     5
+#define SKW_ATTR_LOG_LEVEL                      6
+#define SKW_ATTR_LOG_TIME_INTVAL                7
+#define SKW_ATTR_LOG_MIN_DATA_SIZE              8
+#define SKW_ATTR_FW_DUMP_LEN                    9
+#define SKW_ATTR_FW_DUMP_DATA                   10
+#define SKW_ATTR_FW_ERR_CODE                    11
+#define SKW_ATTR_RING_DATA                      12
+#define SKW_ATTR_RING_STATUS                    13
+#define SKW_ATTR_RING_NUM                       14
+#define SKW_ATTR_DRIVER_DUMP_LEN                15
+#define SKW_ATTR_DRIVER_DUMP_DATA               16
+#define SKW_ATTR_PKT_FATE_NUM                   17
+#define SKW_ATTR_PKT_FATE_DATA                  18
+#define SKW_ATTR_HANG_REASON                    19
+#define SKW_ATTR_DEBUG_MAX                      20
 
-	/* define all vendor startup commands between 0x0 and 0x0FFF */
-	VENDOR_NL80211_SUBCMD_RANGE_START = 0x0001,
-	VENDOR_NL80211_SUBCMD_RANGE_END   = 0x0FFF,
+/* END OF ATTR IE */
 
-	/* define all GScan related commands between 0x1000 and 0x10FF */
-	ANDROID_NL80211_SUBCMD_GSCAN_RANGE_START = 0x1000,
-	ANDROID_NL80211_SUBCMD_GSCAN_RANGE_END   = 0x10FF,
+#define EXT_VENDOR_EVENT_BUF_SIZE               4096
 
-	/* define all RTT related commands between 0x1100 and 0x11FF */
-	ANDROID_NL80211_SUBCMD_RTT_RANGE_START = 0x1100,
-	ANDROID_NL80211_SUBCMD_RTT_RANGE_END   = 0x11FF,
+/* Feature enums */
+#define WIFI_FEATURE_INFRA                      0x0001      // Basic infrastructure mode
+#define WIFI_FEATURE_INFRA_5G                   0x0002      // Support for 5 GHz Band
+#define WIFI_FEATURE_HOTSPOT                    0x0004      // Support for GAS/ANQP
+#define WIFI_FEATURE_P2P                        0x0008      // Wifi-Direct
+#define WIFI_FEATURE_SOFT_AP                    0x0010      // Soft AP
+#define WIFI_FEATURE_GSCAN                      0x0020      // Google-Scan APIs
+#define WIFI_FEATURE_NAN                        0x0040      // Neighbor Awareness Networking
+#define WIFI_FEATURE_D2D_RTT                    0x0080      // Device-to-device RTT
+#define WIFI_FEATURE_D2AP_RTT                   0x0100      // Device-to-AP RTT
+#define WIFI_FEATURE_BATCH_SCAN                 0x0200      // Batched Scan (legacy)
+#define WIFI_FEATURE_PNO                        0x0400      // Preferred network offload
+#define WIFI_FEATURE_ADDITIONAL_STA             0x0800      // Support for two STAs
+#define WIFI_FEATURE_TDLS                       0x1000      // Tunnel directed link setup
+#define WIFI_FEATURE_TDLS_OFFCHANNEL            0x2000      // Support for TDLS off channel
+#define WIFI_FEATURE_EPR                        0x4000      // Enhanced power reporting
+#define WIFI_FEATURE_AP_STA                     0x8000      // Support for AP STA Concurrency
+#define WIFI_FEATURE_LINK_LAYER_STATS           0x10000     // Link layer stats collection
+#define WIFI_FEATURE_LOGGER                     0x20000     // WiFi Logger
+#define WIFI_FEATURE_HAL_EPNO                   0x40000     // WiFi PNO enhanced
+#define WIFI_FEATURE_RSSI_MONITOR               0x80000     // RSSI Monitor
+#define WIFI_FEATURE_MKEEP_ALIVE                0x100000    // WiFi mkeep_alive
+#define WIFI_FEATURE_CONFIG_NDO                 0x200000    // ND offload configure
+#define WIFI_FEATURE_TX_TRANSMIT_POWER          0x400000    // Capture Tx transmit power levels
+#define WIFI_FEATURE_CONTROL_ROAMING            0x800000    // Enable/Disable firmware roaming
+#define WIFI_FEATURE_IE_WHITELIST               0x1000000   // Support Probe IE white listing
+#define WIFI_FEATURE_SCAN_RAND                  0x2000000   // Support MAC & Probe Sequence Number randomization
+#define WIFI_FEATURE_SET_TX_POWER_LIMIT         0x4000000   // Support Tx Power Limit setting
+#define WIFI_FEATURE_USE_BODY_HEAD_SAR          0x8000000   // Support Using Body/Head Proximity for SAR
+#define WIFI_FEATURE_SET_LATENCY_MODE           0x40000000  // Support Latency mode setting
+#define WIFI_FEATURE_P2P_RAND_MAC               0x80000000  // Support Support P2P MAC randomization
 
-	ANDROID_NL80211_SUBCMD_LSTATS_RANGE_START = 0x1200,
-	ANDROID_NL80211_SUBCMD_LSTATS_RANGE_END   = 0x12FF,
-
-	ANDROID_NL80211_SUBCMD_TDLS_RANGE_START = 0x1300,
-	ANDROID_NL80211_SUBCMD_TDLS_RANGE_END	= 0x13FF,
-
-	ANDROID_NL80211_SUBCMD_DEBUG_RANGE_START = 0x1400,
-	ANDROID_NL80211_SUBCMD_DEBUG_RANGE_END	= 0x14FF,
-
-	/* define all NearbyDiscovery related commands between 0x1500 and 0x15FF */
-	ANDROID_NL80211_SUBCMD_NBD_RANGE_START = 0x1500,
-	ANDROID_NL80211_SUBCMD_NBD_RANGE_END   = 0x15FF,
-
-	/* define all wifi calling related commands between 0x1600 and 0x16FF */
-	ANDROID_NL80211_SUBCMD_WIFI_OFFLOAD_RANGE_START = 0x1600,
-	ANDROID_NL80211_SUBCMD_WIFI_OFFLOAD_RANGE_END	= 0x16FF,
-
-	/* define all NAN related commands between 0x1700 and 0x17FF */
-	ANDROID_NL80211_SUBCMD_NAN_RANGE_START = 0x1700,
-	ANDROID_NL80211_SUBCMD_NAN_RANGE_END   = 0x17FF,
-
-	/* define all packet filter related commands between 0x1800 and 0x18FF */
-	ANDROID_NL80211_SUBCMD_PKT_FILTER_RANGE_START = 0x1800,
-	ANDROID_NL80211_SUBCMD_PKT_FILTER_RANGE_END   = 0x18FF,
-
-	/* define all tx power related commands between 0x1900 and 0x19FF */
-	ANDROID_NL80211_SUBCMD_TX_POWER_RANGE_START =   0x1900,
-	ANDROID_NL80211_SUBCMD_TX_POWER_RANGE_END =     0x19FF,
-	/* This is reserved for future usage */
-
-} ANDROID_VENDOR_SUB_COMMAND;
-
-enum skw_nl80211_vendor_subcmds {
-	SKW_VENDOR_SUBCMD_UNSPEC		= 0,
-	SKW_VENDOR_SUBCMD_SET_PMK		= 4,
-	SKW_VENDOR_SUBCMD_SET_MAC		= 6,
-	SKW_VENDOR_SCMD_ACS			= 9,
-	SKW_VENDOR_SCMD_MAX			= 10,
-	SKW_NL80211_VENDOR_SUBCMD_MONITOR_RSSI = 80,
-};
-
-enum andr_vendor_subcmd {
-	GSCAN_SUBCMD_GET_CAPABILITIES = ANDROID_NL80211_SUBCMD_GSCAN_RANGE_START,
-	GSCAN_SUBCMD_SET_CONFIG,
-	GSCAN_SUBCMD_SET_SCAN_CONFIG,
-	GSCAN_SUBCMD_ENABLE_GSCAN,
-	GSCAN_SUBCMD_GET_SCAN_RESULTS,
-	GSCAN_SUBCMD_SCAN_RESULTS,
-
-	GSCAN_SUBCMD_SET_HOTLIST,
-	GSCAN_SUBCMD_SET_SIGNIFICANT_CHANGE_CONFIG,
-	GSCAN_SUBCMD_ENABLE_FULL_SCAN_RESULTS,
-	GSCAN_SUBCMD_GET_CHANNEL_LIST,
-
-	/* ANDR_WIFI_XXX although not related to gscan are defined here */
-	ANDR_WIFI_SUBCMD_GET_FEATURE_SET,
-	ANDR_WIFI_SUBCMD_GET_FEATURE_SET_MATRIX,
-	ANDR_WIFI_RANDOM_MAC_OUI,
-	ANDR_WIFI_NODFS_CHANNELS,
-	ANDR_WIFI_SET_COUNTRY,
-	GSCAN_SUBCMD_SET_EPNO_SSID,
-
-	WIFI_SUBCMD_SET_SSID_WHITELIST,
-	WIFI_SUBCMD_SET_LAZY_ROAM_PARAMS,
-	WIFI_SUBCMD_ENABLE_LAZY_ROAM,
-	WIFI_SUBCMD_SET_BSSID_PREF,
-	WIFI_SUBCMD_SET_BSSID_BLACKLIST,
-
-	GSCAN_SUBCMD_ANQPO_CONFIG,
-	WIFI_SUBCMD_SET_RSSI_MONITOR,
-	WIFI_SUBCMD_CONFIG_ND_OFFLOAD,
-	WIFI_SUBCMD_CONFIG_TCPACK_SUP,
-	WIFI_SUBCMD_FW_ROAM_POLICY,
-	WIFI_SUBCMD_ROAM_CAPABILITY,
-
-	WIFI_SUBCMD_SET_LATENCY_MODE,
-	WIFI_SUBCMD_SET_MULTISTA_PRIMARY_CONNECTION,
-	WIFI_SUBCMD_SET_MULTISTA_USE_CASE,
-	WIFI_SUBCMD_SET_DTIM_CONFIG,
-	GSCAN_SUBCMD_MAX,
-
-	RTT_SUBCMD_SET_CONFIG = ANDROID_NL80211_SUBCMD_RTT_RANGE_START,
-	RTT_SUBCMD_CANCEL_CONFIG,
-	RTT_SUBCMD_GETCAPABILITY,
-	RTT_SUBCMD_GETAVAILCHANNEL,
-	RTT_SUBCMD_SET_RESPONDER,
-	RTT_SUBCMD_CANCEL_RESPONDER,
-
-	LSTATS_SUBCMD_GET_INFO = ANDROID_NL80211_SUBCMD_LSTATS_RANGE_START,
-
-	DEBUG_START_LOGGING = ANDROID_NL80211_SUBCMD_DEBUG_RANGE_START,
-	DEBUG_TRIGGER_MEM_DUMP,
-	DEBUG_GET_MEM_DUMP,
-	DEBUG_GET_VER,
-	DEBUG_GET_RING_STATUS,
-	DEBUG_GET_RING_DATA,
-	DEBUG_GET_FEATURE,
-	DEBUG_RESET_LOGGING,
-
-	DEBUG_TRIGGER_DRIVER_MEM_DUMP,
-	DEBUG_GET_DRIVER_MEM_DUMP,
-	DEBUG_START_PKT_FATE_MONITORING,
-	DEBUG_GET_TX_PKT_FATES,
-	DEBUG_GET_RX_PKT_FATES,
-	DEBUG_GET_WAKE_REASON_STATS,
-	DEBUG_GET_FILE_DUMP_BUF,
-	DEBUG_FILE_DUMP_DONE_IND,
-	DEBUG_SET_HAL_START,
-	DEBUG_SET_HAL_STOP,
-	DEBUG_SET_HAL_PID,
-
-	WIFI_OFFLOAD_SUBCMD_START_MKEEP_ALIVE =
-		ANDROID_NL80211_SUBCMD_WIFI_OFFLOAD_RANGE_START,
-	WIFI_OFFLOAD_SUBCMD_STOP_MKEEP_ALIVE,
-
-	NAN_WIFI_SUBCMD_ENABLE =
-		ANDROID_NL80211_SUBCMD_NAN_RANGE_START,	/* 0x1700 */
-	NAN_WIFI_SUBCMD_DISABLE,				/* 0x1701 */
-	NAN_WIFI_SUBCMD_REQUEST_PUBLISH,		/* 0x1702 */
-	NAN_WIFI_SUBCMD_REQUEST_SUBSCRIBE,		/* 0x1703 */
-	NAN_WIFI_SUBCMD_CANCEL_PUBLISH,			/* 0x1704 */
-	NAN_WIFI_SUBCMD_CANCEL_SUBSCRIBE,		/* 0x1705 */
-	NAN_WIFI_SUBCMD_TRANSMIT,				/* 0x1706 */
-	NAN_WIFI_SUBCMD_CONFIG,					/* 0x1707 */
-	NAN_WIFI_SUBCMD_TCA,					/* 0x1708 */
-	NAN_WIFI_SUBCMD_STATS,					/* 0x1709 */
-	NAN_WIFI_SUBCMD_GET_CAPABILITIES,		/* 0x170A */
-	NAN_WIFI_SUBCMD_DATA_PATH_IFACE_CREATE,	/* 0x170B */
-	NAN_WIFI_SUBCMD_DATA_PATH_IFACE_DELETE,	/* 0x170C */
-	NAN_WIFI_SUBCMD_DATA_PATH_REQUEST,		/* 0x170D */
-	NAN_WIFI_SUBCMD_DATA_PATH_RESPONSE,		/* 0x170E */
-	NAN_WIFI_SUBCMD_DATA_PATH_END,			/* 0x170F */
-	NAN_WIFI_SUBCMD_DATA_PATH_SEC_INFO,		/* 0x1710 */
-	NAN_WIFI_SUBCMD_VERSION_INFO,			/* 0x1711 */
-
-	APF_SUBCMD_GET_CAPABILITIES =
-		ANDROID_NL80211_SUBCMD_PKT_FILTER_RANGE_START,
-	APF_SUBCMD_SET_FILTER,
-
-	/* Add more sub commands here */
-	VENDOR_SUBCMD_MAX
-};
-
-enum gscan_attributes {
-	GSCAN_ATTRIBUTE_NUM_BUCKETS = GSCAN_ATTR_SET1,
-	GSCAN_ATTRIBUTE_BASE_PERIOD,
-	GSCAN_ATTRIBUTE_BUCKETS_BAND,
-	GSCAN_ATTRIBUTE_BUCKET_ID,
-	GSCAN_ATTRIBUTE_BUCKET_PERIOD,
-	GSCAN_ATTRIBUTE_BUCKET_NUM_CHANNELS,
-	GSCAN_ATTRIBUTE_BUCKET_CHANNELS,
-	GSCAN_ATTRIBUTE_NUM_AP_PER_SCAN,
-	GSCAN_ATTRIBUTE_REPORT_THRESHOLD,
-	GSCAN_ATTRIBUTE_NUM_SCANS_TO_CACHE,
-	GSCAN_ATTRIBUTE_BAND = GSCAN_ATTRIBUTE_BUCKETS_BAND,
-
-	GSCAN_ATTRIBUTE_ENABLE_FEATURE = GSCAN_ATTR_SET2,
-	GSCAN_ATTRIBUTE_SCAN_RESULTS_COMPLETE,
-	GSCAN_ATTRIBUTE_FLUSH_FEATURE,
-	GSCAN_ATTRIBUTE_ENABLE_FULL_SCAN_RESULTS,
-	GSCAN_ATTRIBUTE_REPORT_EVENTS,
-	/* remaining reserved for additional attributes */
-	GSCAN_ATTRIBUTE_NUM_OF_RESULTS = GSCAN_ATTR_SET3,
-	GSCAN_ATTRIBUTE_FLUSH_RESULTS,
-	GSCAN_ATTRIBUTE_SCAN_RESULTS,	/* flat array of wifi_scan_result */
-	GSCAN_ATTRIBUTE_SCAN_ID,	/* indicates scan number */
-	GSCAN_ATTRIBUTE_SCAN_FLAGS,	/* indicates if scan was aborted */
-	GSCAN_ATTRIBUTE_AP_FLAGS,	/* flags on significant change event */
-	GSCAN_ATTRIBUTE_NUM_CHANNELS,
-	GSCAN_ATTRIBUTE_CHANNEL_LIST,
-	GSCAN_ATTRIBUTE_CH_BUCKET_BITMASK,
-
-	/* remaining reserved for additional attributes */
-
-	GSCAN_ATTRIBUTE_SSID = GSCAN_ATTR_SET4,
-	GSCAN_ATTRIBUTE_BSSID,
-	GSCAN_ATTRIBUTE_CHANNEL,
-	GSCAN_ATTRIBUTE_RSSI,
-	GSCAN_ATTRIBUTE_TIMESTAMP,
-	GSCAN_ATTRIBUTE_RTT,
-	GSCAN_ATTRIBUTE_RTTSD,
-
-	/* remaining reserved for additional attributes */
-
-	GSCAN_ATTRIBUTE_HOTLIST_BSSIDS = GSCAN_ATTR_SET5,
-	GSCAN_ATTRIBUTE_RSSI_LOW,
-	GSCAN_ATTRIBUTE_RSSI_HIGH,
-	GSCAN_ATTRIBUTE_HOSTLIST_BSSID_ELEM,
-	GSCAN_ATTRIBUTE_HOTLIST_FLUSH,
-	GSCAN_ATTRIBUTE_HOTLIST_BSSID_COUNT,
-
-	/* remaining reserved for additional attributes */
-	GSCAN_ATTRIBUTE_RSSI_SAMPLE_SIZE = GSCAN_ATTR_SET6,
-	GSCAN_ATTRIBUTE_LOST_AP_SAMPLE_SIZE,
-	GSCAN_ATTRIBUTE_MIN_BREACHING,
-	GSCAN_ATTRIBUTE_SIGNIFICANT_CHANGE_BSSIDS,
-	GSCAN_ATTRIBUTE_SIGNIFICANT_CHANGE_FLUSH,
-
-	/* EPNO */
-	GSCAN_ATTRIBUTE_EPNO_SSID_LIST = GSCAN_ATTR_SET7,
-	GSCAN_ATTRIBUTE_EPNO_SSID,
-	GSCAN_ATTRIBUTE_EPNO_SSID_LEN,
-	GSCAN_ATTRIBUTE_EPNO_RSSI,
-	GSCAN_ATTRIBUTE_EPNO_FLAGS,
-	GSCAN_ATTRIBUTE_EPNO_AUTH,
-	GSCAN_ATTRIBUTE_EPNO_SSID_NUM,
-	GSCAN_ATTRIBUTE_EPNO_FLUSH,
-
-	/* Roam SSID Whitelist and BSSID pref */
-	GSCAN_ATTRIBUTE_WHITELIST_SSID = GSCAN_ATTR_SET8,
-	GSCAN_ATTRIBUTE_NUM_WL_SSID,
-	GSCAN_ATTRIBUTE_WL_SSID_LEN,
-	GSCAN_ATTRIBUTE_WL_SSID_FLUSH,
-	GSCAN_ATTRIBUTE_WHITELIST_SSID_ELEM,
-	GSCAN_ATTRIBUTE_NUM_BSSID,
-	GSCAN_ATTRIBUTE_BSSID_PREF_LIST,
-	GSCAN_ATTRIBUTE_BSSID_PREF_FLUSH,
-	GSCAN_ATTRIBUTE_BSSID_PREF,
-	GSCAN_ATTRIBUTE_RSSI_MODIFIER,
-
-	/* Roam cfg */
-	GSCAN_ATTRIBUTE_A_BAND_BOOST_THRESHOLD = GSCAN_ATTR_SET9,
-	GSCAN_ATTRIBUTE_A_BAND_PENALTY_THRESHOLD,
-	GSCAN_ATTRIBUTE_A_BAND_BOOST_FACTOR,
-	GSCAN_ATTRIBUTE_A_BAND_PENALTY_FACTOR,
-	GSCAN_ATTRIBUTE_A_BAND_MAX_BOOST,
-	GSCAN_ATTRIBUTE_LAZY_ROAM_HYSTERESIS,
-	GSCAN_ATTRIBUTE_ALERT_ROAM_RSSI_TRIGGER,
-	GSCAN_ATTRIBUTE_LAZY_ROAM_ENABLE,
-
-	/* BSSID blacklist */
-	GSCAN_ATTRIBUTE_BSSID_BLACKLIST_FLUSH = GSCAN_ATTR_SET10,
-	GSCAN_ATTRIBUTE_BLACKLIST_BSSID,
-
-	GSCAN_ATTRIBUTE_ANQPO_HS_LIST = GSCAN_ATTR_SET11,
-	GSCAN_ATTRIBUTE_ANQPO_HS_LIST_SIZE,
-	GSCAN_ATTRIBUTE_ANQPO_HS_NETWORK_ID,
-	GSCAN_ATTRIBUTE_ANQPO_HS_NAI_REALM,
-	GSCAN_ATTRIBUTE_ANQPO_HS_ROAM_CONSORTIUM_ID,
-	GSCAN_ATTRIBUTE_ANQPO_HS_PLMN,
-
-    /* Adaptive scan attributes */
-	GSCAN_ATTRIBUTE_BUCKET_STEP_COUNT = GSCAN_ATTR_SET12,
-	GSCAN_ATTRIBUTE_BUCKET_MAX_PERIOD,
-
-    /* ePNO cfg */
-	GSCAN_ATTRIBUTE_EPNO_5G_RSSI_THR = GSCAN_ATTR_SET13,
-	GSCAN_ATTRIBUTE_EPNO_2G_RSSI_THR,
-	GSCAN_ATTRIBUTE_EPNO_INIT_SCORE_MAX,
-	GSCAN_ATTRIBUTE_EPNO_CUR_CONN_BONUS,
-	GSCAN_ATTRIBUTE_EPNO_SAME_NETWORK_BONUS,
-	GSCAN_ATTRIBUTE_EPNO_SECURE_BONUS,
-	GSCAN_ATTRIBUTE_EPNO_5G_BONUS,
-
-    /* Android O Roaming features */
-	GSCAN_ATTRIBUTE_ROAM_STATE_SET = GSCAN_ATTR_SET14,
-	GSCAN_ATTRIBUTE_MAX
-};
-
-#define EXT_VENDOR_EVENT_BUF_SIZE        4096
-/**
- * enum skw_wlan_vendor_attr_rssi_monitoring - Used by the vendor command
- * SKW_NL80211_VENDOR_SUBCMD_MONITOR_RSSI.
- */
 enum skw_wlan_vendor_attr_rssi_monitoring {
 	SKW_WLAN_VENDOR_ATTR_RSSI_MONITORING_INVALID = 0,
 	/* Takes valid value from the enum
@@ -424,66 +122,19 @@ enum skw_wlan_vendor_attr_rssi_monitoring {
 	/* keep last */
 	SKW_WLAN_VENDOR_ATTR_RSSI_MONITORING_AFTER_LAST,
 	SKW_WLAN_VENDOR_ATTR_RSSI_MONITORING_MAX =
-		SKW_WLAN_VENDOR_ATTR_RSSI_MONITORING_AFTER_LAST - 1,
+	SKW_WLAN_VENDOR_ATTR_RSSI_MONITORING_AFTER_LAST - 1,
 };
 
-enum apf_attributes {
-	APF_ATTRIBUTE_VERSION,
-	APF_ATTRIBUTE_MAX_LEN,
-	APF_ATTRIBUTE_PROGRAM,
-	APF_ATTRIBUTE_PROGRAM_LEN
+struct skw_ring_buff_status {
+	u8 name[32];
+	u32 flags;
+	int ring_id;                  // unique integer representing the ring
+	u32 ring_buffer_byte_size;    // total memory size allocated for the buffer
+	u32 verbose_level;            // verbose level for ring buffer
+	u32 written_bytes;            // number of bytes that was written to the buffer by driver
+	u32 read_bytes;               // number of bytes that was read from the buffer by user land
+	u32 written_records;          // number of records that was written to the buffer by driver
 };
-
-enum andr_wifi_attr {
-        ANDR_WIFI_ATTRIBUTE_INVALID,
-        ANDR_WIFI_ATTRIBUTE_NUM_FEATURE_SET,
-        ANDR_WIFI_ATTRIBUTE_FEATURE_SET,
-        ANDR_WIFI_ATTRIBUTE_RANDOM_MAC_OUI,
-        ANDR_WIFI_ATTRIBUTE_NODFS_SET,
-        ANDR_WIFI_ATTRIBUTE_COUNTRY,
-        ANDR_WIFI_ATTRIBUTE_ND_OFFLOAD_VALUE,
-        ANDR_WIFI_ATTRIBUTE_TCPACK_SUP_VALUE,
-        ANDR_WIFI_ATTRIBUTE_LATENCY_MODE,
-        ANDR_WIFI_ATTRIBUTE_RANDOM_MAC,
-        ANDR_WIFI_ATTRIBUTE_TX_POWER_SCENARIO,
-        ANDR_WIFI_ATTRIBUTE_THERMAL_MITIGATION,
-        ANDR_WIFI_ATTRIBUTE_THERMAL_COMPLETION_WINDOW,
-        ANDR_WIFI_ATTRIBUTE_VOIP_MODE,
-        ANDR_WIFI_ATTRIBUTE_DTIM_MULTIPLIER,
-        /* Any new ANDR_WIFI attribute add prior to the ANDR_WIFI_ATTRIBUTE_MAX */
-        ANDR_WIFI_ATTRIBUTE_MAX
-};
-
-
-enum debug_attributes {
-	DEBUG_ATTRIBUTE_INVALID,
-	DEBUG_ATTRIBUTE_GET_DRIVER,
-	DEBUG_ATTRIBUTE_GET_FW,
-	DEBUG_ATTRIBUTE_RING_ID,
-	DEBUG_ATTRIBUTE_RING_NAME,
-	DEBUG_ATTRIBUTE_RING_FLAGS,
-	DEBUG_ATTRIBUTE_LOG_LEVEL,
-	DEBUG_ATTRIBUTE_LOG_TIME_INTVAL,
-	DEBUG_ATTRIBUTE_LOG_MIN_DATA_SIZE,
-	DEBUG_ATTRIBUTE_FW_DUMP_LEN,
-	DEBUG_ATTRIBUTE_FW_DUMP_DATA,
-	DEBUG_ATTRIBUTE_FW_ERR_CODE,
-	DEBUG_ATTRIBUTE_RING_DATA,
-	DEBUG_ATTRIBUTE_RING_STATUS,
-	DEBUG_ATTRIBUTE_RING_NUM,
-	DEBUG_ATTRIBUTE_MAX
-};
-
-enum skw_vendor_capap{
-	SKW_GET_FW_VER,
-	SKW_GET_DRV_VER,
-	SKW_GET_RING_DATA,
-	SKW_GET_RING_STATUS,
-	SKW_GET_FEATURE,
-	SKW_START_RING_LOG,
-	SKW_GET_BUF_RING_MAP,
-};
-
 
 struct skw_rssi_mointor {
 	u32 req_id;
@@ -491,128 +142,12 @@ struct skw_rssi_mointor {
 	u8 curr_bssid[ETH_ALEN];
 } __packed;
 
-struct skw_gscan_capabilities {
-	int max_scan_cache_size;
-	int max_scan_buckets;
-	int max_ap_cache_per_scan;
-	int max_rssi_sample_size;
-	int max_scan_reporting_threshold;
-	int max_hotlist_aps;
-	int max_significant_wifi_change_aps;
-	int max_epno_ssid_crc32;
-	int max_epno_hidden_ssid;
-	int max_white_list_ssid;
-} __packed;
-
-enum wake_stat_attributes {
-	WAKE_STAT_ATTRIBUTE_TOTAL_CMD_EVENT,
-	WAKE_STAT_ATTRIBUTE_CMD_EVENT_WAKE,
-	WAKE_STAT_ATTRIBUTE_CMD_EVENT_COUNT,
-	WAKE_STAT_ATTRIBUTE_CMD_EVENT_COUNT_USED,
-	WAKE_STAT_ATTRIBUTE_TOTAL_DRIVER_FW,
-	WAKE_STAT_ATTRIBUTE_DRIVER_FW_WAKE,
-	WAKE_STAT_ATTRIBUTE_DRIVER_FW_COUNT,
-	WAKE_STAT_ATTRIBUTE_DRIVER_FW_COUNT_USED,
-	WAKE_STAT_ATTRIBUTE_TOTAL_RX_DATA_WAKE,
-	WAKE_STAT_ATTRIBUTE_RX_UNICAST_COUNT,
-	WAKE_STAT_ATTRIBUTE_RX_MULTICAST_COUNT,
-	WAKE_STAT_ATTRIBUTE_RX_BROADCAST_COUNT,
-	WAKE_STAT_ATTRIBUTE_RX_ICMP_PKT,
-	WAKE_STAT_ATTRIBUTE_RX_ICMP6_PKT,
-	WAKE_STAT_ATTRIBUTE_RX_ICMP6_RA,
-	WAKE_STAT_ATTRIBUTE_RX_ICMP6_NA,
-	WAKE_STAT_ATTRIBUTE_RX_ICMP6_NS,
-	WAKE_STAT_ATTRIBUTE_IPV4_RX_MULTICAST_ADD_CNT,
-	WAKE_STAT_ATTRIBUTE_IPV6_RX_MULTICAST_ADD_CNT,
-	WAKE_STAT_ATTRIBUTE_OTHER_RX_MULTICAST_ADD_CNT
-};
-
-typedef struct rx_data_cnt_details_t {
-	int rx_unicast_cnt;    /* Total rx unicast packet which woke up host */
-	int rx_multicast_cnt; /* Total rx multicast packet which woke up host */
-	int rx_broadcast_cnt; /* Total rx broadcast packet which woke up host */
-} RX_DATA_WAKE_CNT_DETAILS;
-
-typedef struct rx_wake_pkt_type_classification_t {
-	int icmp_pkt;   /* wake icmp packet count */
-	int icmp6_pkt;  /* wake icmp6 packet count */
-	int icmp6_ra;   /* wake icmp6 RA packet count */
-	int icmp6_na;   /* wake icmp6 NA packet count */
-	int icmp6_ns;   /* wake icmp6 NS packet count */
-} RX_WAKE_PKT_TYPE_CLASSFICATION;
-
-typedef struct rx_multicast_cnt_t {
-	/* Rx wake packet was ipv4 multicast */
-	int ipv4_rx_multicast_addr_cnt;
-	/* Rx wake packet was ipv6 multicast */
-	int ipv6_rx_multicast_addr_cnt;
-	/* Rx wake packet was non-ipv4 and non-ipv6 */
-	int other_rx_multicast_addr_cnt;
-} RX_MULTICAST_WAKE_DATA_CNT;
-
-typedef struct {
-	uint rxwake;
-	uint rcwake;
-} wake_counts_t;
-#define WLC_E_LAST	187		/* highest val + 1 for range checking */
-
-#define DBGRING_NAME_MAX 32
-typedef struct dhd_dbg_ring_status {
-	u8 name[DBGRING_NAME_MAX];
-	u32 flags;
-	int ring_id; /* unique integer representing the ring */
-	/* total memory size allocated for the buffer */
-	u32 ring_buffer_byte_size;
-	u32 verbose_level;
-	/* number of bytes that was written to the buffer by driver */
-	u32 written_bytes;
-	/* number of bytes that was read from the buffer by user land */
-	u32 read_bytes;
-	/* number of records that was read from the buffer by user land */
-	u32 written_records;
-} dhd_dbg_ring_status_t;
-#define DBG_RING_STATUS_SIZE (sizeof(dhd_dbg_ring_status_t))
-
-enum {
-	DEBUG_RING_ID_INVALID   = 0,
-	FW_VERBOSE_RING_ID,
-	DHD_EVENT_RING_ID,
-	/* add new id here */
-	DEBUG_RING_ID_MAX
-};
-
-enum {
-	/* Feature set */
-	DBG_MEMORY_DUMP_SUPPORTED = (1 << (0)), /* Memory dump of FW */
-	DBG_PER_PACKET_TX_RX_STATUS_SUPPORTED = (1 << (1)), /* PKT Status */
-	DBG_CONNECT_EVENT_SUPPORTED = (1 << (2)), /* Connectivity Event */
-	DBG_POWER_EVENT_SUPOORTED = (1 << (3)), /* POWER of Driver */
-	DBG_WAKE_LOCK_SUPPORTED = (1 << (4)), /* WAKE LOCK of Driver */
-	DBG_VERBOSE_LOG_SUPPORTED = (1 << (5)), /* verbose log of FW */
-	DBG_HEALTH_CHECK_SUPPORTED = (1 << (6)), /* monitor the health of FW */
-	DBG_DRIVER_DUMP_SUPPORTED = (1 << (7)), /* dumps driver state */
-	DBG_PACKET_FATE_SUPPORTED = (1 << (8)), /* tracks connection packets' fate */
-	DBG_NAN_EVENT_SUPPORTED = (1 << (9)), /* NAN Events */
-};
-
-enum skw_vendor_attr {
-	SKW_ATTR_DRIVER_CMD            = 0,
-	SKW_ATTR_DRIVER_KEY_PMK        = 1,
-	SKW_ATTR_DRIVER_FEATURE_FLAGS  = 2,
-	SKW_ATTR_DRIVER_RAND_MAC       = 3,
-	SKW_ATTR_SAE_PWE               = 4,
-	SKW_ATTR_DRIVER_MAX            = 5
-};
-
-typedef enum {
-	SET_HAL_START_ATTRIBUTE_DEINIT = 0x0001,
-	SET_HAL_START_ATTRIBUTE_PRE_INIT = 0x0002,
-	SET_HAL_START_ATTRIBUTE_EVENT_SOCK_PID = 0x0003,
-	/* Add any new HAL_START attribute prior to SET_HAL_START_ATTRIBUTE_MAX */
-	SET_HAL_START_ATTRIBUTE_MAX
-} SET_HAL_START_ATTRIBUTE;
-
+#ifdef SKW_VENDOR
 void skw_vendor_init(struct wiphy *wiphy);
 void skw_vendor_deinit(struct wiphy *wiphy);
+#else
+static inline void skw_vendor_init(struct wiphy *wiphy) {}
+static inline void skw_vendor_deinit(struct wiphy *wiphy) {}
+#endif
 
 #endif

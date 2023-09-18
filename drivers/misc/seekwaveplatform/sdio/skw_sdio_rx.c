@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/skbuff.h>
 #include "skw_sdio.h"
 #include "skw_sdio_log.h"
 #include <linux/workqueue.h>
@@ -35,6 +36,7 @@
 #define CRC_16_L_POLYNOMIAL  0x8000
 #define CRC_16_POLYNOMIAL  0x1021
 
+int recovery_debug_status;
 #define IS_LOG_PORT(portno)  ((skw_cp_ver == SKW_SDIO_V10)?(portno==1):(portno==SDIO2_BSP_LOG_PORT))
 struct sdio_port {
 	struct platform_device *pdev;
@@ -73,7 +75,9 @@ static u64 port_dmamask = DMA_BIT_MASK(32);
 struct sdio_port sdio_ports[SDIO2_MAX_CH_NUM];
 static char cp_fifo_status;
 static BLOCKING_NOTIFIER_HEAD(modem_notifier_list);
+#if KERNEL_VERSION(4,4,0) <= LINUX_VERSION_CODE
 static DEFINE_PER_CPU(struct page_frag_cache, skw_sdio_alloc_cache);
+#endif
 unsigned int crc_16_l_calc(char *buf_ptr,unsigned int len);
 static int skw_sdio_rx_port_follow_ctl(int portno, int rx_fctl);
 //add the crc api the same as cp crc_16 api
@@ -186,69 +190,41 @@ void modem_notify_event(int event)
 	blocking_notifier_call_chain(&modem_notifier_list, event, NULL);
 }
 
-#if KERNEL_VERSION(4,14,0) <= LINUX_VERSION_CODE
-static void modem_assert_timerout(struct timer_list *t)
-#else
-static void modem_assert_timerout(unsigned long data)
-#endif
-{
-	int i=0;
-	struct skw_sdio_data_t *skw_sdio = skw_sdio_get_data();
-
-	skw_sdio_info(" entern...\n");
-	if(skw_sdio->service_state_map &(1<<WIFI_SERVICE)){
-		skw_sdio->service_state_map &= ~(1<<WIFI_SERVICE);
-	}
-	if (skw_sdio->service_state_map & (1<<BT_SERVICE)){
-		skw_sdio->service_state_map &= ~(1<<BT_SERVICE);
-	}
-	if(skw_sdio->cp_state!=DEVICE_BLOCKED_EVENT){
-		modem_notify_event(DEVICE_BLOCKED_EVENT);
-		skw_sdio->cp_state = DEVICE_BLOCKED_EVENT;
-		for (i=0; i<5; i++) {
-			if(!sdio_ports[i].state)
-				continue;
-			sdio_ports[i].state = PORT_STATE_ASST;
-			complete(&(sdio_ports[i].rx_done));
-			if(i!=1)
-				complete(&(sdio_ports[i].tx_done));
-			if(i==1)
-				sdio_ports[i].next_seqno= 1;
-		}
-	}
-}
-#if KERNEL_VERSION(4,14,0) <= LINUX_VERSION_CODE
-static DEFINE_TIMER(modem_assert_timer, modem_assert_timerout);
-#else
-static DEFINE_TIMER(modem_assert_timer, modem_assert_timerout, 0, 0);
-#endif
-
 void skw_sdio_exception_work(struct work_struct *work)
 {
 	int i=0;
+	int port_num=0;
 	struct skw_sdio_data_t *skw_sdio = skw_sdio_get_data();
-
 	skw_sdio_info(" entern...\n");
-	if(skw_sdio->service_state_map &(1<<WIFI_SERVICE)){
-		skw_sdio->service_state_map &= ~(1<<WIFI_SERVICE);
+	mutex_lock(&skw_sdio->except_mutex);
+	if(skw_sdio->cp_state!=1)
+	{
+		mutex_unlock(&skw_sdio->except_mutex);
+		return;
 	}
-	if (skw_sdio->service_state_map & (1<<BT_SERVICE)){
-		skw_sdio->service_state_map &= ~(1<<BT_SERVICE);
+	skw_sdio->cp_state = DEVICE_BLOCKED_EVENT;
+	mutex_unlock(&skw_sdio->except_mutex);
+	modem_notify_event(DEVICE_BLOCKED_EVENT);
+	if(skw_cp_ver == SKW_SDIO_V20)
+		port_num =11;
+	else
+		port_num = 5;
+
+	for (i=0; i<port_num; i++)
+	{
+		if(!sdio_ports[i].state || sdio_ports[i].state==PORT_STATE_CLSE)
+			continue;
+
+		sdio_ports[i].state = PORT_STATE_ASST;
+		complete(&(sdio_ports[i].rx_done));
+
+		if(i!=1)
+			complete(&(sdio_ports[i].tx_done));
+		if(i==1)
+			sdio_ports[i].next_seqno= 1;
+
 	}
-	if(skw_sdio->cp_state!=DEVICE_BLOCKED_EVENT){
-		modem_notify_event(DEVICE_BLOCKED_EVENT);
-		skw_sdio->cp_state = DEVICE_BLOCKED_EVENT;
-		for (i=0; i<5; i++) {
-			if(!sdio_ports[i].state || sdio_ports[i].state==PORT_STATE_CLSE)
-				continue;
-			sdio_ports[i].state = PORT_STATE_ASST;
-			complete(&(sdio_ports[i].rx_done));
-			if(i!=1)
-				complete(&(sdio_ports[i].tx_done));
-			if(i==1)
-				sdio_ports[i].next_seqno= 1;
-		}
-	}
+	skw_sdio->service_state_map=0;
 }
 
 #if KERNEL_VERSION(4,14,0) <= LINUX_VERSION_CODE
@@ -264,6 +240,18 @@ static void *skw_sdio_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
 	local_irq_restore(flags);
 	return data;
 }
+#elif KERNEL_VERSION(4,4,0) > LINUX_VERSION_CODE
+static void *skw_sdio_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
+{
+	void *data;
+	data = netdev_alloc_frag(fragsz);
+	return data;
+}
+static void page_frag_free(void *data)
+{
+ 	put_page(virt_to_head_page(data));
+}
+
 #else
 static void *skw_sdio_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
 {
@@ -288,7 +276,7 @@ static void skw_sdio_rx_down(struct skw_sdio_data_t * skw_sdio)
 }
 void skw_sdio_rx_up(struct skw_sdio_data_t * skw_sdio)
 {
-	reinit_completion(&skw_sdio->rx_completed);
+	skw_reinit_completion(skw_sdio->rx_completed);
 	complete(&skw_sdio->rx_completed);
 }
 void skw_sdio_dispatch_packets(struct skw_sdio_data_t * skw_sdio)
@@ -339,6 +327,25 @@ static void skw_sdio_adma_set_packet_num(unsigned int num)
 		skw_sdio->remain_packet = num;
 }
 
+/************************************************************************
+ *Decription:release debug recovery auto test
+ *Author:junwei.jiang
+ *Date:2023-05-30
+ *Modfiy:
+ *
+ ********************************************************************* */
+int skw_sdio_recovery_debug(int disable)
+{
+	recovery_debug_status = disable;
+	skw_sdio_info("the recovery status =%d\n", recovery_debug_status);
+	return 0;
+}
+
+int skw_sdio_recovery_debug_status(void)
+{
+	skw_sdio_info("the recovery val =%d\n", recovery_debug_status);
+	return recovery_debug_status;
+}
 
 static int skw_sdio_handle_packet(struct skw_sdio_data_t *skw_sdio,
 		struct scatterlist *sg, struct skw_packet_header *header, int portno)
@@ -366,24 +373,49 @@ static int skw_sdio_handle_packet(struct skw_sdio_data_t *skw_sdio,
 			//kernel_restart(0);
 			skw_sdio->device_active = 1;
 			complete(&skw_sdio->download_done);
-		} else if (header->len==21 && !strncmp((char *)cmd, "BSPASSERT", 9)) {
-			if(skw_sdio->cp_state != DEVICE_BLOCKED_EVENT){
-				memset(assert_context, 0, 1024);
-				assert_context_size = 0;
-				skw_sdio->cp_state=1;/*cp except set value*/
-				cancel_delayed_work_sync(&skw_sdio->skw_except_work);
-				//del_timer(&modem_assert_timer);
-				modem_notify_event(DEVICE_ASSERT_EVENT);
-				skw_sdio_err(" bsp assert !!!\n");
+		} else if (header->len==21 && !strncmp((char *)cmd, "BSPASSERT", 9)){
+			if(!skw_sdio->cp_state)
+				schedule_delayed_work(&skw_sdio->skw_except_work , msecs_to_jiffies(8000));
+
+			mutex_lock(&skw_sdio->except_mutex);
+			if(skw_sdio->cp_state==DEVICE_BLOCKED_EVENT){
+				if(skw_sdio->adma_rx_enable)
+					page_frag_free(header);
+
+				mutex_unlock(&skw_sdio->except_mutex);
+				return 0;
 			}
+			skw_sdio->cp_state=1;/*cp except set value*/
+			mutex_unlock(&skw_sdio->except_mutex);
+			skw_sdio->service_state_map = 0;
+			memset(assert_context, 0, 1024);
+			assert_context_size = 0;
+			modem_notify_event(DEVICE_ASSERT_EVENT);
+			skw_sdio_err(" bsp assert !!!\n");
 		}else if (header->len==20 && !strncmp(cmd, "DUMPDONE",8)){
+			mutex_lock(&skw_sdio->except_mutex);
+			if(skw_sdio->cp_state==DEVICE_BLOCKED_EVENT){
+				if(skw_sdio->adma_rx_enable)
+					page_frag_free(header);
+
+				mutex_unlock(&skw_sdio->except_mutex);
+				return 0;
+			}
+			skw_sdio->cp_state=DEVICE_DUMPDONE_EVENT;/*cp except set value 2*/
+			mutex_unlock(&skw_sdio->except_mutex);
+			cancel_delayed_work_sync(&skw_sdio->skw_except_work);
 #ifdef CONFIG_SEEKWAVE_PLD_RELEASE
 			modem_notify_event(DEVICE_DUMPDONE_EVENT);
+#else
+			if(!strncmp((char *)skw_sdio->chip_id,"SV6160",6) && !recovery_debug_status){
+				modem_notify_event(DEVICE_DUMPDONE_EVENT);
+			}
 #endif
 			skw_sdio_err("The CP DUMPDONE OK : \n %d::%s\n",assert_context_size, assert_context);
 			for (i=0; i<5; i++) {
 				if(!sdio_ports[i].state || sdio_ports[i].state==PORT_STATE_CLSE)
 					continue;
+
 				sdio_ports[i].state = PORT_STATE_ASST;
 				complete(&(sdio_ports[i].rx_done));
 				if(i!=1)
@@ -392,24 +424,27 @@ static int skw_sdio_handle_packet(struct skw_sdio_data_t *skw_sdio,
 					sdio_ports[i].next_seqno= 1;
 			}
 #ifdef CONFIG_SEEKWAVE_PLD_RELEASE
-			skw_recovery_mode(CHIP_EN_RST);//recoverymode open api
+			skw_recovery_mode();//recoverymode open api
+#else
+			if(!strncmp((char *)skw_sdio->chip_id,"SV6160",6) && !recovery_debug_status
+					&&skw_sdio->cp_state !=DEVICE_BLOCKED_EVENT){
+				skw_recovery_mode();//recoverymode open api
+			}
 #endif
 		}else if (!strncmp("trunk_W", cmd, 7)) {
 			if(skw_sdio->cp_state){
-				if(skw_sdio->cp_state == DEVICE_BLOCKED_EVENT){
-					cancel_delayed_work_sync(&skw_sdio->skw_except_work);
-				}
-				//del_timer(&modem_assert_timer);
-				skw_sdio->cp_state = 0;
 				assert_info_print = 0;
 				if(sdio_ports[0].state == PORT_STATE_ASST)
 					sdio_ports[0].state = PORT_STATE_OPEN;
 				modem_notify_event(DEVICE_BSPREADY_EVENT);
 				skw_sdio_info("send the bsp state to log service or others\n");
 			}
+
+			skw_sdio->cp_state = 0;
+			skw_sdio_info("cp_state = %d \n", skw_sdio->cp_state);
 			memset(firmware_version, 0 , sizeof(firmware_version));
 			strncpy(firmware_version, cmd, strlen(cmd));
-			skw_sdio_info("firmware version: %s:%s \n",cmd, firmware_version);
+			complete(&skw_sdio->download_done);
 		} else if (!strncmp(cmd, "BSPREADY",8)) {
 			loopcheck_send_data("RDVERSION", 9);
 		}
@@ -536,21 +571,48 @@ static int skw_sdio2_handle_packet(struct skw_sdio_data_t *skw_sdio,
 			skw_sdio->device_active = 1;
 			complete(&skw_sdio->download_done);
 		} else if (header->len==21 && !strncmp((char *)cmd, "BSPASSERT", 9)) {
-			if(!skw_sdio->cp_state){
-				memset(assert_context, 0, 1024);
-				assert_context_size = 0;
-				skw_sdio->cp_state=1;/*cp except set value*/
-				del_timer(&modem_assert_timer);
-				modem_notify_event(DEVICE_ASSERT_EVENT);
-				skw_sdio_err(" bsp assert !!!\n");
+			if(!skw_sdio->cp_state)
+				schedule_delayed_work(&skw_sdio->skw_except_work , msecs_to_jiffies(8000));
+
+			mutex_lock(&skw_sdio->except_mutex);
+			if(skw_sdio->cp_state==DEVICE_BLOCKED_EVENT){
+				if(skw_sdio->adma_rx_enable)
+					page_frag_free(header);
+
+				mutex_unlock(&skw_sdio->except_mutex);
+				return 0;
 			}
+			skw_sdio->cp_state=1;/*cp except set value*/
+			mutex_unlock(&skw_sdio->except_mutex);
+			skw_sdio->service_state_map = 0;
+			memset(assert_context, 0, 1024);
+			assert_context_size = 0;
+			modem_notify_event(DEVICE_ASSERT_EVENT);
+			skw_sdio_err(" bsp assert !!!\n");
 		}else if (header->len==20 && !strncmp(cmd, "DUMPDONE",8)){
+			mutex_lock(&skw_sdio->except_mutex);
+			if(skw_sdio->cp_state==DEVICE_BLOCKED_EVENT){
+				if(skw_sdio->adma_rx_enable)
+					page_frag_free(header);
+
+				mutex_unlock(&skw_sdio->except_mutex);
+				return 0;
+			}
+			skw_sdio->cp_state=DEVICE_DUMPDONE_EVENT;/*cp except set value 2*/
+			mutex_unlock(&skw_sdio->except_mutex);
+			cancel_delayed_work_sync(&skw_sdio->skw_except_work);
+#ifdef CONFIG_SEEKWAVE_PLD_RELEASE
 			modem_notify_event(DEVICE_DUMPDONE_EVENT);
-			assert_info_print = 0;
+#else
+			if(!strncmp((char *)skw_sdio->chip_id,"SV6360",6) && !recovery_debug_status){
+				modem_notify_event(DEVICE_DUMPDONE_EVENT);
+			}
+#endif
 			skw_sdio_err("The CP DUMPDONE OK : \n %d::%s\n",assert_context_size, assert_context);
 			for (i=0; i<5; i++) {
-				if(!sdio_ports[i].state)
+				if(!sdio_ports[i].state || sdio_ports[i].state==PORT_STATE_CLSE)
 					continue;
+
 				sdio_ports[i].state = PORT_STATE_ASST;
 				complete(&(sdio_ports[i].rx_done));
 				if(i!=1)
@@ -558,15 +620,23 @@ static int skw_sdio2_handle_packet(struct skw_sdio_data_t *skw_sdio,
 				if(i==1)
 					sdio_ports[i].next_seqno= 1;
 			}
-			//skw_recovery_mode(CHIP_EN_RST);//recoverymode open api
+#ifdef CONFIG_SEEKWAVE_PLD_RELEASE
+			skw_recovery_mode();//recoverymode open api
+#else
+			if(!strncmp((char *)skw_sdio->chip_id,"SV6360",6) && !recovery_debug_status
+					&&skw_sdio->cp_state !=DEVICE_BLOCKED_EVENT){
+				//skw_recovery_mode();//recoverymode open api
+			}
+#endif
+
 		}else if (!strncmp("trunk_W", cmd, 7)) {
 			if(skw_sdio->cp_state){
-				skw_sdio->cp_state = 0;
 				if(sdio_ports[0].state == PORT_STATE_ASST)
 					sdio_ports[0].state = PORT_STATE_OPEN;
 				modem_notify_event(DEVICE_BSPREADY_EVENT);
-				skw_sdio_info("send the bsp state to log service or others\n");
 			}
+
+			skw_sdio->cp_state = 0;
 			assert_info_print = 0;
 			memset(firmware_version, 0 , sizeof(firmware_version));
 			strncpy(firmware_version, cmd, strlen(cmd));
@@ -667,13 +737,16 @@ int send_modem_assert_command(void)
 
 	if(skw_sdio->cp_state)
 		return ret;
+
+	skw_sdio->cp_state=1;/*cp except set value*/
 	ret =skw_sdio_writeb(SKW_AP2CP_IRQ_REG, 0x10);
 	skw_sdio_err("%s ret=%d cmd: 0x%x 0x%x 0x%x :%d-%d\n", __func__,
 			 ret, cmd[0], cmd[1], cmd[2], (u32)last_sent_time, (u32)jiffies);
+#ifdef CONFIG_SEEKWAVE_PLD_RELEASE
 	schedule_delayed_work(&skw_sdio->skw_except_work , msecs_to_jiffies(2000));
-	//modem_assert_timer.expires = jiffies + MODEM_ASSERT_TIMEOUT_VALUE;
-	//add_timer(&modem_assert_timer);
-	skw_sdio->cp_state=1;/*cp except set value*/
+#else
+	schedule_delayed_work(&skw_sdio->skw_except_work , msecs_to_jiffies(8000));
+#endif
 	return ret;
 }
 
@@ -885,7 +958,8 @@ struct scatterlist *skw_sdio_prepare_adma_buffer(struct skw_sdio_data_t *skw_sdi
 	if(i <= 0)
 		goto err;
 
-	data_size = MAX_PAC_SIZE*((*sg_count)-1);
+	sg_mark_end(&sgs[*sg_count - 1]);
+	data_size = MAX_PAC_SIZE * ((*sg_count)-1);
 	data_size = data_size%SKW_SDIO_NSIZE_BUF_SIZE;
 	*nsize_offset = SKW_SDIO_NSIZE_BUF_SIZE - data_size;
 	if(*nsize_offset < 8)
@@ -931,8 +1005,11 @@ int skw_sdio_rx_thread(void *p)
 			int value = gpio_get_value(skw_sdio->gpio_in);
 
 			if(value == 0) {
-				skw_sdio_unlock_rx_ws(skw_sdio);
-				continue;
+				ret = skw_sdio_readb(SKW_SDIO_CP2AP_FIFO_IND, &fifo_ind);
+				if(ret){
+					skw_sdio_unlock_rx_ws(skw_sdio);
+					continue;
+				}
 			}
 			ret = skw_sdio_readb(SKW_SDIO_CP2AP_FIFO_IND, &fifo_ind);
 			if(ret) {
@@ -1054,6 +1131,7 @@ static int open_sdio_port(int id, void *callback, void *data)
 static int close_sdio_port(int id)
 {
 	struct sdio_port *port;
+
 	if(id >= max_ch_num)
 		return -EINVAL;
 	port = &sdio_ports[id];
@@ -1091,12 +1169,16 @@ void send_host_resume_indication(struct skw_sdio_data_t *skw_sdio)
 	if(skw_sdio->gpio_out >= 0) {
 		skw_sdio_dbg("%s enter\n", __func__);
 		skw_sdio->host_active = 1;
-		//gpio_set_value(skw_sdio->gpio_out, 1);
+		gpio_set_value(skw_sdio->gpio_out, 1);
+		skw_sdio->resume_com = 1;
 	}
 }
 
 static void send_cp_wakeup_signal(struct skw_sdio_data_t *skw_sdio)
 {
+	if(skw_sdio->gpio_out < 0)
+		return;
+
 	gpio_set_value(skw_sdio->gpio_out, 0);
 	udelay(5);
 	gpio_set_value(skw_sdio->gpio_out, 1);
@@ -1115,7 +1197,7 @@ int try_to_wakeup_modem(int portno)
 
 	if(skw_sdio->device_active)
 		return 0;
-	reinit_completion(&skw_sdio->device_wakeup);
+	skw_reinit_completion(skw_sdio->device_wakeup);
 	skw_sdio->tx_req_map |= 1<<portno;
 	skw_port_log(portno,"%s enter device_active=%d : %d\n", __func__, skw_sdio->device_active, skw_sdio->resume_com);
 	if(skw_sdio->device_active == 0) {
@@ -1156,6 +1238,9 @@ void host_gpio_in_routine(int value)
 {
 	struct skw_sdio_data_t *skw_sdio = skw_sdio_get_data();
 	int  device_active = skw_sdio->device_active;
+	if(skw_sdio->gpio_out < 0)
+		return;
+
 	skw_sdio->device_active = value;
 	skw_sdio_dbg("%s enter %d-%d, host tx=0x%x:%d\n", __func__, device_active,
 			skw_sdio->device_active, skw_sdio->tx_req_map, skw_sdio->host_active);
@@ -1258,7 +1343,7 @@ static int send_data(int portno, char *buffer, int size)
 		else{
 			count = setup_sdio2_packet(port->write_buffer, port->channel, buffer, count);
 		}
-		reinit_completion(&port->tx_done);
+		skw_reinit_completion(port->tx_done);
 		for(i=0; i<2; i++) {
 		try_to_wakeup_modem(portno);
 
@@ -1325,8 +1410,12 @@ static int sdio_read(struct sdio_port *port, char *buffer, int size)
 		}
 	}
 try_again0:
-	reinit_completion(&port->rx_done);
+	skw_reinit_completion(port->rx_done);
 	if(port->rx_wp == port->rx_rp) {
+
+		if ((port->state == PORT_STATE_CLSE) ||
+			( port->channel>1 && !(skw_sdio->service_state_map & (1<<BT_SERVICE))))
+			return -EIO;
 		ret = wait_for_completion_interruptible(&port->rx_done);
 		if(ret)
 			return ret;
@@ -1388,7 +1477,6 @@ int recv_data(int portno, char *buffer, int size)
 {
 	struct sdio_port *port;
 	int ret;
-
 	if(size==0)
 		return 0;
 	if(portno >= max_ch_num)
@@ -1401,7 +1489,6 @@ int recv_data(int portno, char *buffer, int size)
 		return -EIO;
 	}
 	ret = sdio_read(port, buffer, size);
-
 	return ret;
 }
 int wifi_send_cmd(int portno, struct scatterlist *sg, int sg_num, int total)
@@ -1424,7 +1511,7 @@ int wifi_send_cmd(int portno, struct scatterlist *sg, int sg_num, int total)
 		ret = skw_sdio_adma_write(portno, sg, sg_num, total);
 		if(!ret)
 			break;
-		skw_sdio_info("%s timeout cp_state %d \n", __func__, gpio_get_value(skw_sdio->gpio_in));
+		skw_sdio_info("timeout gpioin value=%d \n",gpio_get_value(skw_sdio->gpio_in));
 	}
 	skw_sdio->tx_req_map &= ~(1<<portno);
 	skw_port_log(portno,"%s port%d sg_num=%d total=%d 0x%x 0x%x\n",
@@ -1446,16 +1533,16 @@ static int register_rx_callback(int id, void *func, void *para)
 	port = &sdio_ports[id];
 	if(port->state && func)
 		return -EBUSY;
-	skw_port_log(id,"%s id=%d register done sg_num =%d\n", __func__, id, port->sg_index);
 	port->rx_submit = func;
 	port->rx_data = para;
-	port->sg_rx = kzalloc(MAX_SG_COUNT * sizeof(struct scatterlist), GFP_KERNEL);
-	if(port->sg_rx == NULL)
-		return -ENOMEM;
-	if(func)
+	if(func) {
+		port->sg_rx = kzalloc(MAX_SG_COUNT * sizeof(struct scatterlist), GFP_KERNEL);
+		if(port->sg_rx == NULL)
+			return -ENOMEM;
 		port->state = PORT_STATE_OPEN;
-	else
+	} else
 		port->state = PORT_STATE_IDLE;
+
 	return 0;
 }
 
@@ -1711,6 +1798,10 @@ int skw_sdio_bind_WIFI_driver(struct sdio_func *func)
 	pdev->dev.coherent_dma_mask = port_dmamask;
 #ifdef CONFIG_SEEKWAVE_PLD_RELEASE
 	wifi_pdata.bus_type |= CP_RLS;
+#else
+	if(!strncmp((char *)skw_sdio->chip_id,"SV6160",6)){
+		wifi_pdata.bus_type |= CP_RLS;
+	}
 #endif
 	/*support the sdma type bus*/
 	if(!skw_sdio->adma_rx_enable){
@@ -2080,6 +2171,9 @@ static int skw_sdio_unbind_sdio_port_driver(struct sdio_func *func, int portno )
 			kfree(port->read_buffer);
 		if(port->write_buffer)
 			kfree(port->write_buffer);
+		if(port->sg_rx)
+			kfree(port->sg_rx);
+		port->sg_rx = NULL;
 		port->read_buffer = NULL;
 		port->write_buffer = NULL;
 		if(port->pdev)
@@ -2108,8 +2202,7 @@ int skw_sdio_unbind_WIFI_driver(struct sdio_func *func)
 {
 	int ret;
 
-	ret = skw_sdio_unbind_sdio_port_driver(func, 6);
-	ret |= skw_sdio_unbind_sdio_port_driver(func, 5);
+	ret = skw_sdio_unbind_sdio_port_driver(func, 5);
 	return ret;
 }
 

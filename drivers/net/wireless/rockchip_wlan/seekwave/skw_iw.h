@@ -23,11 +23,6 @@ struct skw_iw_priv_mode {
 	enum SKW_MODE_INFO mode;
 };
 
-struct skw_iface_mib {
-	u16 n_mib_len;
-	u8 mib_buff[SKW_MAX_TLV_BUFF_LEN];
-};
-
 const void *skw_iw_handlers(void);
 int skw_send_tlv_cmd(struct wiphy *wiphy, struct net_device *dev);
 #endif

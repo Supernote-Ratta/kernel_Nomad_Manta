@@ -78,34 +78,33 @@ enum SKW_CIPHER_TYPE {
 	SKW_CIPHER_TYPE_BIP_GMAC_256 = 15,
 };
 
-enum SKW_WIPHY_PARAM_TLV_ID {
-	WIPHY_PARAM_RTS_THRESHOLD_TLV_ID = 1,
-	WIPHY_PARAM_FRAG_THRESHOLD_TLV_ID,
-	WIPHY_PARAM_COVERAGE_CLASS_TLV_ID,
-	WIPHY_PARAM_RETRY_SHORT_TLV_ID,
-	WIPHY_PARAM_RETRY_LONG_TLV_ID,
-	WIPHY_PARAM_DYN_ACK_TLV_ID,
-	WIPHY_PARAM_TXQ_LIMIT_TLV_ID,
-	WIPHY_PARAM_TXQ_MEMORY_LIMIT_TLV_ID,
-	WIPHY_PARAM_TXQ_QUANTUM_TLV_ID,
-	WIPHY_PARAM_DOT11_OMI_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_MODE_B_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_MODE_G_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_MODE_A_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_MODE_HT_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_MODE_VHT_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_MODE_HE_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_MODE_GONLY_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_MODE_HTONLY_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_CBW_20M_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_CBW_40M_ABOVE_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_CBW_40M_BELOW_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_CBW_80M_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_CBW_160M_MIB_TLV_ID,
-	WIPHY_PARAM_DOT11_CBW_80P80M_MIB_TLV_ID,
+enum SKW_MIB_ID {
+	SKW_MIB_RTS_THRESHOLD = 1,
+	SKW_MIB_FRAG_THRESHOLD,
+	SKW_MIB_COVERAGE_CLASS,
+	SKW_MIB_RETRY_SHORT,
+	SKW_MIB_RETRY_LONG,
+	SKW_MIB_DYN_ACK,
+	SKW_MIB_TXQ_LIMIT,
+	SKW_MIB_TXQ_MEMORY_LIMIT,
+	SKW_MIB_TXQ_QUANTUM,
+	SKW_MIB_DOT11_OMI,
+	SKW_MIB_DOT11_MODE_B,
+	SKW_MIB_DOT11_MODE_G,
+	SKW_MIB_DOT11_MODE_A,
+	SKW_MIB_DOT11_MODE_HT,
+	SKW_MIB_DOT11_MODE_VHT,
+	SKW_MIB_DOT11_MODE_HE,
+	SKW_MIB_DOT11_CBW_20M,
+	SKW_MIB_DOT11_CBW_40M_ABOVE,
+	SKW_MIB_DOT11_CBW_40M_BELOW,
+	SKW_MIB_DOT11_CBW_80M,
+	SKW_MIB_DOT11_CBW_160M,
+	SKW_MIB_DOT11_CBW_80P80M,
+	SKW_MIB_SET_BAND_2G,
+	SKW_MIB_SET_BAND_5G,
 
-	WIPHY_PARAM_DOT11_CLR_ALL_TLV_ID = 0xFFFF,
-
+	SKW_MIB_LAST
 };
 
 enum SKW_CHAN_BW_INFO {
@@ -125,7 +124,6 @@ enum SKW_CHAN_BW_INFO {
 #define SKW_BW_5GHZ_80M             BIT(4)
 #define SKW_BW_5GHZ_160M            BIT(5)
 #define SKW_BW_5GHZ_8080M           BIT(6)
-
 
 enum SKW_CMD_DISCONNECT_TYPE_E {
 	SKW_DISCONNECT_ONLY = 0,
@@ -379,8 +377,10 @@ struct skw_get_sta_resp {
 	struct skw_rate tx_rate;
 	s8 signal;
 	u8 noise;
-	u8 reserved;
+	u8 tx_psr;
 	u32 tx_failed;
+	u16 filter_cnt[35];
+	u16 filter_drop_offload_cnt[35];
 } __packed;
 
 struct skw_roc_param {
@@ -551,10 +551,9 @@ static inline void skw_startap_resp_handler(struct skw_core *skw,
 	iface->default_multicast = iface->id;
 }
 
+int to_skw_bw(enum nl80211_chan_width bw);
 struct wiphy *skw_alloc_wiphy(int priv_size);
 int skw_setup_wiphy(struct wiphy *wiphy, struct skw_chip_info *chip);
-int skw_set_ip(struct wiphy *wiphy, struct net_device *ndev,
-		struct skw_setip_param *ip);
 
 int skw_mgmt_tx(struct wiphy *wiphy, struct skw_iface *iface,
 		struct ieee80211_channel *chan, u32 wait, u64 *cookie,
@@ -579,8 +578,6 @@ int skw_add_station(struct wiphy *wiphy, struct net_device *dev,
 
 void skw_scan_done(struct skw_core *skw, struct skw_iface *iface, bool abort);
 
-int add_tlv_element(u8 *p, u16 *offset, u16 id, u16 len, u8 *data);
-
 void skw_set_state(struct skw_sm *sm, enum SKW_STATES state);
 int skw_roam_connect(struct skw_iface *iface, const u8 *bssid, u8 chn);
 
@@ -603,4 +600,5 @@ void skw_disconnected(struct net_device *dev, u16 reason,
 		bool local_gen, gfp_t gfp);
 int skw_cmd_unjoin(struct wiphy *wiphy, struct net_device *ndev,
 		   const u8 *addr, u16 reason, bool tx_frame);
+int skw_set_mib(struct wiphy *wiphy, struct net_device *dev);
 #endif

@@ -49,6 +49,8 @@ void skw_file_close(struct file *fp)
 {
 	filp_close(fp, NULL);
 }
+
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 #endif
 
 void *skw_build_presp_frame(struct wiphy *wiphy, struct skw_iface *iface,
@@ -456,4 +458,64 @@ int skw_get_rx_rate(struct skw_rate *rate, u8 bw, u8 mode, u8 gi,
 	};
 
 	return 0;
+}
+
+int skw_tlv_add(struct skw_tlv_conf *conf, int type, void *dat, int dat_len)
+{
+	struct skw_tlv *tlv;
+
+	if (!conf || !conf->buff)
+		return -EINVAL;
+
+	if (conf->total_len + dat_len + 4 > conf->buff_len)
+		return -ENOMEM;
+
+	tlv = (struct skw_tlv *)(conf->buff + conf->total_len);
+	tlv->type = type;
+	tlv->len = dat_len;
+	memcpy(tlv->value, dat, dat_len);
+
+	conf->total_len += dat_len + 4;
+
+	return 0;
+}
+
+int skw_tlv_alloc(struct skw_tlv_conf *conf, int len, gfp_t gfp)
+{
+	if (!conf)
+		return -EINVAL;
+
+	conf->buff = SKW_ALLOC(len, GFP_KERNEL);
+	if (!conf->buff)
+		return -ENOMEM;
+
+	conf->total_len = 0;
+	conf->buff_len = len;
+
+	return 0;
+}
+
+void *skw_tlv_reserve(struct skw_tlv_conf *conf, int len)
+{
+	void *start = NULL;
+
+	if (!conf || !conf->buff)
+		return NULL;
+
+	if (conf->total_len + len > conf->buff_len)
+		return NULL;
+
+	start = conf->buff + conf->total_len;
+	conf->total_len += len;
+
+	return start;
+}
+
+void skw_tlv_free(struct skw_tlv_conf *conf)
+{
+	if (conf) {
+		SKW_KFREE(conf->buff);
+		conf->total_len = 0;
+		conf->buff_len = 0;
+	}
 }

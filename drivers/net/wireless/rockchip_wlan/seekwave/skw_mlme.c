@@ -272,6 +272,7 @@ void skw_mlme_ap_tx_status(struct skw_iface *iface, u64 cookie,
 
 	case IEEE80211_STYPE_REASSOC_RESP:
 		reassoc = 1;
+		/* fall through */
 	case IEEE80211_STYPE_ASSOC_RESP:
 		skw_mlme_ap_assoc_cb(iface, client, mgmt, frame_len,
 				     !!ack, reassoc);
@@ -463,8 +464,8 @@ static int skw_mlme_ap_auth_handler(struct skw_iface *iface, int freq,
 		break;
 
 	case WLAN_AUTH_SAE:
-		if (!cfg80211_rx_mgmt(&iface->wdev, freq, signal,
-				      frame, frame_len, 0)) {
+		if (!skw_compat_cfg80211_rx_mgmt(&iface->wdev, freq, signal,
+				      frame, frame_len, 0, GFP_ATOMIC)) {
 			skw_warn("cfg80211_rx_mgmt failed\n");
 		}
 
@@ -998,6 +999,7 @@ int skw_mlme_ap_rx_mgmt(struct skw_iface *iface, u16 fc, int freq,
 
 	case IEEE80211_STYPE_REASSOC_REQ:
 		reassoc = 1;
+		/* fall through */
 	case IEEE80211_STYPE_ASSOC_REQ:
 		skw_mlme_ap_assoc_handler(iface, frame, frame_len, reassoc);
 		break;
@@ -1079,7 +1081,8 @@ int skw_mlme_sta_rx_auth(struct skw_iface *iface, int freq, int signal,
 	conn->state = SKW_STATE_AUTHED;
 
 	if (conn->auth_type == NL80211_AUTHTYPE_SAE)
-		return cfg80211_rx_mgmt(&iface->wdev, freq, signal, buf, len, 0);
+		return skw_compat_cfg80211_rx_mgmt(&iface->wdev, freq, signal,
+						buf, len, 0, GFP_ATOMIC);
 
 	if (conn->auth_type == NL80211_AUTHTYPE_FT)
 		return skw_mlme_sta_ft_event(iface, mgmt, len);

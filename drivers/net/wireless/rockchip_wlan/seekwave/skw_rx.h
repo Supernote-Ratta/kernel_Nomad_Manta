@@ -47,13 +47,16 @@ struct skw_reorder_cb {
 };
 
 struct skw_drop_sn_info {
-	u16 sn:12;
+	u16 sn;
 	u8 amsdu_idx;
-	u8 amsdu_first:1;
-	u8 amsdu_last:1;
-	u8 is_amsdu:1;
-	u8 rsv:1;
-	u8 tid:4;
+	u8 amsdu_first: 1;
+	u8 amsdu_last: 1;
+	u8 is_amsdu: 1;
+	u8 qos: 1;
+	u8 tid: 4;
+	u32 peer_idx: 5;
+	u32 inst: 2;
+	u32 resved: 25;
 } __packed;
 
 struct skw_rx_desc {
@@ -160,11 +163,6 @@ static inline void skw_data_add_credit(struct skw_core *skw, void *data)
 		skw_add_credit(skw, 0, ((struct skw_rx_desc *)data)->credit);
 }
 
-static inline void skw_set_data_len(struct sk_buff *skb, struct skw_rx_desc *desc)
-{
-	__skb_trim(skb, desc->pkt_len - desc->msdu_offset);
-}
-
 static inline void skw_update_peer_rx_rate(struct skw_peer *peer, struct skw_rx_desc *desc)
 {
 	peer->rx.rssi = desc->rssi;
@@ -183,4 +181,5 @@ int skw_rx_init(struct skw_core *skw);
 int skw_rx_deinit(struct skw_core *skw);
 int skw_rx_cb(int port, struct scatterlist *sglist, int nents, void *priv);
 int skw_register_rx_callback(struct skw_core *skw, void *func, void *data);
+
 #endif

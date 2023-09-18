@@ -14,6 +14,7 @@
 #include "skw_work.h"
 #include "skw_calib.h"
 #include "trace.h"
+#include "skw_dfs.h"
 
 static int skw_event_scan_complete(struct skw_core *skw,
 			struct skw_iface *iface, void *buf, int len)
@@ -92,7 +93,7 @@ static int skw_sta_rx_deauth(struct wiphy *wiphy, struct skw_iface *iface,
 	if (!ether_addr_equal(mgmt->bssid, mgmt->sa)) {
 		cfg80211_tdls_oper_request(iface->ndev, mgmt->sa,
 				NL80211_TDLS_TEARDOWN,
-				WLAN_REASON_TDLS_TEARDOWN_UNREACHABLE,
+				SKW_WLAN_REASON_TDLS_TEARDOWN_UNREACHABLE,
 				GFP_KERNEL);
 		return 0;
 	}
@@ -255,7 +256,8 @@ static int skw_sta_rx_mgmt(struct skw_core *skw, struct skw_iface *iface,
 		break;
 
 	default:
-		cfg80211_rx_mgmt(&iface->wdev, freq, signal, buf, len, 0);
+		skw_compat_cfg80211_rx_mgmt(&iface->wdev, freq, signal, buf,
+					len, 0, GFP_ATOMIC);
 		break;
 	}
 
@@ -333,6 +335,22 @@ static void skw_ibss_rx_mgmt(struct skw_iface *iface, void *frame,
 	}
 }
 
+static bool skw_sta_access_allowed(struct skw_iface *iface, u8 *mac)
+{
+	int nr_allowed = iface->sap.max_sta_allowed;
+	int bitmap = atomic_read(&iface->peer_map);
+
+	if (skw_get_ctx_entry(iface->skw, mac))
+		return true;
+
+	while (bitmap && nr_allowed) {
+		nr_allowed--;
+		bitmap &= (bitmap - 1);
+	}
+
+	return (nr_allowed && skw_acl_allowed(iface, mac));
+}
+
 static int skw_sap_rx_mgmt(struct skw_core *skw, struct skw_iface *iface,
 		u16 fc, int freq, int signal, void *buf, int len)
 {
@@ -355,8 +373,8 @@ static int skw_sap_rx_mgmt(struct skw_core *skw, struct skw_iface *iface,
 	}
 
 	if (iface->sap.sme_external)
-		ret = !cfg80211_rx_mgmt(&iface->wdev, freq, signal,
-						buf, len, 0);
+		ret = !skw_compat_cfg80211_rx_mgmt(&iface->wdev, freq, signal,
+						buf, len, 0, GFP_ATOMIC);
 	else
 		ret = skw_mlme_ap_rx_mgmt(iface, fc, freq, signal, buf, len);
 
@@ -423,8 +441,9 @@ static int skw_event_rx_mgmt(struct skw_core *skw, struct skw_iface *iface,
 		break;
 
 	default:
-		cfg80211_rx_mgmt(&iface->wdev, freq, signal,
-				(void *)hdr->mgmt, hdr->mgmt_len, 0);
+		skw_compat_cfg80211_rx_mgmt(&iface->wdev, freq, signal,
+				(void *)hdr->mgmt, hdr->mgmt_len,
+				0, GFP_ATOMIC);
 		break;
 	}
 
@@ -475,9 +494,10 @@ void skw_del_sta_event(struct skw_iface *iface, const u8 *addr, u16 reason)
 		mgmt.frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						 IEEE80211_STYPE_DISASSOC);
 
-		cfg80211_rx_mgmt(&iface->wdev,
+		skw_compat_cfg80211_rx_mgmt(&iface->wdev,
 				 iface->sap.cfg.channel->center_freq,
-				 -5400, (void *)&mgmt, SKW_DEAUTH_FRAME_LEN, 0);
+				 -5400, (void *)&mgmt,
+				 SKW_DEAUTH_FRAME_LEN, 0, GFP_ATOMIC);
 	} else {
 		cfg80211_del_sta(iface->ndev, addr, GFP_KERNEL);
 	}
@@ -575,7 +595,8 @@ static int skw_event_scan_report(struct skw_core *skw, struct skw_iface *iface,
 	hdr->mgmt->u.probe_resp.timestamp = ((u64)ts.tv_sec*1000000)
 						+ ts.tv_nsec / 1000;
 #else
-	hdr->mgmt->u.probe_resp.timestamp = ktime_get_boottime().tv64 / 1000;
+	hdr->mgmt->u.probe_resp.timestamp = ktime_get_boottime().tv64;
+	do_div(hdr->mgmt->u.probe_resp.timestamp,  1000);
 #endif
 
 	bss = cfg80211_inform_bss_frame(iface->wdev.wiphy, rx_channel,
@@ -1300,6 +1321,24 @@ static int skw_event_mp_mode_handler(struct skw_core *skw,
 	return 0;
 }
 
+static int skw_event_radar_pulse_handler(struct skw_core *skw,
+			struct skw_iface *iface, void *buf, int len)
+{
+	int ret;
+	u8 *p = (u8 *)buf;
+	u8 pulse_num = p[0];
+
+	skw_dbg("event_radar_pulse pulse_num = %d\n", pulse_num);
+
+	if (pulse_num) {
+        ret = skw_queue_work(priv_to_wiphy(skw), iface, SKW_WORK_RADAR_PULSE,
+				&(p[0]), PULSE_INFO_HDR_LEN + pulse_num * PULSE_INFO_LEN);
+    }
+
+	return 0;
+}
+
+
 static int skw_local_ap_auth_timeout(struct skw_core *skw,
 			struct skw_iface *iface, void *buf, int len)
 {
@@ -1414,7 +1453,7 @@ static const struct skw_event_func g_event_fn[] = {
 	FUNC_INIT(SKW_EVENT_DPD_ILC_GEAR_CMPL, skw_event_dpd_gear_cmpl),
 	FUNC_INIT(SKW_EVENT_FW_RECOVERY, skw_event_fw_recovery),
 	FUNC_INIT(SKW_EVENT_NPI_MP_MODE, skw_event_mp_mode_handler),
-
+	FUNC_INIT(SKW_EVENT_RADAR_PULSE, skw_event_radar_pulse_handler),
 	FUNC_INIT(SKW_EVENT_MAX, NULL),
 };
 
@@ -1610,7 +1649,6 @@ int skw_msg_xmit_timeout(struct wiphy *wiphy, int dev_id, int cmd,
 		return -EFAULT;
 	}
 
-
 	if (!skw_cmd_tx_allowd(skw, cmd))
 		return -EFAULT;
 
@@ -1676,8 +1714,12 @@ int skw_cmd_ack_handler(struct skw_core *skw, void *data, int data_len)
 
 	if (skw->cmd.arg) {
 		u16 hdr_len = sizeof(struct skw_msg) + sizeof(u16);
+		u16 len = msg_ack->total_len - hdr_len;
 
-		WARN_ON(msg_ack->total_len - hdr_len != skw->cmd.arg_size);
+		// WARN_ON(msg_ack->total_len - hdr_len != skw->cmd.arg_size);
+		if (len != skw->cmd.arg_size)
+			skw_warn("%s expect len: %d, recv len: %d\n",
+				 skw->cmd.name, skw->cmd.arg_size, len);
 
 		memcpy(skw->cmd.arg, data + hdr_len,
 		       min(data_len - hdr_len, (int)skw->cmd.arg_size));

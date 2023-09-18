@@ -18,11 +18,11 @@
 #include "skw_calib.h"
 #include "skw_iw.h"
 #include "skw_recovery.h"
+#include "skw_dfs.h"
 
 #define SKW_BIT_ULL(nr)        (1ULL << (nr))
-#define SKW_WDEV_TO_IFACE(w)   container_of(w, struct skw_iface, wdev)
 
-static int to_skw_bw(enum nl80211_chan_width bw)
+int to_skw_bw(enum nl80211_chan_width bw)
 {
 	switch (bw) {
 	case NL80211_CHAN_WIDTH_20:
@@ -107,7 +107,7 @@ static const struct ieee80211_iface_limit skw_iface_limits[] = {
 		.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
 			BIT(NL80211_IFTYPE_P2P_GO)
 	},
-#ifdef SKW_DEDICATED_P2P_DEV
+#ifndef SKW_LEGACY_P2P
 	{
 		.max = 1,
 		.types = BIT(NL80211_IFTYPE_P2P_DEVICE)
@@ -124,7 +124,7 @@ static const struct ieee80211_iface_limit skw_iface_limits_stas[] = {
 		.max = 1,
 		.types = BIT(NL80211_IFTYPE_AP)
 	},
-#ifdef SKW_DEDICATED_P2P_DEV
+#ifndef SKW_LEGACY_P2P
 	{
 		.max = 1,
 		.types = BIT(NL80211_IFTYPE_P2P_DEVICE)
@@ -134,24 +134,40 @@ static const struct ieee80211_iface_limit skw_iface_limits_stas[] = {
 
 static const struct ieee80211_iface_combination skw_iface_combos[] = {
 	{
-#ifdef SKW_DEDICATED_P2P_DEV
+#ifndef SKW_LEGACY_P2P
 		.max_interfaces = 4,
 #else
 		.max_interfaces = 3,
 #endif
-		.num_different_channels = 2,
 		.n_limits = ARRAY_SIZE(skw_iface_limits),
-		.limits = skw_iface_limits
+		.limits = skw_iface_limits,
+#ifdef SKW_DFS_MASTER
+		.num_different_channels = 1,
+		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+				       BIT(NL80211_CHAN_WIDTH_20) |
+				       BIT(NL80211_CHAN_WIDTH_40) |
+				       BIT(NL80211_CHAN_WIDTH_80),
+#else
+		.num_different_channels = 2,
+#endif
 	},
 	{
-#ifdef SKW_DEDICATED_P2P_DEV
+#ifndef SKW_LEGACY_P2P
 		.max_interfaces = 4,
 #else
 		.max_interfaces = 3,
 #endif
-		.num_different_channels = 2,
 		.n_limits = ARRAY_SIZE(skw_iface_limits_stas),
-		.limits = skw_iface_limits_stas
+		.limits = skw_iface_limits_stas,
+#ifdef SKW_DFS_MASTER
+		.num_different_channels = 1,
+		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+				       BIT(NL80211_CHAN_WIDTH_20) |
+				       BIT(NL80211_CHAN_WIDTH_40) |
+				       BIT(NL80211_CHAN_WIDTH_80),
+#else
+		.num_different_channels = 2,
+#endif
 	}
 };
 
@@ -438,7 +454,7 @@ static void skw_count_iftype(struct wiphy *wiphy, int num[NUM_NL80211_IFTYPES])
 
 	for (i = 0; i < SKW_NR_IFACE; i++) {
 		iface = skw->vif.iface[i];
-		if (!iface)
+		if (!iface || (iface->flags & SKW_IFACE_FLAG_LEGACY_P2P))
 			continue;
 
 		num[iface->wdev.iftype]++;
@@ -478,9 +494,10 @@ skw_add_virtual_intf(struct wiphy *wiphy, const char *name,
 	}
 
 	if (type == NL80211_IFTYPE_P2P_DEVICE)
-		vif_id = 3;
+		vif_id = SKW_LAST_IFACE_ID;
 
-	iface = skw_add_iface(wiphy, name, type, params->macaddr, vif_id);
+	iface = skw_add_iface(wiphy, name, type, params->macaddr, vif_id,
+				type != NL80211_IFTYPE_P2P_DEVICE);
 	if (IS_ERR(iface)) {
 		skw_err("failed, %ld\n", PTR_ERR(iface));
 		return ERR_CAST(iface);
@@ -510,10 +527,14 @@ static int skw_change_intf(struct wiphy *wiphy, struct net_device *dev,
 	int iftype_num[NUM_NL80211_IFTYPES] = {0};
 	struct skw_iface *iface = netdev_priv(dev);
 
-	skw_dbg("%s (inst: %d), %s -> %s, mac: %pM, 4addr: %d\n",
+	skw_dbg("%s (inst: %d), %s -> %s, mac: %pM, 4addr: %d, flags: 0x%x\n",
 		netdev_name(dev), iface->id,
 		skw_iftype_name(dev->ieee80211_ptr->iftype),
-		skw_iftype_name(type), params->macaddr, params->use_4addr);
+		skw_iftype_name(type), params->macaddr,
+		params->use_4addr, iface->flags);
+
+	if (iface->flags & SKW_IFACE_FLAG_LEGACY_P2P)
+		iface->wdev.iftype = type;
 
 	if (iface->wdev.iftype == type)
 		return 0;
@@ -532,15 +553,6 @@ static int skw_change_intf(struct wiphy *wiphy, struct net_device *dev,
 
 		return ret;
 	}
-
-#ifndef SKW_DEDICATED_P2P_DEV
-	if (type == NL80211_IFTYPE_STATION &&
-	    (iface->wdev.iftype == NL80211_IFTYPE_P2P_CLIENT ||
-	     iface->wdev.iftype == NL80211_IFTYPE_P2P_GO)) {
-		skw_dbg("keep the GC mode for non-dedicated p2p device mode");
-		return 0;
-	}
-#endif
 
 	if (iface->ndev)
 		netif_tx_stop_all_queues(dev);
@@ -978,6 +990,7 @@ static bool skw_channel_allowed(struct wiphy *wiphy, u16 channel)
 		case NL80211_IFTYPE_STATION:
 			if (atomic_read(&iface->actived_ctx) > 1)
 				extra_chn = true;
+			/* fall through */
 
 		case NL80211_IFTYPE_P2P_CLIENT:
 			chan = iface->sta.core.bss.channel;
@@ -1017,6 +1030,67 @@ static bool skw_channel_allowed(struct wiphy *wiphy, u16 channel)
 	return false;
 }
 
+int skw_set_mib(struct wiphy *wiphy, struct net_device *dev)
+{
+	int ret = 0;
+	u16 *plen;
+	struct skw_tlv_conf conf;
+	struct skw_iface *iface = netdev_priv(dev);
+
+	if (!iface->iw_flags.mode)
+		return 0;
+
+	ret = skw_tlv_alloc(&conf, 512, GFP_KERNEL);
+	if(ret)
+		return ret;
+
+	plen = skw_tlv_reserve(&conf, 2);
+
+	switch (iface->iw_flags.mode) {
+	case SKW_MODE_11G_ONLY:
+		if (skw_tlv_add(&conf, SKW_MIB_DOT11_MODE_HE, 0, 4) ||
+		    skw_tlv_add(&conf, SKW_MIB_DOT11_MODE_VHT, 0, 4) ||
+		    skw_tlv_add(&conf, SKW_MIB_DOT11_MODE_HT, 0, 4) ||
+		    skw_tlv_add(&conf, SKW_MIB_DOT11_MODE_B, 0, 4) ||
+		    skw_tlv_add(&conf, SKW_MIB_DOT11_MODE_A, 0, 4) ||
+		    skw_tlv_add(&conf, SKW_MIB_DOT11_MODE_G, 0, 4)) {
+			skw_err("set 11G mode failed\n");
+			skw_tlv_free(&conf);
+		}
+
+		break;
+
+	case SKW_MODE_11N_ONLY:
+		if (skw_tlv_add(&conf, SKW_MIB_DOT11_MODE_HE, 0, 4) ||
+		    skw_tlv_add(&conf, SKW_MIB_DOT11_MODE_VHT, 0, 4) ||
+		    skw_tlv_add(&conf, SKW_MIB_DOT11_MODE_HT, 0, 4) ||
+		    skw_tlv_add(&conf, SKW_MIB_DOT11_MODE_B, 0, 4) ||
+		    skw_tlv_add(&conf, SKW_MIB_DOT11_MODE_A, 0, 4) ||
+		    skw_tlv_add(&conf, SKW_MIB_DOT11_MODE_G, 0, 4)) {
+			skw_err("set 11N mode failed\n");
+			skw_tlv_free(&conf);
+		}
+
+		break;
+
+	default:
+		break;
+	}
+
+	if (conf.total_len) {
+		*plen = conf.total_len;
+		ret = skw_msg_xmit(wiphy, 0, SKW_CMD_SET_MIB, conf.buff,
+				  conf.total_len, NULL, 0);
+		if (ret)
+			skw_err("failed, ret: %d\n", ret);
+
+	}
+
+	skw_tlv_free(&conf);
+
+	return ret;
+}
+
 static int skw_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			struct cfg80211_ap_settings *settings)
 {
@@ -1045,7 +1119,7 @@ static int skw_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		return -ENOTSUPP;
 	}
 
-	skw_send_tlv_cmd(wiphy, dev);
+	skw_set_mib(wiphy, dev);
 
 	fixed = sizeof(struct skw_startap_param);
 	total = fixed +
@@ -1170,6 +1244,8 @@ static int skw_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	netif_carrier_on(dev);
 
+	skw_dfs_start_monitor_event(wiphy, iface, chandef);
+
 	SKW_KFREE(param);
 
 	return 0;
@@ -1240,6 +1316,8 @@ static int skw_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	skw_info("ndev: %s\n", netdev_name(dev));
 
 	netif_carrier_off(dev);
+
+	skw_dfs_stop_monitor_event(wiphy, iface);
 
 	skw_sap_flush_sta(wiphy, iface, 12, SKW_LEAVE);
 
@@ -1342,60 +1420,6 @@ void skw_set_state(struct skw_sm *sm, enum SKW_STATES state)
 	sm->state = state;
 }
 
-/*
- * Get the IP address for both IPV4 and IPV6, set it
- * to firmware while they are valid.
- */
-static void skw_set_static_ip(struct wiphy *wiphy, struct net_device *ndev)
-{
-	struct in_device *in_dev;
-	struct in_ifaddr *ifa;
-
-	struct inet6_dev *idev;
-	struct inet6_ifaddr *ifp;
-
-	struct skw_setip_param param;
-
-	/* check ipv4 addr */
-	in_dev = __in_dev_get_rtnl(ndev);
-	if (!in_dev)
-		goto ipv6;
-
-	ifa = in_dev->ifa_list;
-	if (!ifa || !ifa->ifa_local)
-		goto ipv6;
-
-	memset(&param, 0, sizeof(param));
-	param.ip_type = SKW_IP_IPV4;
-	param.ipv4 = ifa->ifa_local;
-
-	skw_info("ip addr: %pI4\n", &ifa->ifa_local);
-
-	skw_queue_work(wiphy, netdev_priv(ndev), SKW_WORK_SET_IP,
-			&param, sizeof(param));
-
-ipv6:
-	/* check ipv6 addr */
-	idev = __in6_dev_get(ndev);
-	if (!idev)
-		return;
-
-	list_for_each_entry_reverse(ifp, &idev->addr_list, if_list) {
-		if (skw_is_local_addr6(&ifp->addr))
-			continue;
-
-		memset(&param, 0, sizeof(param));
-		param.ip_type = SKW_IP_IPV6;
-		memcpy(param.ipv6, &ifp->addr, 16);
-
-		skw_info("ip addr: %pI6\n", &ifp->addr);
-
-		skw_queue_work(wiphy, netdev_priv(ndev), SKW_WORK_SET_IP,
-				&param, sizeof(param));
-		break;
-	}
-}
-
 int skw_change_station(struct wiphy *wiphy, struct net_device *dev,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 			const u8 *mac,
@@ -1444,7 +1468,7 @@ int skw_change_station(struct wiphy *wiphy, struct net_device *dev,
 		if (flags_set & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
 			skw_set_state(&iface->sta.core.sm, SKW_STATE_COMPLETED);
 			atomic_set(&ctx->peer->rx_filter, SKW_RX_FILTER_NONE);
-			skw_set_static_ip(wiphy, dev);
+			skw_set_ip_to_fw(wiphy, dev);
 		}
 
 		break;
@@ -1750,6 +1774,14 @@ static int skw_get_station(struct wiphy *wiphy, struct net_device *dev,
 	if (ctx->peer) {
 		ctx->peer->tx.rssi = sinfo->signal;
 		ctx->peer->tx.rate.mcs_idx = get_sta_resp.tx_rate.mcs_idx;
+		ctx->peer->tx.tx_psr = get_sta_resp.tx_psr;
+		ctx->peer->tx.tx_failed = get_sta_resp.tx_failed;
+
+		memcpy(ctx->peer->rx.filter_cnt,
+			get_sta_resp.filter_cnt, sizeof(get_sta_resp.filter_cnt));
+		memcpy(ctx->peer->rx.filter_drop_offload_cnt,
+			get_sta_resp.filter_drop_offload_cnt,
+			sizeof(get_sta_resp.filter_drop_offload_cnt));
 	}
 
 	skw_peer_ctx_unlock(ctx);
@@ -1786,7 +1818,7 @@ static int skw_scan(struct wiphy *wiphy, struct cfg80211_scan_request *req)
 	struct skw_iface *iface = SKW_WDEV_TO_IFACE(req->wdev);
 
 	//TODO: return busy when STA is associating
-	skw_dbg("%s: nr_chan: %d, n_ssids: %d, ie_len: %ld\n",
+	skw_dbg("%s: nr_chan: %d, n_ssids: %d, ie_len: %zd\n",
 		skw_iftype_name(req->wdev->iftype),
 		req->n_channels, req->n_ssids, req->ie_len);
 
@@ -2322,7 +2354,7 @@ void skw_tx_mlme_mgmt(struct net_device *dev, u16 stype,
 	mgmt.u.deauth.reason_code = cpu_to_le16(reason);
 	mgmt.frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | stype);
 
-	cfg80211_tx_mlme_mgmt(dev, (void *)&mgmt, SKW_DEAUTH_FRAME_LEN);
+	skw_cfg80211_tx_mlme_mgmt(dev, (void *)&mgmt, SKW_DEAUTH_FRAME_LEN);
 }
 
 static int skw_join(struct wiphy *wiphy, struct net_device *ndev,
@@ -2497,7 +2529,7 @@ static int skw_auth(struct wiphy *wiphy, struct net_device *ndev,
 		if (ret)
 			return ret;
 
-		/* continue */
+		/* fall through */
 	case SKW_STATE_NONE:
 		if (is_valid_ether_addr(bss->bssid)) {
 			skw_warn("unexpected bssid: %pM\n", bss->bssid);
@@ -2522,7 +2554,7 @@ static int skw_auth(struct wiphy *wiphy, struct net_device *ndev,
 	if (req->key && req->key_len) {
 		key.seq = NULL;
 		key.seq_len = 0;
-		key.key = req->key;
+		key.key = (u8 *)req->key;
 		key.key_len = req->key_len;
 		key.cipher = SKW_CIPHER_SUITE_WEP40;
 
@@ -3049,10 +3081,8 @@ static int skw_remain_on_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 		roc.channel_type = 2;
 	else if (chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
 		roc.channel_type = 1;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
-	else if (chan->flags & IEEE80211_CHAN_NO_20MHZ)
+	else if (chan->flags & SKW_IEEE80211_CHAN_NO_20MHZ)
 		roc.channel_type = 0;
-#endif
 	else
 		roc.channel_type = 3;
 
@@ -3178,7 +3208,7 @@ static inline bool skw_is_rrm_report(const void *buf, int buf_len)
 		      sizeof(mgmt->u.action.u.measurement))
 		return false;
 
-	if (mgmt->u.action.category != WLAN_CATEGORY_RADIO_MEASUREMENT)
+	if (mgmt->u.action.category != SKW_WLAN_CATEGORY_RADIO_MEASUREMENT)
 		return false;
 
 	if (mgmt->u.action.u.measurement.action_code != WLAN_ACTION_SPCT_MSR_RPRT)
@@ -3425,77 +3455,60 @@ static int skw_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 			&params, sizeof(params), NULL, 0);
 }
 
-int add_tlv_element(u8 *p, u16 *offset, u16 id, u16 len, u8 *data)
-{
-	if (*offset + len + 4 > SKW_MAX_TLV_BUFF_LEN)
-		return -EOVERFLOW;
-
-	p += *offset;
-	memcpy(p, &id, 2);
-	memcpy(p + 2, &len, 2);
-	memcpy(p + 4, data, len);
-	*offset += 4;
-	*offset += len;
-
-	return 0;
-}
-
 static int skw_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
-	u32 frag_threshold = 0, rts_threshold = 0;
-	u8 coverage_class = 0;
-	int size = 0;
-	struct skw_iface_mib *mib = NULL;
 	int ret = 0;
+	u16 *plen;
+	struct skw_tlv_conf conf;
 
-	mib = SKW_ALLOC(sizeof(*mib), GFP_KERNEL);
-	if (IS_ERR_OR_NULL(mib)) {
-		skw_err("Malloc TLV buff for set wiphy params failed\n");
+	skw_dbg("changed: 0x%x\n", changed);
+
+	ret = skw_tlv_alloc(&conf, 128, GFP_KERNEL);
+	if (ret)
+		return ret;
+
+	plen = skw_tlv_reserve(&conf, 2);
+	if (!plen) {
+		skw_tlv_free(&conf);
 		return -ENOMEM;
 	}
 
-	if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
-		frag_threshold = wiphy->frag_threshold;
-		size = sizeof(frag_threshold);
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-			WIPHY_PARAM_FRAG_THRESHOLD_TLV_ID,
-			size, (u8 *)&frag_threshold);
-		if (ret)
-			goto exit;
+	if (changed & WIPHY_PARAM_RETRY_SHORT) {
+		if (skw_tlv_add(&conf, SKW_MIB_RETRY_SHORT,
+				&wiphy->retry_short,
+				sizeof(wiphy->retry_short)))
+			skw_err("add SKW_MIB_RETRY_SHORT failed.\n");
 	}
 
-	if ((changed & WIPHY_PARAM_COVERAGE_CLASS)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
-		|| (changed & WIPHY_PARAM_DYN_ACK)
-#endif
-	   ) {
-		coverage_class = changed & WIPHY_PARAM_COVERAGE_CLASS ?
-			wiphy->coverage_class : -1;
-		size = sizeof(coverage_class);
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-			WIPHY_PARAM_COVERAGE_CLASS_TLV_ID,
-			size, (u8 *)&coverage_class);
-		if (ret)
-			goto exit;
+	if (changed & WIPHY_PARAM_RETRY_LONG) {
+		if (skw_tlv_add(&conf, SKW_MIB_RETRY_LONG,
+				&wiphy->retry_long,
+				sizeof(wiphy->retry_long)))
+			skw_err("add SKW_MIB_RETRY_LONG failed.\n");
+	}
+
+
+	if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
+		if (skw_tlv_add(&conf, SKW_MIB_FRAG_THRESHOLD,
+				&wiphy->frag_threshold,
+				sizeof(wiphy->frag_threshold)))
+			skw_err("add SKW_MIB_FRAG_THRESHOLD failed.\n");
 	}
 
 	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
-		rts_threshold = wiphy->rts_threshold;
-		size = sizeof(rts_threshold);
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-			WIPHY_PARAM_RTS_THRESHOLD_TLV_ID,
-			size, (u8 *)&rts_threshold);
-		if (ret)
-			goto exit;
+		if (skw_tlv_add(&conf, SKW_MIB_RTS_THRESHOLD,
+				  &wiphy->rts_threshold,
+				  sizeof(wiphy->rts_threshold)))
+			skw_err("add SKW_MIB_RTS_THRESHOLD failed.\n");
 	}
 
-	ret = skw_msg_xmit(wiphy, 0, SKW_CMD_SET_TLV, mib,
-			   mib->n_mib_len + 2, NULL, 0);
-	if (ret)
-		skw_err("Set wiphy params failed");
+	if (conf.total_len) {
+		*plen = conf.total_len;
+		ret = skw_msg_xmit(wiphy, 0, SKW_CMD_SET_MIB, conf.buff,
+				conf.total_len, NULL, 0);
+	}
 
-exit:
-	SKW_KFREE(mib);
+	skw_tlv_free(&conf);
 
 	return ret;
 }
@@ -3511,7 +3524,7 @@ static int skw_sched_scan_start(struct wiphy *wiphy, struct net_device *dev,
 	s8 relative_rssi = 0;
 	bool relative_rssi_set = false;
 	s32 min_rssi_thold = 0;
-	int n_scan_plans, n_plans_len;
+	int n_scan_plans = 0, n_plans_len = 0;
 	int n_ssids_len, n_match_len;
 	int size, fixed, offset = 0;
 
@@ -3606,7 +3619,10 @@ static int skw_sched_scan_start(struct wiphy *wiphy, struct net_device *dev,
 	if (n_scan_plans) {
 		params->scan_plans_offset = fixed + offset;
 		params->scan_plans_len = n_plans_len;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
 		memcpy(params->data + offset, req->scan_plans, n_plans_len);
+#endif
 
 		offset += n_plans_len;
 	}
@@ -4017,21 +4033,6 @@ static void skw_set_wakeup(struct wiphy *wiphy, bool enabled)
 	device_set_wakeup_enable(wiphy_dev(wiphy), enabled);
 }
 
-int skw_set_ip(struct wiphy *wiphy, struct net_device *ndev,
-		struct skw_setip_param *setip_param)
-{
-	int ret = 0;
-	int size = 0;
-
-	size = sizeof(struct skw_setip_param);
-	ret = skw_queue_work(wiphy, netdev_priv(ndev),
-			SKW_WORK_SET_IP, setip_param, size);
-	if (ret)
-		skw_err("Set IP failed\n");
-
-	return ret;
-}
-
 static int skw_start_p2p_device(struct wiphy *wiphy, struct wireless_dev *wdev)
 {
 	skw_dbg("traced\n");
@@ -4188,6 +4189,62 @@ static int skw_update_ft_ies(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+#ifdef SKW_DFS_MASTER
+static int skw_start_radar_detection(struct wiphy *wiphy, struct net_device *ndev,
+				struct cfg80211_chan_def *chandef, u32 cac_time_ms)
+{
+	struct skw_iface *iface = netdev_priv(ndev);
+	struct skw_dfs_start_detector_param param;
+
+	skw_log(SKW_DFS, "[SKWIFI DFS]: s.\n");
+
+	param.def = *chandef;
+	param.cac_time_ms = cac_time_ms;
+
+	skw_queue_work(wiphy, iface, SKW_WORK_RADAR_CAC,
+			&param, sizeof(param));
+
+	return 0;
+}
+
+static int skw_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+				  struct cfg80211_csa_settings *params)
+{
+	return skw_dfs_trig_chan_switch(wiphy, dev, params->beacon_csa.taill,
+				params->beacon_csa.tail_len);
+}
+
+#endif
+
+static int skw_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
+			 const
+#endif
+			 u8 *peer, u8 action, u8 token, u16 status,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
+			 u32 peer_capability,
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+			 bool initiator,
+#endif
+			 const u8 *ies, size_t ies_len)
+{
+	u32 capa = 0;
+	bool tdls_initiator = false;
+	struct skw_core *skw = wiphy_priv(wiphy);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
+	capa = peer_capability;
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+	tdls_initiator = initiator;
+#endif
+
+	return skw_tdls_build_send_mgmt(skw, dev, peer, action, token, status,
+					capa, tdls_initiator, ies, ies_len);
+}
+
 static struct cfg80211_ops skw_cfg80211_ops  = {
 	.add_virtual_intf = skw_add_virtual_intf,
 	.del_virtual_intf = skw_del_virtual_intf,
@@ -4255,6 +4312,10 @@ static struct cfg80211_ops skw_cfg80211_ops  = {
 	.external_auth = skw_external_auth,
 #endif
 	.update_ft_ies = skw_update_ft_ies,
+#ifdef SKW_DFS_MASTER
+	.start_radar_detection = skw_start_radar_detection,
+	.channel_switch = skw_channel_switch,
+#endif
 };
 
 static void skw_regd_notifier(struct wiphy *wiphy,
@@ -4300,7 +4361,7 @@ struct skw_iftype_ext_cap iftype_ext_cap[NUM_NL80211_IFTYPES] = {
 	{NL80211_IFTYPE_STATION,	{0}, 0},
 	{NL80211_IFTYPE_AP,		{0}, 0},
 	{NL80211_IFTYPE_P2P_GO,		{0}, 0},
-#ifdef SKW_DEDICATED_P2P_DEV
+#ifndef SKW_LEGACY_P2P
 	{NL80211_IFTYPE_P2P_DEVICE,	{0}, 0},
 #endif
 };
@@ -4403,7 +4464,7 @@ static void skw_sync_band_capa(struct ieee80211_supported_band *band,
 			switch (BIT(i)) {
 			case SKW_BW_CAP_2G_20M:
 			case SKW_BW_CAP_5G_20M:
-				flags |= IEEE80211_CHAN_NO_20MHZ;
+				flags |= SKW_IEEE80211_CHAN_NO_20MHZ;
 				break;
 
 			case SKW_BW_CAP_2G_40M:
@@ -4452,6 +4513,11 @@ int skw_setup_wiphy(struct wiphy *wiphy, struct skw_chip_info *chip)
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_REPORTS_OBSS;
+#ifdef SKW_DFS_MASTER
+	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+	wiphy->max_num_csa_counters = 2;
+#endif
+
 
 	/* STA SME EXTERNAL */
 	if (!test_bit(SKW_FLAG_STA_SME_EXTERNAL, &skw->flags))
@@ -4478,7 +4544,7 @@ int skw_setup_wiphy(struct wiphy *wiphy, struct skw_chip_info *chip)
 #endif
 
 #ifdef SKW_SCAN_RANDOM_MAC
-	wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
+	wiphy->features |= SKW_WIPHY_FEATURE_SCAN_RANDOM_MAC;
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
@@ -4490,7 +4556,9 @@ int skw_setup_wiphy(struct wiphy *wiphy, struct skw_chip_info *chip)
 #endif
 
 #ifdef SKW_REGD_SELF_MANAGED
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
 	wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
+#endif
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0))
@@ -4505,7 +4573,7 @@ int skw_setup_wiphy(struct wiphy *wiphy, struct skw_chip_info *chip)
 				 BIT(NL80211_IFTYPE_AP) |
 				 BIT(NL80211_IFTYPE_P2P_GO) |
 				 BIT(NL80211_IFTYPE_P2P_CLIENT);
-#ifdef SKW_DEDICATED_P2P_DEV
+#ifndef SKW_LEGACY_P2P
 	wiphy->interface_modes |= BIT(NL80211_IFTYPE_P2P_DEVICE);
 #endif
 
@@ -4514,7 +4582,11 @@ int skw_setup_wiphy(struct wiphy *wiphy, struct skw_chip_info *chip)
 	wiphy->extended_capabilities_len = sizeof(skw->ext_capa);
 
 #ifdef CONFIG_PM
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)
 	wiphy->wowlan = &skw_wowlan_support;
+#else
+	memcpy(&wiphy->wowlan, &skw_wowlan_support, sizeof(wiphy->wowlan));
+#endif
 #endif
 
 	skw_sync_band_capa(&skw_band_2ghz, chip);
@@ -4544,7 +4616,9 @@ int skw_setup_wiphy(struct wiphy *wiphy, struct skw_chip_info *chip)
 	wiphy->addresses = skw->address;
 	wiphy->n_addresses = ARRAY_SIZE(skw->address);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
 	wiphy->max_ap_assoc_sta = skw->fw.max_num_sta;
+#endif
 
 	wiphy->reg_notifier = skw_regd_notifier;
 

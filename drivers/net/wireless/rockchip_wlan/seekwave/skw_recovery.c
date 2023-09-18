@@ -103,7 +103,7 @@ static int skw_recovery_sta(struct wiphy *wiphy, struct skw_recovery_data *rd,
 			/* TDLS */
 			cfg80211_tdls_oper_request(dev, peer->addr,
 					NL80211_TDLS_TEARDOWN,
-					WLAN_REASON_TDLS_TEARDOWN_UNREACHABLE,
+					SKW_WLAN_REASON_TDLS_TEARDOWN_UNREACHABLE,
 					GFP_KERNEL);
 
 			peer->flags |= SKW_PEER_FLAG_DEAUTHED;
@@ -159,7 +159,7 @@ static int skw_recovery_sap(struct wiphy *wiphy, struct skw_recovery_data *rd,
 	struct skw_startap_param *param;
 	struct net_device *ndev = iface->ndev;
 
-	ret = skw_send_tlv_cmd(wiphy, iface->ndev);
+	ret = skw_set_mib(wiphy, iface->ndev);
 	if (ret) {
 		skw_err("set tlv failed, ret: %d\n", ret);
 		return ret;

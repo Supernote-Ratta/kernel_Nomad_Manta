@@ -7,143 +7,6 @@
 #include "skw_iw.h"
 #include "skw_log.h"
 
-int skw_send_tlv_cmd(struct wiphy *wiphy, struct net_device *dev)
-{
-	struct skw_iface_mib *mib = NULL;
-	int ret = 0;
-	struct skw_iface *iface = netdev_priv(dev);
-	u32 mib_value = true;
-	u32 mib_id;
-	int size = sizeof(mib_value);
-
-	if (!iface->iw_flags.mode)
-		return ret;
-
-	mib = SKW_ALLOC(sizeof(*mib), GFP_KERNEL);
-	if (IS_ERR_OR_NULL(mib)) {
-		skw_err("malloc TLV cmd buffs\n");
-		return -ENOMEM;
-	}
-
-	switch (iface->iw_flags.mode) {
-	case SKW_MODE_11AX:
-		break;
-
-	case SKW_MODE_11AC:
-		break;
-
-	case SKW_MODE_11N:
-		break;
-
-	case SKW_MODE_11B:
-		break;
-
-	case SKW_MODE_11G_ONLY:
-		mib_id = WIPHY_PARAM_DOT11_MODE_HE_MIB_TLV_ID;
-		mib_value = false;
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-				mib_id, size, (u8 *) &mib_value);
-		if (ret)
-			goto exit;
-
-		mib_id = WIPHY_PARAM_DOT11_MODE_VHT_MIB_TLV_ID;
-		mib_value = false;
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-				mib_id, size, (u8 *) &mib_value);
-		if (ret)
-			goto exit;
-
-		mib_id = WIPHY_PARAM_DOT11_MODE_HT_MIB_TLV_ID;
-		mib_value = false;
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-				mib_id, size, (u8 *) &mib_value);
-		if (ret)
-			goto exit;
-
-		mib_id = WIPHY_PARAM_DOT11_MODE_B_MIB_TLV_ID;
-		mib_value = false;
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-				mib_id, size, (u8 *) &mib_value);
-		if (ret)
-			goto exit;
-
-		mib_id = WIPHY_PARAM_DOT11_MODE_A_MIB_TLV_ID;
-		mib_value = false;
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-				mib_id, size, (u8 *) &mib_value);
-		if (ret)
-			goto exit;
-
-		mib_id = WIPHY_PARAM_DOT11_MODE_G_MIB_TLV_ID;
-		mib_value = true;
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-				mib_id, size, (u8 *) &mib_value);
-		if (ret)
-			goto exit;
-
-		break;
-
-	case SKW_MODE_11N_ONLY:
-		mib_id = WIPHY_PARAM_DOT11_MODE_HE_MIB_TLV_ID;
-		mib_value = false;
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-				mib_id, size, (u8 *) &mib_value);
-		if (ret)
-			goto exit;
-
-		mib_id = WIPHY_PARAM_DOT11_MODE_VHT_MIB_TLV_ID;
-		mib_value = false;
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-				mib_id, size, (u8 *) &mib_value);
-		if (ret)
-			goto exit;
-
-		mib_id = WIPHY_PARAM_DOT11_MODE_HT_MIB_TLV_ID;
-		mib_value = true;
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-				mib_id, size, (u8 *) &mib_value);
-		if (ret)
-			goto exit;
-
-		mib_id = WIPHY_PARAM_DOT11_MODE_B_MIB_TLV_ID;
-		mib_value = false;
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-				mib_id, size, (u8 *) &mib_value);
-		if (ret)
-			goto exit;
-
-		mib_id = WIPHY_PARAM_DOT11_MODE_A_MIB_TLV_ID;
-		mib_value = false;
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-				mib_id, size, (u8 *) &mib_value);
-		if (ret)
-			goto exit;
-
-		mib_id = WIPHY_PARAM_DOT11_MODE_G_MIB_TLV_ID;
-		mib_value = false;
-		ret = add_tlv_element(mib->mib_buff, &mib->n_mib_len,
-				mib_id, size, (u8 *) &mib_value);
-		if (ret)
-			goto exit;
-		break;
-
-	default:
-		break;
-	}
-
-	if (mib->n_mib_len) {
-		ret = skw_msg_xmit(wiphy, 0, SKW_CMD_SET_TLV,
-			mib, mib->n_mib_len + 2, NULL, 0);
-		if (ret)
-			skw_err("Send iwpriv tlv mib failed");
-	}
-
-exit:
-	iface->iw_flags.mode = 0;
-	SKW_KFREE(mib);
-	return ret;
-}
-
 static int skw_iw_commit(struct net_device *dev, struct iw_request_info *info,
 			 union iwreq_data *wrqu, char *extra)
 {
@@ -222,14 +85,24 @@ enum SKW_IW_PRIV_ID {
 static int skw_send_at_cmd(struct skw_core *skw, char *cmd, int cmd_len,
 			char *buf, int buf_len)
 {
-	int ret, len;
-	char *command;
+	int ret, len, resp_len;
+	char *command, *resp;
 
 	len = round_up(cmd_len, skw->hw.align);
 
+	resp_len = round_up(buf_len, skw->hw_pdata->align_value);
+
 	command = SKW_ALLOC(len, GFP_KERNEL);
-	if (!command)
-		return -ENOMEM;
+	if (!command) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	resp = SKW_ALLOC(resp_len, GFP_KERNEL);
+	if (!resp) {
+		ret = -ENOMEM;
+		goto fail_alloc_resp;
+	}
 
 	ret = skw_uart_open(skw);
 	if (ret < 0)
@@ -240,16 +113,20 @@ static int skw_send_at_cmd(struct skw_core *skw, char *cmd, int cmd_len,
 	if (ret < 0)
 		goto failed;
 
-	ret = skw_uart_read(skw, buf, buf_len);
+	ret = skw_uart_read(skw, resp, resp_len);
 	if (ret < 0)
 		goto failed;
 
-	SKW_KFREE(command);
-	return 0;
+	memcpy(buf, resp, buf_len);
+	ret = 0;
 
 failed:
-	skw_err("failed: ret: %d\n", ret);
+	SKW_KFREE(resp);
+fail_alloc_resp:
 	SKW_KFREE(command);
+out:
+	if (ret < 0)
+		skw_err("failed: ret: %d\n", ret);
 
 	return ret;
 }

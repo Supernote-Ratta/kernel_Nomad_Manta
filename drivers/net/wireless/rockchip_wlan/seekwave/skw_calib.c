@@ -11,54 +11,8 @@
 #include "skw_util.h"
 #include "skw_calib.h"
 
-#ifdef SKW_DPD_CALI_EN
-static struct file *skw_file_open(const char *path, int flags, int mode)
-{
-	struct file *fp = NULL;
-
-	fp = filp_open(path, flags, mode);
-	if (IS_ERR(fp)) {
-		skw_err("open fail\n");
-		return NULL;
-	}
-
-	return fp;
-}
-
-static int skw_file_read(struct file *fp, unsigned char *data,
-		size_t size, loff_t offset)
-{
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
-	return kernel_read(fp, data, size, &offset);
-#else
-	return kernel_read(fp, offset, data, size);
-#endif
-}
-
-static int skw_file_write(struct file *fp, unsigned char *data,
-		size_t size, loff_t offset)
-{
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
-	return kernel_write(fp, data, size, &offset);
-#else
-	return kernel_write(fp, data, size, offset);
-#endif
-}
-
-#if 0
-static int skw_file_sync(struct file *fp)
-{
-	return vfs_fsync(fp, 0);
-}
-#endif
-
-static void skw_file_close(struct file *fp)
-{
-	filp_close(fp, NULL);
-}
-
 static int skw_dpd_ilc_download_gear_param(struct wiphy *wiphy,
-	int gear, const u8 *data, u32 t_size)
+			int gear, const u8 *data, u32 t_size)
 {
 	int ret = 0;
 	int i;
@@ -419,68 +373,4 @@ int skw_dpd_init(struct skw_dpd *dpd)
 void skw_dpd_deinit(struct skw_dpd *dpd)
 {
 	SKW_KFREE(dpd->resource);
-}
-
-#endif
-
-static int skw_phy_bb_download_cfg(struct wiphy *wiphy,
-			const u8 *data, u32 size)
-{
-	int i = 0, ret = 0;
-	int buf_size, remain = size;
-	struct skw_phy_bb_param bb_param;
-
-	skw_dbg("PHY BB file size: %d\n", size);
-
-	buf_size = sizeof(bb_param.data);
-
-	while (remain > 0) {
-		bb_param.len = (remain < buf_size) ? remain : buf_size;
-		bb_param.seq = i;
-		remain -= bb_param.len;
-
-		memcpy(bb_param.data, data, bb_param.len);
-
-		if (!remain)
-			bb_param.end = 1;
-		else
-			bb_param.end = 0;
-
-		skw_dbg("bb_file remain: %d, seq: %d len: %d end: %d\n",
-			remain, bb_param.seq, bb_param.len, bb_param.end);
-
-		ret = skw_msg_xmit(wiphy, 0, SKW_CMD_PHY_BB_CFG, &bb_param,
-				sizeof(bb_param), NULL, 0);
-		if (ret) {
-			skw_err("failed, ret: %d,  seq: %d\n", ret, i);
-			break;
-		}
-
-		i++;
-		data += bb_param.len;
-	}
-
-	return ret;
-}
-
-int skw_calib_download(struct wiphy *wiphy, const char *fname)
-{
-	int ret = 0;
-	const struct firmware *bb_file;
-
-	skw_dbg("PHY BB file: %s\n", fname);
-
-	ret = request_firmware(&bb_file, fname, &wiphy->dev);
-	if (ret) {
-		skw_err("load %s failed, ret: %d\n", fname, ret);
-		return ret;
-	}
-
-	ret = skw_phy_bb_download_cfg(wiphy, bb_file->data, bb_file->size);
-	if (ret != 0)
-		skw_err("bb_file cali msg fail\n");
-
-	release_firmware(bb_file);
-
-	return ret;
 }

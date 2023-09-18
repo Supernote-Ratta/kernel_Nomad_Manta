@@ -11,6 +11,7 @@
 #include <linux/skbuff.h>
 #include <net/cfg80211.h>
 #include <linux/proc_fs.h>
+#include <linux/rtc.h>
 
 /* EID block */
 #define SKW_WLAN_EID_EXT_HE_CAPABILITY                            35
@@ -50,8 +51,13 @@
 #define SKW_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO                        0x40
 #define SKW_HE_PHY_CAP2_UL_MU_PARTIAL_MU_MIMO                     0x80
 
+#define SKW_WLAN_REASON_TDLS_TEARDOWN_UNREACHABLE                 25
+#define SKW_WLAN_CATEGORY_RADIO_MEASUREMENT                       5
+
+#define SKW_IEEE80211_CHAN_NO_20MHZ                               BIT(11)
 /* end of compat for ieee80211 */
 
+#define SKW_WIPHY_FEATURE_SCAN_RANDOM_MAC                         BIT(29)
 #define SKW_EXT_CAPA_BSS_TRANSITION                               19
 #define SKW_EXT_CAPA_MBSSID                                       22
 #define SKW_EXT_CAPA_TDLS_SUPPORT                                 37
@@ -59,6 +65,14 @@
 
 #define SKW_BSS_MEMBERSHIP_SELECTOR_HT_PHY                        127
 #define SKW_BSS_MEMBERSHIP_SELECTOR_VHT_PHY                       126
+
+#ifndef MIN_NICE
+#define MIN_NICE                                                  -20
+#endif
+
+#ifndef TASK_IDLE
+#define TASK_IDLE                                                 TASK_INTERRUPTIBLE
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
 #define SKW_BSS_TYPE_ESS                              IEEE80211_BSS_TYPE_ESS
@@ -73,11 +87,7 @@
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)
-#ifdef CONFIG_SKW_WIFI_PASSIVE
 #define SKW_PASSIVE_SCAN (IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_RADAR)
-#else
-#define SKW_PASSIVE_SCAN IEEE80211_CHAN_NO_IR
-#endif
 #else
 #define SKW_PASSIVE_SCAN IEEE80211_CHAN_PASSIVE_SCAN
 #endif
@@ -320,6 +330,25 @@ static inline int skw_compat_check_combs(struct wiphy *wiphy, int nr_channels,
 #endif
 }
 
+static inline void skw_compat_auth_timeout(struct net_device *dev, const u8 *addr)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)
+	cfg80211_auth_timeout(dev, addr);
+#else
+	cfg80211_send_auth_timeout(dev, addr);
+#endif
+}
+
+static inline void skw_compat_assoc_timeout(struct net_device *dev,
+					struct cfg80211_bss *bss)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)
+	cfg80211_assoc_timeout(dev, bss);
+#else
+	cfg80211_send_assoc_timeout(dev, bss->bssid);
+#endif
+}
+
 static inline struct proc_dir_entry *
 skw_proc_create(const char *name, umode_t mode, struct proc_dir_entry *parent,
 		int (*show)(struct seq_file *, void *),
@@ -329,6 +358,43 @@ skw_proc_create(const char *name, umode_t mode, struct proc_dir_entry *parent,
 	return proc_create_single(name, mode, parent, show);
 #else
 	return proc_create(name, mode, parent, proc_fops);
+#endif
+}
+
+static void inline skw_cfg80211_tx_mlme_mgmt(struct net_device *dev,
+				const u8 *buf, size_t len)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 11, 0)
+	struct ieee80211_mgmt *mgmt = (void *)buf;
+
+	if (ieee80211_is_deauth(mgmt->frame_control))
+		cfg80211_send_deauth(dev, buf, len);
+	else
+		cfg80211_send_disassoc(dev, buf, len);
+#else
+	cfg80211_tx_mlme_mgmt(dev, buf, len);
+#endif
+}
+
+static inline void skw_compat_rtc_time_to_tm(unsigned long time, struct rtc_time *tm)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 7, 0)
+	rtc_time_to_tm(time, tm);
+#else
+	rtc_time64_to_tm(time, tm);
+#endif
+}
+
+static inline bool skw_compat_cfg80211_rx_mgmt(struct wireless_dev *wdev,
+				int freq, int sig_dbm, const u8 *buf,
+				size_t len, u32 flags, gfp_t gfp)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
+	return cfg80211_rx_mgmt(wdev, freq, sig_dbm, buf, len, gfp);
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
+	return cfg80211_rx_mgmt(wdev, freq, sig_dbm, buf, len, flags, gfp);
+#else
+	return cfg80211_rx_mgmt(wdev, freq, sig_dbm, buf, len, flags);
 #endif
 }
 

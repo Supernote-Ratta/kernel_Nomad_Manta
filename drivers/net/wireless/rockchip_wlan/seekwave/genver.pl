@@ -3,8 +3,8 @@
 use POSIX qw(strftime);
 use File::Basename;
 
-$skw_branch = "xw0616_dev";
-$skw_version = "2.0.230614.627ee61";
+$skw_branch = "skw6160_mp";
+$skw_version = "2.0.230905.51796a7";
 
 $output = shift;
 open (OUTPUT, ">$output") || die "$0 : can't open $output for writing\n";

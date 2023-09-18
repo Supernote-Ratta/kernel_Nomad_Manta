@@ -9,6 +9,7 @@
 
 #include <linux/tracepoint.h>
 #include <linux/etherdevice.h>
+#include <linux/version.h>
 
 #include "skw_rx.h"
 #include "skw_msg.h"
@@ -173,159 +174,180 @@ TRACE_EVENT(skw_tx_thread_ret,
 );
 
 TRACE_EVENT(skw_rx_set_reorder_timer,
-	    TP_PROTO(u8 tid, u16 seq, unsigned long rx_time, unsigned long timeout),
-	    TP_ARGS(tid, seq, rx_time, timeout),
+	    TP_PROTO(u8 inst, u8 pid, u16 tid, u16 seq, unsigned long rx_time, unsigned long timeout),
+	    TP_ARGS(inst, pid, tid, seq, rx_time, timeout),
 
 	    TP_STRUCT__entry(
-	    __field_struct(u8, tid)
-	    __field_struct(u16, seq)
-	    __field_struct(unsigned long, rx_time)
-	    __field_struct(unsigned long, timeout)
+	    __field(u8, inst)
+	    __field(u8, pid)
+	    __field(u16, tid)
+	    __field(u16, seq)
+	    __field(unsigned long, rx_time)
+	    __field(unsigned long, timeout)
 	    ),
 
 	    TP_fast_assign(
+	    __entry->inst = inst;
+	    __entry->pid = pid;
 	    __entry->tid = tid;
 	    __entry->seq = seq;
 	    __entry->rx_time = rx_time;
 	    __entry->timeout = timeout;
 	    ),
 
-	    TP_printk("tid: %d, seq: %d, rx_time: %ld, timeout: %ld",
-		    __entry->tid, __entry->seq,
-		    __entry->rx_time, __entry->timeout)
+	    TP_printk("I: %d, P: %d, T: %d, seq: %d, rx_time: %ld, timeout: %ld",
+		      __entry->inst, __entry->pid,
+		      __entry->tid, __entry->seq,
+		      __entry->rx_time, __entry->timeout)
 );
 
 TRACE_EVENT(skw_rx_reorder_timeout,
-	    TP_PROTO(u8 tid, u16 expired_sn),
-	    TP_ARGS(tid, expired_sn),
+	    TP_PROTO(u8 inst, u8 pid, u16 tid, u16 expired_sn),
+	    TP_ARGS(inst, pid, tid, expired_sn),
 
 	    TP_STRUCT__entry(
-	    __field_struct(u8, tid)
-	    __field_struct(u16, expired_sn)
+	    __field(u8, inst)
+	    __field(u8, pid)
+	    __field(u16, tid)
+	    __field(u16, expired_sn)
 	    ),
 
 	    TP_fast_assign(
+	    __entry->inst = inst;
+	    __entry->pid = pid;
 	    __entry->tid = tid;
 	    __entry->expired_sn = expired_sn;
 	    ),
 
-	    TP_printk("tid: %d, expired_sn: %d", __entry->tid, __entry->expired_sn)
+	    TP_printk("I: %d, P: %d, T: %d, expired_sn: %d",
+		    __entry->inst, __entry->pid,
+		    __entry->tid, __entry->expired_sn)
 );
 
 TRACE_EVENT(skw_rx_expired_release,
-	    TP_PROTO(u8 tid, u16 expired_sn),
-	    TP_ARGS(tid, expired_sn),
+	    TP_PROTO(u8 inst, u8 pid, u16 tid, u16 expired_sn),
+	    TP_ARGS(inst, pid, tid, expired_sn),
 
 	    TP_STRUCT__entry(
-	    __field_struct(u8, tid)
-	    __field_struct(u16, expired_sn)
+	    __field(u8, inst)
+	    __field(u8, pid)
+	    __field(u16, tid)
+	    __field(u16, expired_sn)
 	    ),
 
 	    TP_fast_assign(
+	    __entry->inst = inst;
+	    __entry->pid = pid;
 	    __entry->tid = tid;
 	    __entry->expired_sn = expired_sn;
 	    ),
 
-	    TP_printk("tid: %d, expired_sn: %d", __entry->tid, __entry->expired_sn)
+	    TP_printk("I: %d, P: %d, T: %d, expired_sn: %d",
+		    __entry->inst, __entry->pid,
+		    __entry->tid, __entry->expired_sn)
 );
 
 TRACE_EVENT(skw_rx_data,
-	    TP_PROTO(struct skw_rx_desc *desc),
-	    TP_ARGS(desc),
+	    TP_PROTO(u8 inst, u8 pid, u8 tid, u8 filter, u16 seq, u8 qos,
+		     u8 retry, u8 amsdu, u8 idx, u8 first, u8 last, bool fake_ack),
+	    TP_ARGS(inst, pid, tid, filter, seq, qos, retry, amsdu,
+		    idx, first, last, fake_ack),
 
 	    TP_STRUCT__entry(
-	    __field_struct(struct skw_rx_desc, rx)
+	    __field(u8, inst)
+	    __field(u8, pid)
+	    __field(u8, tid)
+	    __field(u8, filter)
+	    __field(u16, seq)
+	    __field(u8, qos)
+	    __field(u8, retry)
+	    __field(u8, amsdu)
+	    __field(u8, idx)
+	    __field(u8, first)
+	    __field(u8, last)
+	    __field(bool, fake_ack)
 	    ),
 
 	    TP_fast_assign(
-	    __entry->rx = *desc;
+	    __entry->inst = inst;
+	    __entry->pid = pid;
+	    __entry->tid = tid;
+	    __entry->filter = filter;
+	    __entry->seq = seq;
+	    __entry->qos = qos;
+	    __entry->retry = retry;
+	    __entry->amsdu = amsdu;
+	    __entry->idx = idx;
+	    __entry->first = first;
+	    __entry->last = last;
+	    __entry->fake_ack = fake_ack;
 	    ),
 
-	    TP_printk("inst: %d, peer: %d, tid: %d, qos: %d, seq: %d, amsdu: %d,"
-		"amsdu_filter: %u, pkt_len: %d, mac_drop_frag: %d",
-		      __entry->rx.inst_id, __entry->rx.peer_idx,
-		      __entry->rx.tid, __entry->rx.is_qos_data,
-		      __entry->rx.sn, __entry->rx.is_amsdu,
-		      __entry->rx.msdu_filter, __entry->rx.pkt_len,
-			  __entry->rx.mac_drop_frag)
+	    TP_printk("I: %d, P: %d, T: %d, filter: %d, seq: %d, qos: %d, "
+		      "retry: %d, amsdu: %d, idx: %d(F: %d, L: %d), fake ack: %d",
+		      __entry->inst, __entry->pid,
+		      __entry->tid, __entry->filter,
+		      __entry->seq, __entry->qos,
+		      __entry->retry, __entry->amsdu,
+		      __entry->idx, __entry->first,
+		      __entry->last, __entry->fake_ack)
 );
-
-TRACE_EVENT(skw_mac_drop_sn_info,
-	    TP_PROTO(u32 total_drop_sn, u16 sn, u8 amsdu_idx, u8 amsdu_first, u8 amsdu_last, u8 tid, u8 is_amsdu),
-	    TP_ARGS(total_drop_sn, sn, amsdu_idx, amsdu_first, amsdu_last, tid, is_amsdu),
-
-	    TP_STRUCT__entry(
-	    __field_struct(u32, total_drop_sn)
-	    __field_struct(u16, sn)
-	    __field_struct(u8, amsdu_idx)
-	    __field_struct(u8, amsdu_first)
-		__field_struct(u8, amsdu_last)
-		__field_struct(u8, tid)
-		__field_struct(u8, is_amsdu)
-	    ),
-
-	    TP_fast_assign(
-	    __entry->total_drop_sn = total_drop_sn;
-		__entry->sn = sn;
-		__entry->amsdu_idx = amsdu_idx;
-		__entry->amsdu_first = amsdu_first;
-		__entry->amsdu_last = amsdu_last;
-		__entry->tid = tid;
-		__entry->is_amsdu = is_amsdu;
-	    ),
-
-	    TP_printk("total_drop_sn: %u, drop_sn: %u, amsdu_idx: %u, amsdu_first: %u, amsdu_last: %u, tid: %u, is_amsdu: %u",
-		      __entry->total_drop_sn, __entry->sn,
-		      __entry->amsdu_idx, __entry->amsdu_first,
-		      __entry->amsdu_last, __entry->tid,
-		      __entry->is_amsdu)
-);
-
-	//skw_err("junnan.xu total_drop_sn = %u desc->pkt_len = %d align_len = %d offset = %d desc->sn = %d\n",
-	//	total_drop_sn, desc->pkt_len, align_len, offset, desc->sn);
-
-		//skw_err("junnan.xu offset = %u drop_sn_info->sn=%u drop_sn_info->amsdu_idx=%u drop_sn_info->first=%u drop_sn_info->last=%u drop_sn_info->tid=%u drop_sn_info->is_amsdu=%u\n",
-		//	offset, drop_sn_info->sn, drop_sn_info->amsdu_idx, drop_sn_info->first,
-		//	drop_sn_info->last, drop_sn_info->tid, drop_sn_info->is_amsdu);
 
 TRACE_EVENT(skw_rx_reorder,
-	    TP_PROTO(u16 win_start, struct skw_tid_rx *tid_rx,
-		    struct skw_rx_desc *desc, bool release, bool drop),
-	    TP_ARGS(win_start, tid_rx, desc, release, drop),
+	    TP_PROTO(u8 inst, u8 pid, u16 tid, u16 sn, u8 is_amsdu, u8 amsdu_idx,
+		     u16 win_size, u16 win_start, u32 stored_num,
+		     bool release, bool drop),
+	    TP_ARGS(inst, pid, tid, sn, is_amsdu, amsdu_idx, win_size,
+		    win_start, stored_num, release, drop),
 
 	    TP_STRUCT__entry(
+	    __field(u8, inst)
+	    __field(u8, pid)
 	    __field(u16, tid)
+	    __field(u16, sn)
+	    __field(u8, is_amsdu)
+	    __field(u8, amsdu_idx)
+	    __field(u16, win_size)
 	    __field(u16, win_start)
-	    __field_struct(struct skw_tid_rx, tid_rx)
-	    __field_struct(struct skw_rx_desc, desc)
+	    __field(u32, stored_num)
 	    __field(bool, release)
 	    __field(bool, drop)
 	    ),
 
 	    TP_fast_assign(
-	    __entry->tid = 0;
+	    __entry->inst = inst;
+	    __entry->pid = pid;
+	    __entry->tid = tid;
+	    __entry->sn = sn;
+	    __entry->is_amsdu = is_amsdu;
+	    __entry->amsdu_idx = amsdu_idx;
+	    __entry->win_size = win_size;
 	    __entry->win_start = win_start;
-	    __entry->tid_rx = *tid_rx;
-	    __entry->desc = *desc;
+	    __entry->stored_num = stored_num;
 	    __entry->release = release;
 	    __entry->drop = drop;
 	    ),
 
-	    TP_printk("tid: %d, size: %d, stored: %d, ssn: %d, sn: %d (ssn: %d, sn: %d), amsdu: %d, idx: %d, release: %d, drop: %d",
-		      __entry->tid, __entry->tid_rx.win_size,
-		      __entry->tid_rx.stored_num, __entry->win_start,
-		      __entry->desc.sn,
-		      __entry->win_start % __entry->tid_rx.win_size,
-		      __entry->desc.sn % __entry->tid_rx.win_size,
-		      __entry->desc.is_amsdu, __entry->desc.amsdu_idx,
-		      __entry->release, __entry->drop)
+	    TP_printk("ssn: %d, sn: %d (%d, %d), release: %d, drop: %d, stored: %d, "
+		      "I: %d, P: %d, T: %d, win_sz: %d, amsdu: %d, idx: %d",
+		      __entry->win_start, __entry->sn,
+		      __entry->win_start % __entry->win_size,
+		      __entry->sn % __entry->win_size,
+		      __entry->release, __entry->drop,
+		      __entry->stored_num,
+		      __entry->inst, __entry->pid,
+		      __entry->tid, __entry->win_size,
+		      __entry->is_amsdu, __entry->amsdu_idx)
 );
 
 TRACE_EVENT(skw_rx_reorder_release,
-	    TP_PROTO(u16 win_start, u16 seq, u16 index, u16 ssn, u16 left),
-	    TP_ARGS(win_start, seq, index, ssn, left),
+	    TP_PROTO(u8 inst, u8 pid, u16 tid, u16 win_start, u16 seq, u16 index, u16 ssn, u16 left),
+	    TP_ARGS(inst, pid, tid, win_start, seq, index, ssn, left),
 
 	    TP_STRUCT__entry(
+	    __field(u8, inst)
+	    __field(u8, pid)
+	    __field(u16, tid)
 	    __field(u16, win_start)
 	    __field(u16, seq)
 	    __field(u16, index)
@@ -334,6 +356,9 @@ TRACE_EVENT(skw_rx_reorder_release,
 	    ),
 
 	    TP_fast_assign(
+	    __entry->inst = inst;
+	    __entry->pid = pid;
+	    __entry->tid = tid;
 	    __entry->win_start = win_start;
 	    __entry->seq = seq;
 	    __entry->index = index;
@@ -341,16 +366,19 @@ TRACE_EVENT(skw_rx_reorder_release,
 	    __entry->left = left;
 	    ),
 
-	    TP_printk("win start: %d, seq: %d (index: %d), ssn: %d, left: %d",
-		      __entry->win_start, __entry->seq, __entry->index,
-		      __entry->ssn, __entry->left)
+	    TP_printk("I: %d, P: %d, T: %d, win start: %d, seq: %d (index: %d), ssn: %d, left: %d",
+		      __entry->inst, __entry->pid, __entry->tid, __entry->win_start,
+		      __entry->seq, __entry->index, __entry->ssn, __entry->left)
 );
 
 TRACE_EVENT(skw_rx_force_release,
-	    TP_PROTO(u16 index, u16 ssn, u16 target, u16 left, int reason),
-	    TP_ARGS(index, ssn, target, left, reason),
+	    TP_PROTO(u8 inst, u8 pid, u16 tid, u16 index, u16 ssn, u16 target, u16 left, int reason),
+	    TP_ARGS(inst, pid, tid, index, ssn, target, left, reason),
 
 	    TP_STRUCT__entry(
+	    __field(u8, inst)
+	    __field(u8, pid)
+	    __field(u16, tid)
 	    __field(u16, index)
 	    __field(u16, ssn)
 	    __field(u16, target)
@@ -359,6 +387,9 @@ TRACE_EVENT(skw_rx_force_release,
 	    ),
 
 	    TP_fast_assign(
+	    __entry->inst = inst;
+	    __entry->pid = pid;
+	    __entry->tid = tid;
 	    __entry->index = index;
 	    __entry->ssn = ssn;
 	    __entry->target = target;
@@ -366,9 +397,10 @@ TRACE_EVENT(skw_rx_force_release,
 	    __entry->reason = reason;
 	    ),
 
-	    TP_printk("seq: %d(index: %d), target: %d, left: %d, reason: %d",
-		    __entry->ssn, __entry->index,
-		    __entry->target, __entry->left, __entry->reason)
+	    TP_printk("I: %d, P: %d, T: %d, seq: %d(index: %d), target: %d, left: %d, reason: %d",
+		    __entry->inst, __entry->pid, __entry->tid,
+		    __entry->ssn, __entry->index, __entry->target,
+		    __entry->left, __entry->reason)
 );
 
 TRACE_EVENT(skw_rx_handler_seq,
@@ -390,40 +422,51 @@ TRACE_EVENT(skw_rx_handler_seq,
 );
 
 TRACE_EVENT(skw_rx_add_ba,
-	    TP_PROTO(u16 tid, u16 ssn, u16 buf_size),
-	    TP_ARGS(tid, ssn, buf_size),
+	    TP_PROTO(u8 inst, u8 pid, u16 tid, u16 ssn, u16 buf_size),
+	    TP_ARGS(inst, pid, tid, ssn, buf_size),
 
 	    TP_STRUCT__entry(
+	    __field(u8, inst)
+	    __field(u8, pid)
 	    __field(u16, tid)
 	    __field(u16, ssn)
 	    __field(u16, buf_size)
 	    ),
 
 	    TP_fast_assign(
+	    __entry->inst = inst;
+	    __entry->pid = pid;
 	    __entry->tid = tid;
 	    __entry->ssn = ssn;
 	    __entry->buf_size = buf_size;
 	    ),
 
-	    TP_printk("tid: %d, ssn: %d, buf_size: %d",
-		      __entry->tid, __entry->ssn, __entry->buf_size)
+	    TP_printk("I: %d, P: %d, T: %d,  ssn: %d, buf_size: %d",
+		      __entry->inst, __entry->pid, __entry->tid,
+		      __entry->ssn, __entry->buf_size)
 );
 
 TRACE_EVENT(skw_rx_update_ba,
-	    TP_PROTO(u16 tid, u16 ssn),
-	    TP_ARGS(tid, ssn),
+	    TP_PROTO(u8 inst, u8 pid, u16 tid, u16 ssn),
+	    TP_ARGS(inst, pid, tid, ssn),
 
 	    TP_STRUCT__entry(
+	    __field(u8, inst)
+	    __field(u8, pid)
 	    __field(u16, tid)
 	    __field(u16, ssn)
 	    ),
 
 	    TP_fast_assign(
+	    __entry->inst = inst;
+	    __entry->pid = pid;
 	    __entry->tid = tid;
 	    __entry->ssn = ssn;
 	    ),
 
-	    TP_printk("tid: %d, ssn: %d", __entry->tid, __entry->ssn)
+	    TP_printk("I: %d, P: %d, T: %d, ssn: %d",
+		      __entry->inst, __entry->pid,
+		      __entry->tid, __entry->ssn)
 );
 
 TRACE_EVENT(skw_rx_del_ba,
@@ -465,20 +508,28 @@ TRACE_EVENT(skw_rx_irq,
 );
 
 TRACE_EVENT(skw_msg_rx,
-	    TP_PROTO(struct skw_msg *msg),
-	    TP_ARGS(msg),
+	    TP_PROTO(u8 inst, u8 type, u16 id, u16 seq, u16 len),
+	    TP_ARGS(inst, type, id, seq, len),
 
 	    TP_STRUCT__entry(
-	    __field_struct(struct skw_msg, msg)
+	    __field(u8, inst)
+	    __field(u8, type)
+	    __field(u16, id)
+	    __field(u16, seq)
+	    __field(u16, len)
 	    ),
 
 	    TP_fast_assign(
-	    __entry->msg = *msg;
+	    __entry->inst = inst;
+	    __entry->type = type;
+	    __entry->id = id;
+	    __entry->seq = seq;
+	    __entry->len = len;
 	    ),
 
-	    TP_printk("type: %d, inst: %d, id: %d, seq: %d, len: %d",
-		      __entry->msg.type, __entry->msg.inst_id, __entry->msg.id,
-		      __entry->msg.seq, __entry->msg.total_len)
+	    TP_printk("inst: %d, type: %d, id: %d, seq: %d, len: %d",
+		      __entry->inst, __entry->type, __entry->id,
+		      __entry->seq, __entry->len)
 );
 
 #endif

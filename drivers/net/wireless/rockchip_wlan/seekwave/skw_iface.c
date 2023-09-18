@@ -6,6 +6,7 @@
 #include "skw_mlme.h"
 #include "skw_cfg80211.h"
 #include "skw_timer.h"
+#include "skw_dfs.h"
 
 static int skw_iface_show(struct seq_file *seq, void *data)
 {
@@ -14,6 +15,7 @@ static int skw_iface_show(struct seq_file *seq, void *data)
 	struct skw_bss_cfg *bss = NULL;
 	struct net_device *ndev = seq->private;
 	struct skw_iface *iface = netdev_priv(ndev);
+	int i;
 
 	seq_puts(seq, "\n");
 	seq_printf(seq, "Iface: \t%s (id: %d)\n"
@@ -73,15 +75,29 @@ static int skw_iface_show(struct seq_file *seq, void *data)
 					ctx->peer->addr,
 					ctx->peer->idx,
 					skw_state_name(ctx->peer->sm.state));
-			seq_printf(seq, "        TX: tidmap: 0x%x, mcs: %d\n"
+			seq_printf(seq, "        TX: tidmap: 0x%x, mcs: %d, psr: %d, tx_failed: %d\n"
 					"        RX: tidmap: 0x%x, mcs: %d\n"
-					"        rssi: beacon: %d, data: %d\n",
+					"        rssi: beacon: %d, data: %d\n"
+					"        filter stats :\n",
 					ctx->peer->txba.bitmap,
 					ctx->peer->tx.rate.mcs_idx,
+					ctx->peer->tx.tx_psr,
+					ctx->peer->tx.tx_failed,
 					ctx->peer->rx_tid_map,
 					ctx->peer->rx.rate.mcs_idx,
 					ctx->peer->tx.rssi,
 					rssi);
+			seq_printf(seq, "            fliter:");
+
+			for (i = 0; i < 35; i++)
+				seq_printf(seq, "%d ", ctx->peer->rx.filter_cnt[i]);
+
+			seq_printf(seq, "\n            filter drop:");
+
+			for (i = 0; i < 35; i++)
+				seq_printf(seq, "%d ", ctx->peer->rx.filter_drop_offload_cnt[i]);
+
+			seq_printf(seq, "\n");
 		}
 
 		mutex_unlock(&ctx->lock);
@@ -104,10 +120,6 @@ static int skw_iface_show(struct seq_file *seq, void *data)
 			skb_queue_len(&iface->txq[SKW_WMM_AC_BK]));
 
 	seq_puts(seq, "\n");
-
-#ifdef SKW_CREDIT_DEBUG
-	skw_dbg_credit_dump();
-#endif
 
 	return 0;
 }
@@ -342,6 +354,7 @@ static void skw_sta_work(struct work_struct *wk)
 			break;
 		}
 
+		/* fall through */
 	case SKW_STATE_AUTHING:
 		if (time_after(jiffies, core->pending.start + SKW_STEP_TIMEOUT)) {
 			if (++core->pending.retry >= 3) {
@@ -365,7 +378,7 @@ static void skw_sta_work(struct work_struct *wk)
 			skw_sta_leave(wiphy, ndev, core->bss.bssid, 3, false);
 
 			if (iface->sta.sme_external)
-				cfg80211_auth_timeout(ndev, core->bss.bssid);
+				skw_compat_auth_timeout(ndev, core->bss.bssid);
 			else
 				skw_disconnected(ndev, 3, true, GFP_KERNEL);
 		} else {
@@ -397,7 +410,7 @@ static void skw_sta_work(struct work_struct *wk)
 			skw_sta_leave(wiphy, ndev, core->bss.bssid, 3, false);
 
 			if (iface->sta.sme_external)
-				cfg80211_assoc_timeout(ndev, core->cbss);
+				skw_compat_assoc_timeout(ndev, core->cbss);
 			else
 				skw_disconnected(ndev, 3, true, GFP_KERNEL);
 
@@ -670,6 +683,7 @@ int skw_iface_teardown(struct wiphy *wiphy, struct skw_iface *iface)
 
 	skw_dbg("iface id: %d\n", iface->id);
 
+	skw_dfs_stop_cac_event(wiphy, iface);
 	skw_scan_done(skw, iface, true);
 	skw_purge_survey_data(iface);
 
@@ -705,7 +719,8 @@ int skw_iface_teardown(struct wiphy *wiphy, struct skw_iface *iface)
 }
 
 struct skw_iface *skw_add_iface(struct wiphy *wiphy, const char *name,
-				enum nl80211_iftype iftype, u8 *mac, u8 id)
+				enum nl80211_iftype iftype, u8 *mac,
+				u8 id, bool need_ndev)
 {
 	u8 *addr;
 	int priv_size, ret;
@@ -725,14 +740,7 @@ struct skw_iface *skw_add_iface(struct wiphy *wiphy, const char *name,
 	}
 
 	priv_size = sizeof(struct skw_iface);
-	if (iftype == NL80211_IFTYPE_P2P_DEVICE) {
-		iface = SKW_ALLOC(priv_size, GFP_KERNEL);
-		if (!iface) {
-			skw_release_inst(wiphy, inst);
-			return ERR_PTR(-ENOMEM);
-		}
-
-	} else {
+	if (need_ndev) {
 		ndev = alloc_netdev_mqs(priv_size, name,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
 					NET_NAME_ENUM,
@@ -747,6 +755,12 @@ struct skw_iface *skw_add_iface(struct wiphy *wiphy, const char *name,
 		}
 
 		iface = netdev_priv(ndev);
+	} else {
+		iface = SKW_ALLOC(priv_size, GFP_KERNEL);
+		if (!iface) {
+			skw_release_inst(wiphy, inst);
+			return ERR_PTR(-ENOMEM);
+		}
 	}
 
 	if (mac && is_valid_ether_addr(mac))
@@ -779,6 +793,8 @@ struct skw_iface *skw_add_iface(struct wiphy *wiphy, const char *name,
 		ether_addr_copy(iface->wdev.address, addr);
 	}
 
+	skw_dfs_init(iface);
+
 	return iface;
 
 iface_teardown:
@@ -804,6 +820,8 @@ int skw_del_iface(struct wiphy *wiphy, struct skw_iface *iface)
 	ASSERT_RTNL();
 
 	skw_dbg("iftype = %d, iface id: %d\n", iface->wdev.iftype, iface->id);
+
+	skw_dfs_deinit(iface);
 
 	skw_del_vif(wiphy, iface);
 	skw_iface_teardown(wiphy, iface);
@@ -946,7 +964,12 @@ int __skw_peer_ctx_bind(struct skw_iface *iface, struct skw_peer_ctx *ctx,
 
 	lockdep_assert_held(&ctx->lock);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
 	atomic_and(~BIT(ctx->idx), &iface->peer_map);
+#else
+	atomic_set(&iface->peer_map, atomic_read(&iface->peer_map) & (~BIT(ctx->idx)));
+#endif
+
 	skw_peer_free(ctx->peer);
 	ctx->peer = NULL;
 
@@ -956,7 +979,12 @@ int __skw_peer_ctx_bind(struct skw_iface *iface, struct skw_peer_ctx *ctx,
 		peer->sm.addr = peer->addr;
 		peer->sm.iface_iftype = iface->wdev.iftype;
 		ctx->peer = peer;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)
 		atomic_or(BIT(ctx->idx), &iface->peer_map);
+#else
+		atomic_set(&iface->peer_map, atomic_read(&iface->peer_map) | BIT(ctx->idx));
+#endif
 	}
 
 	return 0;

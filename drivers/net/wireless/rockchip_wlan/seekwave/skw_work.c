@@ -9,6 +9,8 @@
 #include "skw_work.h"
 #include "skw_timer.h"
 #include "skw_recovery.h"
+#include "skw_tx.h"
+#include "skw_dfs.h"
 
 #define SKW_WORK_FLAG_ASSERT        0
 #define SKW_WORK_FLAG_RCU_FREE      1
@@ -63,6 +65,8 @@ static void skw_work_async_adma_tx_free(struct skw_core *skw,
 		skb_queue_walk_safe(&qlist, skb, tmp) {
 			if (skb && skb->data == sg_addr) {
 				__skb_unlink(skb, &qlist);
+				skb->dev->stats.tx_packets++;
+				skb->dev->stats.tx_bytes += SKW_SKB_TXCB(skb)->skb_native_len;
 				kfree_skb(skb);
 				count++;
 			}
@@ -149,6 +153,18 @@ static int skw_work_process(struct wiphy *wiphy, struct skw_iface *iface,
 				data, data_len, NULL, 0);
 		break;
 
+	case SKW_WORK_RADAR_PULSE:
+		skw_dfs_radar_pulse_event(wiphy, iface, data, data_len);
+		break;
+
+	case SKW_WORK_RADAR_CAC:
+		skw_dfs_start_cac_event(wiphy, iface, data, data_len);
+		break;
+
+	case SKW_WORK_RADAR_CAC_END:
+		skw_dfs_stop_cac_event(wiphy, iface);
+		break;
+
 	default:
 		skw_info("invalid work: %d\n", work_id);
 		break;
@@ -211,6 +227,7 @@ void skw_assert_schedule(struct wiphy *wiphy)
 	schedule_work(&skw->work);
 }
 
+#ifdef SKW_GKI_DRV
 void skw_call_rcu(void *core, struct rcu_head *head, rcu_callback_t func)
 {
 	struct skw_core *skw = core;
@@ -229,6 +246,7 @@ void skw_call_rcu(void *core, struct rcu_head *head, rcu_callback_t func)
 
 	schedule_work(&skw->work);
 }
+#endif
 
 int __skw_queue_work(struct wiphy *wiphy, struct skw_iface *iface,
 		     enum SKW_WORK_ID id, void *data,

@@ -41,6 +41,7 @@
 #define RX_CALLBACK        0
 #define ADMA_TX_CALLBACK   1
 #define SDMA_TX_CALLBACK   2
+#define SKW_ADMA_BUFF_LEN  PAGE_SIZE
 
 struct skw_packet_header {
     u32 pad:7;
@@ -140,6 +141,8 @@ struct sv6160_platform_data {
 #define USB_LINK		(1<<0)
 #define PCIE_LINK		(2<<0)
 #define SDIO2_LINK		(3<<0)
+#define USB2_LINK		(4<<0)
+
 #define TYPE_MASK		0x07
 #define TX_ADMA			(0<<3)
 #define TX_SDMA			(1<<3)

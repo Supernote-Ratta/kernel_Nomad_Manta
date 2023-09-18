@@ -6,75 +6,32 @@
  *****************************************************************************/
 #ifndef __SKW_EDMA_H__
 #define __SKW_EDMA_H__
-#define SKW_NR_EDMA_NODE                32
-#define SKW_NR_EDMA_ELEMENT             64
-#define SKW_EDMA_DATA_LEN               1024
-#define SKW_ADMA_BUF_LEN                2048
+
+#define SKW_NR_EDMA_NODE                          32
+#define SKW_NR_EDMA_ELEMENT                       64
+#define SKW_EDMA_DATA_LEN                         1024
 
 /* EDMA CHANNEL */
-#define SKW_EDMA_WIFI_CMD_CHN            14
-#define SKW_EDMA_WIFI_SHORT_EVENT_CHN    15
-#define SKW_EDMA_WIFI_LONG_EVENT_CHN     16
-#define SKW_EDMA_WIFI_RX0_FITER_CHN      17
-#define SKW_EDMA_WIFI_RX1_FITER_CHN      18
-#define SKW_EDMA_WIFI_TX0_CHN            19
-#define SKW_EDMA_WIFI_TX1_CHN            20
-#define SKW_EDMA_WIFI_TX0_FREE_CHN       21
-#define SKW_EDMA_WIFI_TX1_FREE_CHN       22
-#define SKW_EDMA_WIFI_RX0_FREE_CHN       23
-#define SKW_EDMA_WIFI_RX1_FREE_CHN       24
-#define SKW_EDMA_WIFI_RX0_CHN            25
-#define SKW_EDMA_WIFI_RX1_CHN            26
+#define SKW_EDMA_WIFI_CMD_CHN                     14
+#define SKW_EDMA_WIFI_SHORT_EVENT_CHN             15
+#define SKW_EDMA_WIFI_LONG_EVENT_CHN              16
+#define SKW_EDMA_WIFI_RX0_FITER_CHN               17
+#define SKW_EDMA_WIFI_RX1_FITER_CHN               18
+#define SKW_EDMA_WIFI_TX0_CHN                     19
+#define SKW_EDMA_WIFI_TX1_CHN                     20
+#define SKW_EDMA_WIFI_TX0_FREE_CHN                21
+#define SKW_EDMA_WIFI_TX1_FREE_CHN                22
+#define SKW_EDMA_WIFI_RX0_FREE_CHN                23
+#define SKW_EDMA_WIFI_RX1_FREE_CHN                24
+#define SKW_EDMA_WIFI_RX0_CHN                     25
+#define SKW_EDMA_WIFI_RX1_CHN                     26
 
-#define SKW_EDMA_EVENT_CHN_NODE_NUM					2
-#define SKW_EDMA_FILTER_CHN_NODE_NUM				8
-#define SKW_EDMA_TX_CHN_NODE_NUM					64
-#define SKW_EDMA_TX_FREE_CHN_NODE_NUM				8
-#define SKW_EDMA_RX_CHN_NODE_NUM					64
-#define SKW_EDMA_RX_FREE_CHN_NODE_NUM				3
-
-#if 0
-struct skw_edma_msg_node {
-	struct skw_edma_node node;
-	char data[0];
-};
-
-struct skw_edma_data_node {
-	struct skw_edma_node node;
-	struct skw_edma_elem e[SKW_NR_EDMA_ELEMENT];
-};
-
-struct skw_edma_dat_chn {
-	struct skw_edma_data_node *node[SKW_NR_EDMA_NODE];
-	atomic_t nr_node;
-	u8 init;
-	u8 channel;
-	u8 node_idx;
-	u8 eid;
-	u32 max_node;
-};
-
-struct skw_edma_msg_chn {
-	struct skw_edma_msg_node *node[SKW_NR_EDMA_NODE];
-	atomic_t nr_node;
-	u8 init;
-	u8 channel;
-	u8 node_idx;
-	u8 eid;
-	u32 max_node;
-};
-
-int skw_edma_cache_init(struct skw_core *skw);
-struct skw_edma_node *skw_edma_node_alloc(void);
-
-int skw_edma_set_data_element(struct skw_edma_dat_chn *edma, struct skw_edma_elem *e);
-//int skw_edma_channel_init(struct skw_core *skw, struct skw_edma_chn *edma);
-struct skw_lmac;
-int skw_edma_set_channel(struct skw_lmac *lmac, bool enable);
-int skw_edma_msg_chn_init(struct skw_core *skw, struct skw_edma_msg_chn *edma);
-int skw_edma_dat_chn_init(struct skw_core *skw, struct skw_edma_dat_chn *edma);
-void skw_edma_cache_deinit(struct skw_core *skw);
-#endif
+#define SKW_EDMA_EVENT_CHN_NODE_NUM               2
+#define SKW_EDMA_FILTER_CHN_NODE_NUM              8
+#define SKW_EDMA_TX_CHN_NODE_NUM                  64
+#define SKW_EDMA_TX_FREE_CHN_NODE_NUM             8
+#define SKW_EDMA_RX_CHN_NODE_NUM                  64
+#define SKW_EDMA_RX_FREE_CHN_NODE_NUM             9
 
 typedef int (*skw_edma_isr)(void *priv, void *first_pa, void *last_pa, int cnt);
 typedef int (*skw_edma_empty_isr)(void *priv);
@@ -138,10 +95,30 @@ struct skw_edma_chn {
 	spinlock_t edma_chan_lock;
 };
 
+#ifdef SKW_EDMA
 int skw_edma_init(struct wiphy *wiphy);
 void skw_edma_deinit(struct wiphy *wiphy);
 int skw_edma_set_data(struct wiphy *wiphy, struct skw_edma_chn *edma,
 			void *data, int len);
 int skw_edma_tx(struct wiphy *wiphy, struct skw_edma_chn *edma, int tx_len);
+#else
+static inline int skw_edma_init(struct wiphy *wiphy)
+{
+	return 0;
+}
+
+static inline void skw_edma_deinit(struct wiphy *wiphy) {}
+static inline int skw_edma_set_data(struct wiphy *wiphy,
+		struct skw_edma_chn *edma, void *data, int len)
+{
+	return 0;
+}
+
+static inline int skw_edma_tx(struct wiphy *wiphy,
+		struct skw_edma_chn *edma, int tx_len)
+{
+	return 0;
+}
+#endif
 
 #endif

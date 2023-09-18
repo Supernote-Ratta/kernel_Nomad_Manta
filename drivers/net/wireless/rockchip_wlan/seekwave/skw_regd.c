@@ -9,8 +9,8 @@
 #include "skw_log.h"
 
 #if 0
-#ifndef NL80211_RRF_AUTO_BW
-#define NL80211_RRF_AUTO_BW 0
+#ifndef SKW_RRF_AUTO_BW
+#define SKW_RRF_AUTO_BW 0
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0)
@@ -27,11 +27,11 @@
 
 /* 80M: CHN 36, 40, 44, 48 */
 #define SKW_REGD_FREQ_5170_5250 REG_RULE_EXT(5170, 5250, 80, 0, 23, 0, \
-					     NL80211_RRF_AUTO_BW)
+					     SKW_RRF_AUTO_BW)
 
 /* 80M DFS: CHN 52, 56, 60, 64 */
 #define SKW_REGD_FREQ_5250_5330 REG_RULE_EXT(5250, 5330, 80, 0, 23, 0, \
-				NL80211_RRF_DFS | NL80211_RRF_AUTO_BW)
+				NL80211_RRF_DFS | SKW_RRF_AUTO_BW)
 
 /* 80M: CHN 149, 153, 157, 161, 165 */
 #define SKW_REGD_FREQ_5735_5835 REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0)
@@ -52,11 +52,11 @@
 
 /* 80M: CHN 36, 40, 44, 48 */
 #define SKW_REGD_FREQ_5170_5250 REG_RULE(5170, 5250, 80, 0, 23, \
-					     NL80211_RRF_AUTO_BW)
+					     SKW_RRF_AUTO_BW)
 
 /* 80M DFS: CHN 52, 56, 60, 64 */
 #define SKW_REGD_FREQ_5250_5330 REG_RULE(5250, 5330, 80, 0, 23, \
-				NL80211_RRF_DFS | NL80211_RRF_AUTO_BW)
+				NL80211_RRF_DFS | SKW_RRF_AUTO_BW)
 
 /* 80M: CHN 149, 153, 157, 161, 165 */
 #define SKW_REGD_FREQ_5735_5835 REG_RULE(5735, 5835, 80, 0, 30, 0)
@@ -91,27 +91,30 @@ const struct ieee80211_regdomain *skw_get_custom_regd(void)
 	REG_RULE(start, end, bw, gain, eirp, reg_flags)
 #endif
 
+#define SKW_RRF_NO_IR        BIT(7)
+#define SKW_RRF_AUTO_BW      BIT(11)
+
 static const struct ieee80211_regdomain regdom_00 = {
 	.alpha2 = "00",
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(2457, 2482, 40, 0, 20, 0,
-			NL80211_RRF_NO_IR | 0),
+			SKW_RRF_NO_IR | 0),
 		REG_RULE_EXT(2474, 2494, 20, 0, 20, 0,
-			NL80211_RRF_NO_IR |
+			SKW_RRF_NO_IR |
 			NL80211_RRF_NO_OFDM | 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_NO_IR |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_NO_IR |
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
-			NL80211_RRF_NO_IR |
+			SKW_RRF_NO_IR |
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 20, 0,
-			NL80211_RRF_NO_IR |
+			SKW_RRF_NO_IR |
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 20, 0,
-			NL80211_RRF_NO_IR | 0),
+			SKW_RRF_NO_IR | 0),
 		REG_RULE_EXT(57240, 63720, 2160, 0, 0, 0, 0),
 	},
 	.n_reg_rules = 8
@@ -137,10 +140,10 @@ static const struct ieee80211_regdomain regdom_AE = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -154,10 +157,10 @@ static const struct ieee80211_regdomain regdom_AF = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -170,10 +173,10 @@ static const struct ieee80211_regdomain regdom_AI = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -186,10 +189,10 @@ static const struct ieee80211_regdomain regdom_AL = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -214,10 +217,10 @@ static const struct ieee80211_regdomain regdom_AN = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -230,10 +233,10 @@ static const struct ieee80211_regdomain regdom_AR = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -247,10 +250,10 @@ static const struct ieee80211_regdomain regdom_AS = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -264,10 +267,10 @@ static const struct ieee80211_regdomain regdom_AT = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -280,10 +283,10 @@ static const struct ieee80211_regdomain regdom_AU = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -297,10 +300,10 @@ static const struct ieee80211_regdomain regdom_AW = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -313,10 +316,10 @@ static const struct ieee80211_regdomain regdom_AZ = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 18, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 18, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 	},
 	.n_reg_rules = 3
 };
@@ -327,10 +330,10 @@ static const struct ieee80211_regdomain regdom_BA = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -344,10 +347,10 @@ static const struct ieee80211_regdomain regdom_BB = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 23, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 23, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
 	},
 	.n_reg_rules = 4
@@ -369,10 +372,10 @@ static const struct ieee80211_regdomain regdom_BE = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -386,10 +389,10 @@ static const struct ieee80211_regdomain regdom_BF = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -403,10 +406,10 @@ static const struct ieee80211_regdomain regdom_BG = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -433,10 +436,10 @@ static const struct ieee80211_regdomain regdom_BL = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -449,10 +452,10 @@ static const struct ieee80211_regdomain regdom_BM = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -466,10 +469,10 @@ static const struct ieee80211_regdomain regdom_BN = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 20, 0, 0),
 	},
 	.n_reg_rules = 4
@@ -493,10 +496,10 @@ static const struct ieee80211_regdomain regdom_BR = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -510,10 +513,10 @@ static const struct ieee80211_regdomain regdom_BS = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -527,10 +530,10 @@ static const struct ieee80211_regdomain regdom_BT = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -543,10 +546,10 @@ static const struct ieee80211_regdomain regdom_BY = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -569,10 +572,10 @@ static const struct ieee80211_regdomain regdom_CA = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -601,10 +604,10 @@ static const struct ieee80211_regdomain regdom_CH = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -618,10 +621,10 @@ static const struct ieee80211_regdomain regdom_CI = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -635,10 +638,10 @@ static const struct ieee80211_regdomain regdom_CL = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 20, 0, 0),
 	},
 	.n_reg_rules = 4
@@ -650,10 +653,10 @@ static const struct ieee80211_regdomain regdom_CN = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 23, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 23, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
 		REG_RULE_EXT(57240, 59400, 2160, 0, 28, 0, 0),
 		REG_RULE_EXT(59400, 63720, 2160, 0, 44, 0, 0),
@@ -668,10 +671,10 @@ static const struct ieee80211_regdomain regdom_CO = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -700,10 +703,10 @@ static const struct ieee80211_regdomain regdom_CX = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -717,10 +720,10 @@ static const struct ieee80211_regdomain regdom_CY = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -735,11 +738,11 @@ static const struct ieee80211_regdomain regdom_CZ = {
 		REG_RULE_EXT(2400, 2483, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5150, 5250, 80, 0, 23, 0,
 			NL80211_RRF_NO_OUTDOOR |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5350, 80, 0, 20, 0,
 			NL80211_RRF_NO_OUTDOOR |
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5470, 5725, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -754,11 +757,11 @@ static const struct ieee80211_regdomain regdom_DE = {
 		REG_RULE_EXT(2400, 2483, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5150, 5250, 80, 0, 20, 0,
 			NL80211_RRF_NO_OUTDOOR |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5350, 80, 0, 20, 0,
 			NL80211_RRF_NO_OUTDOOR |
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5470, 5725, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -772,10 +775,10 @@ static const struct ieee80211_regdomain regdom_DK = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -789,10 +792,10 @@ static const struct ieee80211_regdomain regdom_DM = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 23, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
 	},
 	.n_reg_rules = 4
@@ -804,10 +807,10 @@ static const struct ieee80211_regdomain regdom_DO = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 23, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
 	},
 	.n_reg_rules = 4
@@ -819,10 +822,10 @@ static const struct ieee80211_regdomain regdom_DZ = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 23, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 23, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5670, 160, 0, 23, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -850,10 +853,10 @@ static const struct ieee80211_regdomain regdom_EE = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -880,11 +883,11 @@ static const struct ieee80211_regdomain regdom_ES = {
 		REG_RULE_EXT(2400, 2483, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5150, 5250, 80, 0, 23, 0,
 			NL80211_RRF_NO_OUTDOOR |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5350, 80, 0, 20, 0,
 			NL80211_RRF_NO_OUTDOOR |
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5470, 5725, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -898,10 +901,10 @@ static const struct ieee80211_regdomain regdom_ET = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -914,10 +917,10 @@ static const struct ieee80211_regdomain regdom_FI = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -931,10 +934,10 @@ static const struct ieee80211_regdomain regdom_FM = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -948,10 +951,10 @@ static const struct ieee80211_regdomain regdom_FR = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -965,10 +968,10 @@ static const struct ieee80211_regdomain regdom_GB = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -982,10 +985,10 @@ static const struct ieee80211_regdomain regdom_GD = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -999,10 +1002,10 @@ static const struct ieee80211_regdomain regdom_GE = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 18, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 18, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
 	},
 	.n_reg_rules = 4
@@ -1014,10 +1017,10 @@ static const struct ieee80211_regdomain regdom_GF = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1030,10 +1033,10 @@ static const struct ieee80211_regdomain regdom_GH = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1061,10 +1064,10 @@ static const struct ieee80211_regdomain regdom_GP = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1077,10 +1080,10 @@ static const struct ieee80211_regdomain regdom_GR = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -1094,10 +1097,10 @@ static const struct ieee80211_regdomain regdom_GT = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 23, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
 	},
 	.n_reg_rules = 4
@@ -1132,10 +1135,10 @@ static const struct ieee80211_regdomain regdom_HK = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1149,10 +1152,10 @@ static const struct ieee80211_regdomain regdom_HN = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1166,10 +1169,10 @@ static const struct ieee80211_regdomain regdom_HR = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -1183,10 +1186,10 @@ static const struct ieee80211_regdomain regdom_HT = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1200,10 +1203,10 @@ static const struct ieee80211_regdomain regdom_HU = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -1227,10 +1230,10 @@ static const struct ieee80211_regdomain regdom_IE = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -1245,11 +1248,11 @@ static const struct ieee80211_regdomain regdom_IL = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5150, 5250, 80, 0, 23, 0,
 			NL80211_RRF_NO_OUTDOOR |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5350, 80, 0, 23, 0,
 			NL80211_RRF_NO_OUTDOOR |
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 	},
 	.n_reg_rules = 3
 };
@@ -1260,10 +1263,10 @@ static const struct ieee80211_regdomain regdom_IN = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 20, 0, 0),
 	},
 	.n_reg_rules = 4
@@ -1285,10 +1288,10 @@ static const struct ieee80211_regdomain regdom_IS = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -1302,10 +1305,10 @@ static const struct ieee80211_regdomain regdom_IT = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -1319,10 +1322,10 @@ static const struct ieee80211_regdomain regdom_JM = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1351,10 +1354,10 @@ static const struct ieee80211_regdomain regdom_JP = {
 		REG_RULE_EXT(4910, 4990, 40, 0, 23, 0, 0),
 		REG_RULE_EXT(5030, 5090, 40, 0, 23, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 23, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1380,10 +1383,10 @@ static const struct ieee80211_regdomain regdom_KH = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1396,10 +1399,10 @@ static const struct ieee80211_regdomain regdom_KN = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 30, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5815, 80, 0, 30, 0, 0),
@@ -1413,10 +1416,10 @@ static const struct ieee80211_regdomain regdom_KP = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5630, 80, 0, 30, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5815, 80, 0, 30, 0, 0),
@@ -1430,10 +1433,10 @@ static const struct ieee80211_regdomain regdom_KR = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 30, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1447,10 +1450,10 @@ static const struct ieee80211_regdomain regdom_KW = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 	},
 	.n_reg_rules = 3
 };
@@ -1461,10 +1464,10 @@ static const struct ieee80211_regdomain regdom_KY = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1486,10 +1489,10 @@ static const struct ieee80211_regdomain regdom_LB = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1503,10 +1506,10 @@ static const struct ieee80211_regdomain regdom_LC = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 30, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5815, 80, 0, 30, 0, 0),
@@ -1520,10 +1523,10 @@ static const struct ieee80211_regdomain regdom_LI = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1551,10 +1554,10 @@ static const struct ieee80211_regdomain regdom_LS = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1567,10 +1570,10 @@ static const struct ieee80211_regdomain regdom_LT = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -1584,10 +1587,10 @@ static const struct ieee80211_regdomain regdom_LU = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -1601,10 +1604,10 @@ static const struct ieee80211_regdomain regdom_LV = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -1618,10 +1621,10 @@ static const struct ieee80211_regdomain regdom_MA = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 	},
 	.n_reg_rules = 3
 };
@@ -1632,10 +1635,10 @@ static const struct ieee80211_regdomain regdom_MC = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1648,10 +1651,10 @@ static const struct ieee80211_regdomain regdom_MD = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1664,10 +1667,10 @@ static const struct ieee80211_regdomain regdom_ME = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1680,10 +1683,10 @@ static const struct ieee80211_regdomain regdom_MF = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1696,10 +1699,10 @@ static const struct ieee80211_regdomain regdom_MH = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1713,10 +1716,10 @@ static const struct ieee80211_regdomain regdom_MK = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -1730,10 +1733,10 @@ static const struct ieee80211_regdomain regdom_MN = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1759,10 +1762,10 @@ static const struct ieee80211_regdomain regdom_MP = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1776,10 +1779,10 @@ static const struct ieee80211_regdomain regdom_MQ = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1792,10 +1795,10 @@ static const struct ieee80211_regdomain regdom_MR = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1808,10 +1811,10 @@ static const struct ieee80211_regdomain regdom_MT = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -1825,10 +1828,10 @@ static const struct ieee80211_regdomain regdom_MU = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1842,10 +1845,10 @@ static const struct ieee80211_regdomain regdom_MW = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1858,10 +1861,10 @@ static const struct ieee80211_regdomain regdom_MX = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1875,10 +1878,10 @@ static const struct ieee80211_regdomain regdom_MY = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 23, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
 	},
 	.n_reg_rules = 4
@@ -1890,10 +1893,10 @@ static const struct ieee80211_regdomain regdom_NI = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1908,11 +1911,11 @@ static const struct ieee80211_regdomain regdom_NL = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
 			NL80211_RRF_NO_OUTDOOR |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_NO_OUTDOOR |
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -1926,10 +1929,10 @@ static const struct ieee80211_regdomain regdom_NO = {
 	.reg_rules = {
 		REG_RULE_EXT(2400, 2483, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5150, 5250, 80, 0, 23, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5350, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5470, 5795, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5815, 5850, 35, 0, 33, 0,
@@ -1946,10 +1949,10 @@ static const struct ieee80211_regdomain regdom_NP = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 20, 0, 0),
 	},
 	.n_reg_rules = 4
@@ -1961,10 +1964,10 @@ static const struct ieee80211_regdomain regdom_NZ = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -1978,10 +1981,10 @@ static const struct ieee80211_regdomain regdom_OM = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -1994,10 +1997,10 @@ static const struct ieee80211_regdomain regdom_PA = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 23, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
 	},
 	.n_reg_rules = 4
@@ -2009,10 +2012,10 @@ static const struct ieee80211_regdomain regdom_PE = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2026,10 +2029,10 @@ static const struct ieee80211_regdomain regdom_PF = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -2042,10 +2045,10 @@ static const struct ieee80211_regdomain regdom_PG = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2059,10 +2062,10 @@ static const struct ieee80211_regdomain regdom_PH = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2086,10 +2089,10 @@ static const struct ieee80211_regdomain regdom_PL = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -2103,10 +2106,10 @@ static const struct ieee80211_regdomain regdom_PM = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -2119,10 +2122,10 @@ static const struct ieee80211_regdomain regdom_PR = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2136,10 +2139,10 @@ static const struct ieee80211_regdomain regdom_PT = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -2153,10 +2156,10 @@ static const struct ieee80211_regdomain regdom_PW = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2170,10 +2173,10 @@ static const struct ieee80211_regdomain regdom_PY = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2197,10 +2200,10 @@ static const struct ieee80211_regdomain regdom_RE = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -2213,10 +2216,10 @@ static const struct ieee80211_regdomain regdom_RO = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -2259,10 +2262,10 @@ static const struct ieee80211_regdomain regdom_RW = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2276,10 +2279,10 @@ static const struct ieee80211_regdomain regdom_SA = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -2292,10 +2295,10 @@ static const struct ieee80211_regdomain regdom_SE = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -2309,10 +2312,10 @@ static const struct ieee80211_regdomain regdom_SG = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2326,10 +2329,10 @@ static const struct ieee80211_regdomain regdom_SI = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -2343,10 +2346,10 @@ static const struct ieee80211_regdomain regdom_SK = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -2360,10 +2363,10 @@ static const struct ieee80211_regdomain regdom_SN = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2377,10 +2380,10 @@ static const struct ieee80211_regdomain regdom_SR = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -2414,10 +2417,10 @@ static const struct ieee80211_regdomain regdom_TC = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2431,10 +2434,10 @@ static const struct ieee80211_regdomain regdom_TD = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -2461,10 +2464,10 @@ static const struct ieee80211_regdomain regdom_TH = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2478,10 +2481,10 @@ static const struct ieee80211_regdomain regdom_TN = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 	},
 	.n_reg_rules = 3
 };
@@ -2492,10 +2495,10 @@ static const struct ieee80211_regdomain regdom_TR = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(57000, 66000, 2160, 0, 40, 0, 0),
@@ -2509,10 +2512,10 @@ static const struct ieee80211_regdomain regdom_TT = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2558,10 +2561,10 @@ static const struct ieee80211_regdomain regdom_UG = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2575,10 +2578,10 @@ static const struct ieee80211_regdomain regdom_US = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 23, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
 		REG_RULE_EXT(57240, 63720, 2160, 0, 40, 0, 0),
 	},
@@ -2591,10 +2594,10 @@ static const struct ieee80211_regdomain regdom_UY = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2608,10 +2611,10 @@ static const struct ieee80211_regdomain regdom_UZ = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 	},
 	.n_reg_rules = 3
 };
@@ -2622,10 +2625,10 @@ static const struct ieee80211_regdomain regdom_VC = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -2638,10 +2641,10 @@ static const struct ieee80211_regdomain regdom_VE = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 23, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 23, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
 	},
 	.n_reg_rules = 4
@@ -2653,10 +2656,10 @@ static const struct ieee80211_regdomain regdom_VI = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2472, 40, 0, 30, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 24, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2685,10 +2688,10 @@ static const struct ieee80211_regdomain regdom_VU = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 17, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 24, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5730, 160, 0, 24, 0,
 			NL80211_RRF_DFS | 0),
 		REG_RULE_EXT(5735, 5835, 80, 0, 30, 0, 0),
@@ -2702,10 +2705,10 @@ static const struct ieee80211_regdomain regdom_WF = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -2726,10 +2729,10 @@ static const struct ieee80211_regdomain regdom_YT = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -2742,10 +2745,10 @@ static const struct ieee80211_regdomain regdom_ZA = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -2758,10 +2761,10 @@ static const struct ieee80211_regdomain regdom_ZW = {
 	.reg_rules = {
 		REG_RULE_EXT(2402, 2482, 40, 0, 20, 0, 0),
 		REG_RULE_EXT(5170, 5250, 80, 0, 20, 0,
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5250, 5330, 80, 0, 20, 0,
 			NL80211_RRF_DFS |
-			NL80211_RRF_AUTO_BW | 0),
+			SKW_RRF_AUTO_BW | 0),
 		REG_RULE_EXT(5490, 5710, 160, 0, 27, 0,
 			NL80211_RRF_DFS | 0),
 	},
@@ -2966,7 +2969,7 @@ static ssize_t skw_regd_write(struct file *fp, const char __user *buf,
 	struct wiphy *wiphy = fp->f_inode->i_private;
 
 	if (size != 3) {
-		skw_err("invalid len: %ld\n", size);
+		skw_err("invalid len: %zd\n", size);
 		return size;
 	}
 
@@ -2989,35 +2992,22 @@ static const struct file_operations skw_regd_fops = {
 	.release = single_release,
 };
 
+static inline bool skw_regd_self_mamaged(struct wiphy *wiphy)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
+	if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
+		return true;
+#endif
+
+	return false;
+}
+
 static bool skw_alpha2_equal(const char *alpha2_x, const char *alpha2_y)
 {
 	if (!alpha2_x || !alpha2_y)
 		return false;
 
 	return alpha2_x[0] == alpha2_y[0] && alpha2_x[1] == alpha2_y[1];
-}
-
-static const struct ieee80211_regdomain *skw_get_regd(const char *alpha2)
-{
-	int i;
-	const struct ieee80211_regdomain *regdom;
-	int reg_regdb_size = ARRAY_SIZE(reg_regdb);
-
-	if (!skw_is_an_alpha2(alpha2)) {
-		skw_err("Invalid alpha\n");
-		return NULL;
-	}
-
-	for (i = 0; i < reg_regdb_size; i++) {
-		regdom = reg_regdb[i];
-
-		if (skw_alpha2_equal(alpha2, regdom->alpha2))
-			return regdom;
-	}
-
-	skw_warn("country: %c%c not support\n", alpha2[0], alpha2[1]);
-
-	return NULL;
 }
 
 static bool skw_freq_in_rule_band(const struct ieee80211_freq_range *freq_range,
@@ -3051,6 +3041,55 @@ static bool skw_does_bw_fit_range(const struct ieee80211_freq_range *freq_range,
 		return true;
 
 	return false;
+}
+
+static const struct ieee80211_regdomain *skw_get_regd(const char *alpha2)
+{
+	int i;
+	const struct ieee80211_regdomain *regdom;
+	int reg_regdb_size = ARRAY_SIZE(reg_regdb);
+
+	if (!skw_is_an_alpha2(alpha2)) {
+		skw_err("Invalid alpha\n");
+		return NULL;
+	}
+
+	for (i = 0; i < reg_regdb_size; i++) {
+		regdom = reg_regdb[i];
+
+		if (skw_alpha2_equal(alpha2, regdom->alpha2))
+			return regdom;
+	}
+
+	skw_warn("country: %c%c not support\n", alpha2[0], alpha2[1]);
+
+	return NULL;
+}
+
+static int skw_set_wiphy_regd(struct wiphy *wiphy, const char *country)
+{
+	const struct ieee80211_regdomain *regd;
+	struct skw_core *skw = wiphy_priv(wiphy);
+
+	regd = skw_get_regd(country);
+	if (!regd)
+		return -EINVAL;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
+	if (regulatory_set_wiphy_regd(wiphy, (void *)regd)) {
+		skw_err("failed, country: %c%c\n",
+			regd->alpha2[0], regd->alpha2[1]);
+
+		return -EINVAL;
+	}
+#endif
+
+	skw->country[0] = regd->alpha2[0];
+	skw->country[1] = regd->alpha2[1];
+
+	skw_cmd_set_regdom(wiphy, country, regd);
+
+	return 0;
 }
 
 static const struct ieee80211_reg_rule *
@@ -3087,10 +3126,9 @@ skw_freq_reg_info(const struct ieee80211_regdomain *regd, u32 freq)
 }
 
 static inline const struct ieee80211_reg_rule *
-skw_regd_rule(struct wiphy *wiphy,
-		const struct ieee80211_regdomain *regd, u32 freq)
+skw_regd_rule(struct wiphy *wiphy, const struct ieee80211_regdomain *regd, u32 freq)
 {
-	if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
+	if (skw_regd_self_mamaged(wiphy))
 		return skw_freq_reg_info(regd, freq);
 
 	return freq_reg_info(wiphy, freq);
@@ -3159,32 +3197,6 @@ int skw_cmd_set_regdom(struct wiphy *wiphy, const char *alpha2,
 	return ret;
 }
 
-static int skw_set_wiphy_regd(struct wiphy *wiphy, const char *country)
-{
-	int ret;
-	const struct ieee80211_regdomain *regd;
-	struct skw_core *skw = wiphy_priv(wiphy);
-
-	regd = skw_get_regd(country);
-	if (!regd)
-		return -EINVAL;
-
-	ret = regulatory_set_wiphy_regd(wiphy, (void *)regd);
-	if (ret) {
-		skw_err("failed, country: %c%c, ret: %d\n",
-			regd->alpha2[0], regd->alpha2[1], ret);
-
-		return ret;
-	}
-
-	skw->country[0] = regd->alpha2[0];
-	skw->country[1] = regd->alpha2[1];
-
-	skw_cmd_set_regdom(wiphy, country, regd);
-
-	return 0;
-}
-
 int skw_set_regdom(struct wiphy *wiphy, char *country)
 {
 	int ret;
@@ -3196,7 +3208,7 @@ int skw_set_regdom(struct wiphy *wiphy, char *country)
 
 	skw_dbg("country: %c%c\n", country[0], country[1]);
 
-	if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
+	if (skw_regd_self_mamaged(wiphy))
 		ret = skw_set_wiphy_regd(wiphy, country);
 	else
 		ret = regulatory_hint(wiphy, country);

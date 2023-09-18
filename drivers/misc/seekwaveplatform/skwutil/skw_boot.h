@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-
+#include <linux/completion.h>
 #include <linux/workqueue.h>
 #if  KERNEL_VERSION(4, 13, 0) <= LINUX_VERSION_CODE
 #include <uapi/linux/sched/types.h>
@@ -45,7 +45,7 @@
         #define skw_write_file  kernel_write
 #else
         #define skw_read_file   vfs_read
-        #define skw_write_file  __kernel_write
+        #define skw_write_file  vfs_write
 #endif
 
 #if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE
@@ -54,6 +54,17 @@
         #define skw_wakeup_source_register(x, y)        wakeup_source_register(y)
 #endif
 
+#if KERNEL_VERSION(4, 4, 0) <= LINUX_VERSION_CODE
+	#define skw_reinit_completion(x)     reinit_completion(&x)
+	#define SKW_MIN_NICE                 MIN_NICE
+#else
+	#define skw_reinit_completion(x)     INIT_COMPLETION(x)
+	#define SKW_MIN_NICE                 -20
+#endif
+
+#ifdef CONFIG_NO_GKI
+  MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
 /****************************************************************
  *Description:the skwsdio log define and the skwsdio data debug,
  *Func: skwsdio_log, skwsdio_err, skwsdio_data_pr;
@@ -67,22 +78,22 @@
  *Date:2021-08-25
  * **************************************************************/
 #define skwboot_log(fmt, args...) \
-    pr_info("[SKWBOOT]:" fmt, ## args)
+	pr_info("[SKWBOOT]:" fmt, ## args)
 
 #define skwboot_err(fmt, args...) \
-    pr_err("[SKWBOOT_ERR]:" fmt, ## args)
+	pr_err("[SKWBOOT_ERR]:" fmt, ## args)
 
-#define skwsdio_data_pr(level, prefix_str, prefix_type, rowsize,\
-        groupsize, buf, len, asscii)\
-        do{if(loglevel) \
-            print_hex_dump(level, prefix_str, prefix_type, rowsize,\
-                    groupsize, buf, len, asscii);\
-        }while(0)
+#define skwboot_data_pr(level, prefix_str, prefix_type, rowsize,\
+		groupsize, buf, len, asscii)\
+		do{if(loglevel) \
+			print_hex_dump(level, prefix_str, prefix_type, rowsize,\
+					groupsize, buf, len, asscii);\
+		}while(0)
 
 /**********************sdio boot interface start******************/
 
-#define SKW_BOOT_START_ADDR             0x100000
-#define SKW_CHIP_ID						0x40000000  //SV6160 chip id
+#define SKW_BOOT_START_ADDR			0x100000
+#define SKW_CHIP_ID					0x40000000  //SV6160 chip id
 /*add the 32bit*4 128bit */
 struct img_head_data_t
 {
@@ -102,57 +113,41 @@ struct img_dl_data
 #define CRC_16_L_SEED   0x80
 #define CRC_16_L_POLYNOMIAL  0x8000
 #define CRC_16_POLYNOMIAL  0x1021
-#define IRAM_CRC_OFFSET     0
-#define DRAM_CRC_OFFSET     0
+#define IRAM_CRC_OFFSET	 0
+#define DRAM_CRC_OFFSET	 0
+
+#define SKW_FIRST_BOOT  0
+#define SKW_BSP_BOOT    1
+#define SKW_WIFI_BOOT   2
+#define SKW_BT_BOOT     3
+#define RECOVERY_BOOT   4
 
 /*slp reg add the ap send the irq to cp reg*/
-#define SKW_SDIO_PD_DL_AP2CP_BSP        0x160 //download done  or first boot setup addrn
+#define SKW_SDIO_PD_DL_AP2CP_BSP		0x160 //download done  or first boot setup addrn
 #define SDIOHAL_PD_DL_AP2CP_WIFI		0x161
-#define SDIOHAL_PD_DL_AP2CP_BT          0x162
-#define SDIOHAL_PD_DL_ALL               0x163
+#define SDIOHAL_PD_DL_AP2CP_BT			0x162
+#define SDIOHAL_PD_DL_ALL				0x163
 #define SKW_SDIO_DL_POWERON_MODULE		0x164 //Poweron CP Moudle  1 WIFI 2:BT
 #define SKW_SDIO_PLD_DMA_TYPE			0x165
-//#define SDIOHAL_PD_DL_AP2CP_SIG5        0x165
-#define SDIOHAL_CPLOG_TO_AP_SWITCH      0x166
-#define SDIOHAL_PD_DL_AP2CP_SIG7        0x167
-#define SKW_SDIO_CREDIT_TO_CP           0x168
+#define SDIOHAL_CPLOG_TO_AP_SWITCH		0x166
+#define SKW_SDIO_CP_SLP_SWITCH  		0x167 //Turn on/off the CP slp feature 1:dis slp 0:enb slp
+#define SKW_SDIO_CREDIT_TO_CP			0x168
 
 // CP signal 3
-#define SKW_SDIO_RX_CHANNEL_FTL0        0x16C
-#define SKW_SDIO_RX_CHANNEL_FTL1        0x16D
+#define SKW_SDIO_RX_CHANNEL_FTL0		0x16C
+#define SKW_SDIO_RX_CHANNEL_FTL1		0x16D
 
 /*slp reg get the cp dl state reg*/
-#define SKW_SDIO_DL_CP2AP_BSP         0x180 //poweron OK ? 1: WIFI 2:BT
-#define SKW_SDIO_CP2AP_FIFO_IND       0x181 //CP_RX FIFO Empty Indiacation.
-#define SDIOHAL_PD_DL_CP2AP_BT          0x182
-#define SDIOHAL_PD_DL_CP2AP_ALL         0x183
-#define SDIOHAL_PD_DL_CP2AP_SIG4        0x184
-#define SDIOHAL_PD_DL_CP2AP_SIG5        0x185
-#define SDIOHAL_PD_DL_CP2AP_SIG6        0x186
-#define SDIOHAL_PD_DL_CP2AP_SIG7        0x187
+#define SKW_SDIO_DL_CP2AP_BSP			0x180 //poweron OK ? 1: WIFI 2:BT
+#define SKW_SDIO_CP2AP_FIFO_IND			0x181 //CP_RX FIFO Empty Indiacation.
+#define SDIOHAL_PD_DL_CP2AP_BT			0x182
+#define SDIOHAL_PD_DL_CP2AP_ALL			0x183
+#define SDIOHAL_PD_DL_CP2AP_SIG4		0x184
+#define SDIOHAL_PD_DL_CP2AP_SIG5		0x185
+#define SDIOHAL_PD_DL_CP2AP_SIG6		0x186
+#define SDIOHAL_PD_DL_CP2AP_SIG7		0x187
 
-#define SKWSDIO_AP2CP_IRQ               0x1b0  //AP to CP interrupt and used BIT4 set 1 :fifth bit
-#if 0
-/****************************************************************
- *Description:
- *Func:
- *Calls:
- *Call By:
- *Input:
- *Output:
- *Return：
- *Others:
- *Author：
- *Date:
- * **************************************************************/
-int sdio_dloader(unsigned int subsys_num);
-int skw_sdio_dl_bspbin(void);
-int skw_sdio_dl_btbin(void);
-int skw_sdio_dl_wifibin(void);
-#endif
-/********************sdio boot interface end*********************/
-
-/********************usb download infterface*********************/
+#define SKWSDIO_AP2CP_IRQ				0x1b0  //AP to CP interrupt and used BIT4 set 1 :fifth bit
 
 enum dma_type_en{
 	ADMA=1,
@@ -167,10 +162,6 @@ enum skw_service_ops {
 	SKW_BT_STOP,
 };
 
-enum serivce_state{
-	STOP=1,
-	START,
-};
 struct seekwave_device {
 	char *file_path;
 	char *iram_file_path;
@@ -182,8 +173,7 @@ struct seekwave_device {
 	int chip_en;/*GPIO0_B1*/
 	char *iram_img_data;
 	char *dram_img_data;
-
-    void *dl_bin;//load the img
+	void *dl_bin;//load the img
 	unsigned int iram_dl_addr;
 	unsigned int iram_dl_size;
 	unsigned int dram_dl_addr;
@@ -194,11 +184,11 @@ struct seekwave_device {
 	unsigned int dl_acount_addr;
 	unsigned int dl_size;
 	unsigned int first_dl_flag;
-	unsigned int first_bootwifi_flag;//01:first boot BSP 10:firstbootwifi 11:firstbootBT
-	unsigned int first_bootbt_flag;//01:first boot BSP 10:firstbootwifi 11:firstbootBT
 	unsigned int dl_module;
 	unsigned int dma_type_addr;//1:ADMA,2:SDMA
 	unsigned int dma_type;//1:ADMA,2:SDMA
+	unsigned int slp_disable;//0:disable,1:enable
+	unsigned int slp_disable_addr;
 	unsigned int head_addr;
 	unsigned int tail_addr;
 	unsigned int bsp_head_addr;
@@ -207,10 +197,6 @@ struct seekwave_device {
 	unsigned int wifi_tail_addr;
 	unsigned int bt_head_addr;
 	unsigned int bt_tail_addr;
-	unsigned int service_req_flag;
-	int poweron_flag;
-	int poweron_wifi_flag;
-	int poweron_bt_flag;
 	int bt_service_state;
 	int wifi_service_state;
 	int service_ops;
@@ -219,23 +205,17 @@ struct seekwave_device {
 	int gpio_in;//host wakeup gpio 0
 	int gpio_val;
 	int gpio_next_val;
-	//int (*skw_dloader)(unsigned int subsys);
 	unsigned int chip_id;
 	unsigned int fpga_debug;
-	unsigned int cp_boot_config;
 	unsigned int iram_crc_offset;
 	unsigned int dram_crc_offset;
 	unsigned short iram_crc_val;
 	unsigned short dram_crc_val;
-
 	unsigned int iram_crc_en;
 	unsigned int dram_crc_en;
 
 };
 
-extern int dloader_cpbin(int size, char *data);
 int skw_ucom_init(void);
 void skw_ucom_exit(void);
-int seekwave_boot_start(u32 subsys);
-int seekwave_boot_stop(u32 subsys);
 #endif

@@ -22,6 +22,9 @@ enum SKW_WORK_ID {
 	SKW_WORK_TX_FREE,
 	SKW_WORK_SETUP_TXBA,
 	SKW_WORK_TX_ETHER_DATA,
+	SKW_WORK_RADAR_PULSE,
+	SKW_WORK_RADAR_CAC,
+	SKW_WORK_RADAR_CAC_END,
 };
 
 struct skw_work_cb {
@@ -68,7 +71,11 @@ int skw_queue_event_work(struct wiphy *wiphy, struct skw_event_work *work,
 			 struct sk_buff *skb);
 
 void skw_assert_schedule(struct wiphy *wiphy);
-void skw_call_rcu(void *skw, struct rcu_head *head, rcu_callback_t func);
 void skw_work_init(struct wiphy *wiphy);
 void skw_work_deinit(struct wiphy *wiphy);
+
+#ifdef SKW_GKI_DRV
+void skw_call_rcu(void *skw, struct rcu_head *head, rcu_callback_t func);
+#endif
+
 #endif

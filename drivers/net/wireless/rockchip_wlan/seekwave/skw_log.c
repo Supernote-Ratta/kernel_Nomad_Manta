@@ -8,7 +8,7 @@
 #define SKW_LL_MASK 0xffff
 
 #ifndef SKW_LOG_LEVEL
-#define SKW_LOG_LEVEL SKW_DETAIL//SKW_WARN
+#define SKW_LOG_LEVEL SKW_WARN
 #endif
 
 static unsigned long skw_dbg_level;

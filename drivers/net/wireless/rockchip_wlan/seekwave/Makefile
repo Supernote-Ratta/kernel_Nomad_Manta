@@ -1,6 +1,24 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_WLAN_VENDOR_SEEKWAVE) += skw.o
-#obj-m += skw.o
+
+CONFIG_SKW_STA_SME_EXT=y
+CONFIG_SKW_SAP_SME_EXT=y
+CONFIG_SKW_SCAN_RADOM_MAC=y
+CONFIG_SKW_TX_WORKQUEUE=y
+CONFIG_SKW_VENDOR=y
+CONFIG_SKW_HIGH_PRIORITY=y
+CONFIG_SKW_REGD_SELF_MANAGED=y
+CONFIG_SKW_TDLS=y
+#CONFIG_SKW_GKI=y
+#CONFIG_SKW_DFS_MASTER=y
+#CONFIG_SKW_EDMA=y
+#CONFIG_SKW_REPEATER=y
+#CONFIG_SKW_LEGACY_P2P=y
+#CONFIG_SKW_CALIB_DPD=y
+#CONFIG_SKW_CHIP_ID="EA6621Q"
+CONFIG_SKW_LOG_LEVEL=SKW_DEBUG
+CONFIG_SKW_PROJECT_NAME="SEEKWAVE"
+CONFIG_SKW_DEFAULT_COUNTRY="CN"
 
 skw-objs += skw_core.o
 skw-objs += skw_iface.o
@@ -8,53 +26,56 @@ skw-objs += skw_cfg80211.o
 skw-objs += skw_msg.o
 skw-objs += skw_rx.o
 skw-objs += skw_tx.o
-skw-objs += skw_vendor.o
 skw-objs += skw_regd.o
 skw-objs += skw_mlme.o
 skw-objs += skw_timer.o
 skw-objs += skw_log.o
 skw-objs += skw_iw.o
 skw-objs += skw_work.o
-skw-objs += skw_tdls.o
 skw-objs += skw_mbssid.o
-skw-objs += skw_edma.o
 skw-objs += skw_debugfs.o
 skw-objs += skw_util.o
-skw-objs += skw_calib.o
 skw-objs += skw_recovery.o
 skw-objs += trace.o
 
-ccflags-y += -I$(srctree)/include/linux/platform_data/
+skw-$(CONFIG_SKW_CALIB_DPD) += skw_calib.o
+skw-$(CONFIG_SKW_EDMA) += skw_edma.o
+skw-$(CONFIG_SKW_VENDOR) += skw_vendor.o
+skw-$(CONFIG_SKW_DFS_MASTER) += skw_dfs.o
+skw-$(CONFIG_SKW_TDLS) += skw_tdls.o
 
-ifneq ($(skw_extra_flags),)
-ccflags-y += $(skw_extra_flags)
+ccflags-$(CONFIG_SKW_REPEATER) += -DSKW_ARP_NAT -DSKW_DHCP_BROADCAST
+ccflags-$(CONFIG_SKW_STA_SME_EXT) += -DSKW_STA_SME_EXTERNAL
+ccflags-$(CONFIG_SKW_SAP_SME_EXT) += -DSKW_SAP_SME_EXTERNAL
+ccflags-$(CONFIG_SKW_SCAN_RADOM_MAC) += -DSKW_SCAN_RANDOM_MAC
+ccflags-$(CONFIG_SKW_TX_WORKQUEUE) += -DSKW_TX_WORKQUEUE
+ccflags-$(CONFIG_SKW_DFS_MASTER) += -DSKW_DFS_MASTER
+ccflags-$(CONFIG_SKW_VENDOR) += -DSKW_VENDOR
+ccflags-$(CONFIG_SKW_CALIB_DPD) += -DSKW_CALIB_DPD -DSKW_IMPORT_NS
+ccflags-$(CONFIG_SKW_HIGH_PRIORITY) += -DSKW_HIGH_PRIORITY
+ccflags-$(CONFIG_SKW_REGD_SELF_MANAGED) += -DSKW_REGD_SELF_MANAGED
+ccflags-$(CONFIG_SKW_GKI) += -DSKW_GKI_DRV
+ccflags-$(CONFIG_SKW_EDMA) += -DSKW_EDMA
+ccflags-$(CONFIG_SKW_TDLS) += -DSKW_TDLS
+
+ifneq ($(CONFIG_SKW_DEFAULT_COUNTRY),)
+ccflags-y += -DSKW_DEFAULT_COUNTRY=$(CONFIG_SKW_DEFAULT_COUNTRY)
 endif
 
-ccflags-y += -DSKW_HIGH_PRIORITY
-ccflags-y += -DSKW_SAP_SME_EXTERNAL
-ccflags-y += -DSKW_STA_SME_EXTERNAL
+ifneq ($(CONFIG_SKW_LOG_LEVEL),)
+ccflags-y += -DSKW_LOG_LEVEL=$(CONFIG_SKW_LOG_LEVEL)
+endif
 
-#ccflags-y += -DSKW_SCAN_RANDOM_MAC
-ccflags-y += -DSKW_REGD_SELF_MANAGED
-ccflags-y += -DSKW_DEFAULT_COUNTRY="CN"
+ifneq ($(CONFIG_SKW_CHIP_ID),)
+ccflags-y += -DSKW_CHIP_ID=$(CONFIG_SKW_CHIP_ID)
+endif
 
-#ccflags-y += -DSKW_DPD_CALI_EN
-ccflags-y += -DSKW_DEDICATED_P2P_DEV
-ccflags-y += -DSKW_LOG_LEVEL=SKW_DEBUG
-#ccflags-y += -DSKW_RX_ASSOC_RESP_EXT
-#ccflags-y += -DSKW_GKI_DRV
+ifneq ($(CONFIG_SKW_PROJECT_NAME),)
+ccflags-y += -DSKW_PROJECT_NAME=$(CONFIG_SKW_PROJECT_NAME)
+endif
 
-#ccflags-y += -DSKW_ARP_NAT
-#ccflags-y += -DSKW_DHCP_BROADCAST
-
-#ccflags-y += -DSKW_CREDIT_DEBUG
-ccflags-y += -Wno-implicit-fallthrough
-
-# INI file select
-ccflags-y += -DSKW_CHIP_ID="EA6621Q"
-ccflags-y += -DSKW_PROJECT_NAME="SEEKWAVE"
-
-ccflags-y += -DSKW_TX_WORKQUEUE
+skw_extra_flags += -I$(srctree)/include/linux/platform_data/
+ccflags-y += $(skw_extra_flags)
 
 CFLAGS_trace.o := -I$(src)
 
