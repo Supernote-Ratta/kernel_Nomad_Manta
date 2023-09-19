@@ -103,9 +103,9 @@
         };
     };
 
-    hall_sensor: hall-mh248 {
+    hall_sensor: hall-sensor {
         status = "okay";
-        compatible = "hall-mh248";
+        compatible = "hthall-gpio";
         pinctrl-names = "default";
         pinctrl-0 = <&hall_irq_gpio>;
         irq-gpio = <&gpio0 RK_PA0 IRQ_TYPE_EDGE_BOTH>;

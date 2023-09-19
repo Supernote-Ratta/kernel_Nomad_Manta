@@ -16,4 +16,7 @@ config HS_MH248
 config HS_WH2506D
 	tristate "hall sensor wh2506d"
 
+config HS_HTGPIOHALL
+	tristate "hall sensor ht gpio hall"
+
 endif
