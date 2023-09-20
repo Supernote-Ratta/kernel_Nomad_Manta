@@ -2,7 +2,9 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/input.h>
-#define SLIDER_DRV_VER "230915"
+#define SLIDER_DRV_VER "230919"
+// 230919:1.双指bug
+//		  2.F13、F14上报
 
 #define RATTA_MT_DEBUG		1
 #define RATTA_MT_NAME		"ratta-slide"
@@ -356,6 +358,8 @@ ratta_mt_debug("%s track:%d left:%d right:%d last:%d lasttime:%ld 0time:%ld time
 				break;
 			}
 		}
+
+		ratta_mt_debug("%s track[1].done:%d is_same:%d\n",__func__,ratta_device->data_record[0][track][1].done,is_same);
 		if(is_same){
 			switch (ratta_device->data_record[0][track][1].done){
 			case FINGER_REPEAT:
@@ -423,19 +427,19 @@ ratta_mt_debug("%s last_key:0x%x key_status=0x%x is_same:%d\n",__func__,ratta_de
 		}
 	}else if((slider_right == 2)&&(ratta_device->data_record[0][track][0].y==RATTA_SLIDE_RIGHT)){
 		//wait right 2 fingers up at one time
-		if((ratta_device->data_record[0][need_parse[0][0]][last].done == FINGER_DOWN) || (ratta_device->data_record[0][need_parse[0][1]][last].done == FINGER_DOWN)){
+		if((ratta_device->data_record[0][need_parse[1][0]][last].done == FINGER_DOWN) || (ratta_device->data_record[0][need_parse[1][1]][last].done == FINGER_DOWN)){
 			ratta_report_slide_updown(KEY_F9,1);//重复按下会不会有问题？
-			ratta_device->data_record[0][need_parse[0][0]][0].status = KEY_STATUS_TWO_DOWN;
-			ratta_device->data_record[0][need_parse[0][1]][0].status = KEY_STATUS_TWO_DOWN;
+			ratta_device->data_record[0][need_parse[1][0]][0].status = KEY_STATUS_TWO_DOWN;
+			ratta_device->data_record[0][need_parse[1][1]][0].status = KEY_STATUS_TWO_DOWN;
 		}else if((ratta_device->data_record[0][track][0].status == KEY_STATUS_TWO_DOWN)&&(ratta_device->data_record[0][track][last].tip == 0)){
 			ratta_mt_clean_finger(0,track);
 			ratta_report_slide_updown(KEY_F9,0);
-			ratta_device->data_record[0][need_parse[0][0]][0].status = 0;
-			ratta_device->data_record[0][need_parse[0][1]][0].status = 0;
-			if(need_parse[0][0] == track){
-				ratta_device->data_record[0][need_parse[0][1]][last].done = FINGER_DROP;
+			ratta_device->data_record[0][need_parse[1][0]][0].status = 0;
+			ratta_device->data_record[0][need_parse[1][1]][0].status = 0;
+			if(need_parse[1][0] == track){
+				ratta_device->data_record[0][need_parse[1][1]][last].done = FINGER_DROP;
 			}else{
-				ratta_device->data_record[0][need_parse[0][0]][last].done = FINGER_DROP;
+				ratta_device->data_record[0][need_parse[1][0]][last].done = FINGER_DROP;
 			}
 		}
 	}
@@ -721,11 +725,12 @@ int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long j
 		//return -EINVAL;
 	}
 	if(record_num!=0){
-		time = jiffies_to_msecs(jiffs-ratta_device->data_record[0][i][record_num-1].time);
-		printk("%s record_num:%d time:%d",__func__,record_num,time);
+		time = jiffies_to_msecs(jiffs-ratta_device->data_record[0][track][record_num-1].time);
 	}else{
 		time = 0;
 	}
+	
+	ratta_mt_debug("%s record_num:%d time:%d",__func__,record_num,time);
 	//1.抬起------添加
 	//2.不存在的手指---------添加
 	//3.存在的手指  
@@ -764,7 +769,7 @@ int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long j
 			ratta_mt_add_record(tch, jiffs);
 			ratta_device->data_record[0][tch[SLIDER_TCH_T]][record_num].done = FINGER_SLIDER_DOWN;
 		}else{
-			if(time >500){
+			if(time > 500){
 				ratta_mt_add_record(tch, jiffs);
 				ratta_device->data_record[0][tch[SLIDER_TCH_T]][record_num].done = FINGER_REPEAT;
 			}else{
@@ -845,6 +850,8 @@ int ratta_mt_probe(struct device *dev)
 	__set_bit(KEY_F8, ratta_device->input->keybit);
 	__set_bit(KEY_F9, ratta_device->input->keybit);//left_up
 	__set_bit(KEY_F10, ratta_device->input->keybit);//right_up
+	__set_bit(KEY_F13, ratta_device->input->keybit);//right_up
+	__set_bit(KEY_F14, ratta_device->input->keybit);//right_up
 
 	ret = input_register_device(ratta_device->input);
 	if (ret < 0) {
