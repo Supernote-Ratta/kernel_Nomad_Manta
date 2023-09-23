@@ -9140,7 +9140,7 @@ static const struct pt_tch_abs_params tch_hdr_default[PT_TCH_NUM_HDR] = {
 	/* byte offset, size, min, max, bit offset, report */
 	{0x00, 0x02, 0x00, 0x10000, 0x00, 0x01},	/* SCAN TIME */
 	{0x02, 0x01, 0x00, 0x20,    0x00, 0x01},	/* NUMBER OF RECORDS */
-	{0x02, 0x01, 0x00, 0x02,    0x05, 0x01},	/* LARGE OBJECT */
+	{0x02, 0x01, 0x00, 0x08,    0x05, 0x01},	/* LARGE OBJECT */
 	{0x03, 0x01, 0x00, 0x08,    0x00, 0x01},	/* NOISE EFFECT */
 	{0x03, 0x01, 0x00, 0x04,    0x06, 0x01},	/* REPORT_COUNTER */
 };
@@ -10713,6 +10713,7 @@ void pt_get_touch_field(struct device *dev,
 			"%s: *field=%02X(%d) size=%d max=%08X data=%p data[%d]=%02X(%d) bofs=%d\n",
 			__func__, *field, *field, size, max, data, next,
 			data[next], data[next], bofs);
+
 		*field = *field + ((data[next] >> bofs) << (nbyte * 8));
 		next++;
 	}
@@ -11452,7 +11453,7 @@ static int move_touch_data_pip(struct pt_core_data *cd, struct pt_sysinfo *si)
 	if (size > 0)
 		tthe_print(cd, cd->input_buf, size, "OpModeData=");
 #endif
-
+//tanlq
 	memcpy(si->xy_mode, cd->input_buf, si->desc.tch_header_size);
 	pt_pr_buf(cd->dev, DL_INFO, (u8 *)si->xy_mode,
 		si->desc.tch_header_size, "xy_mode");

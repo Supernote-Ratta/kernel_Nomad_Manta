@@ -100,7 +100,7 @@ static void cyttsp5_get_touch_hdr(struct cyttsp5_mt_data *md,
 			touch->hdr[hdr], touch->hdr[hdr]);
 	}
 
-	parade_debug(dev, DEBUG_LEVEL_1,
+	parade_debug(dev, DEBUG_LEVEL_2,
 		"%s: time=%X tch_num=%d lo=%d noise=%d counter=%d\n",
 		__func__,
 		touch->hdr[CY_TCH_TIME],
@@ -244,7 +244,7 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 
 		/* Lift-off */
 		if (tch->abs[CY_TCH_E] == CY_EV_LIFTOFF) {
-			parade_debug(dev, DEBUG_LEVEL_1, "%s: t=%d e=%d tip=%d lift-off\n",
+			parade_debug(dev, DEBUG_LEVEL_2, "%s: t=%d e=%d tip=%d lift-off\n",
 				__func__, t, tch->abs[CY_TCH_E], tch->abs[CY_TCH_TIP]);
 #ifdef SLIDER_NEW
 			md->num_prv_rec = num_cur_tch;
@@ -311,7 +311,7 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 		mt_sync_count++;
 
 cyttsp5_get_mt_touches_pr_tch:
-		parade_debug(dev, DEBUG_LEVEL_1,
+		parade_debug(dev, DEBUG_LEVEL_2,
 			"%s: t=%d x=%d y=%d z=%d M=%d m=%d o=%d e=%d obj=%d tip=%d\n",
 			__func__, t,
 			tch->abs[CY_TCH_X],

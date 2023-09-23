@@ -390,12 +390,21 @@ static int pt_xy_worker(struct pt_mt_data *md)
 			__func__, num_cur_tch);
 		num_cur_tch = max_tch;
 	}
-
-	if (tch.hdr[PT_TCH_LO]) {
+	pt_debug(dev, DL_DEBUG,"%s: tch.hdr[PT_TCH_LO]:%x \n",
+			__func__,tch.hdr[PT_TCH_LO]);
+	if (tch.hdr[PT_TCH_LO]&0x01) {
 		pt_debug(dev, DL_INFO, "%s: Large area detected\n",
 			__func__);
 		if (md->pdata->flags & PT_MT_FLAG_NO_TOUCH_ON_LO)
 			num_cur_tch = 0;
+		if(tch.hdr[PT_TCH_LO]&0x02){
+			slider_mask |= 1;
+		}
+		if(tch.hdr[PT_TCH_LO]&0x04){
+			slider_mask |= 2;
+		}
+	}else{
+		slider_mask = 0;
 	}
 
 	if (num_cur_tch == 0 && md->num_prv_rec == 0)
@@ -929,6 +938,7 @@ int pt_mt_probe(struct device *dev)
 	}
 
     //pt_slider_probe(dev);
+    slider_mask = 0;
     ratta_mt_probe(dev);
 	return 0;
 

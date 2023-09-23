@@ -10,7 +10,7 @@
 #ifdef SLIDER_NEW
 int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long jiffs);
 extern int ratta_mt_probe(struct device *dev);
-
+extern int slider_mask;
 #else
 // 2030721,define the listener for SN-X2.dev: the device whitch gen the touch.
 typedef void (*touch_listener)(struct device *dev,int t, int x, int y, int tip);
