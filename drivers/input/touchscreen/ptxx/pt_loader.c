@@ -109,7 +109,7 @@ struct pt_loader_data {
 	int builtin_bin_fw_status;
 	bool is_manual_upgrade_enabled;
 #endif
-	struct work_struct fw_and_config_upgrade;
+	struct delayed_work fw_and_config_upgrade;
 	struct work_struct calibration_work;
 	struct pt_loader_platform_data *loader_pdata;
 #ifdef CONFIG_TOUCHSCREEN_PARADE_MANUAL_TTCONFIG_UPGRADE
@@ -2538,11 +2538,10 @@ static DEVICE_ATTR(manual_upgrade, 0200, NULL, pt_manual_upgrade_store);
  * PARAMETERS:
  *  *work_struct  - pointer to work_struct structure
  ******************************************************************************/
-static void pt_fw_and_config_upgrade(
-		struct work_struct *fw_and_config_upgrade)
+static void pt_fw_and_config_upgrade(struct work_struct *work)
 {
-	struct pt_loader_data *ld = container_of(fw_and_config_upgrade,
-			struct pt_loader_data, fw_and_config_upgrade);
+	struct pt_loader_data *ld = container_of(work,
+			struct pt_loader_data, fw_and_config_upgrade.work);
 	struct device *dev = ld->dev;
 	struct pt_core_data *cd = dev_get_drvdata(dev);
 	int retry = 200;
@@ -5716,7 +5715,7 @@ static int pt_cancel_fw_upgrade_cb(struct device *dev)
 	cancel_work_sync(&ld->bl_from_file);
 	cancel_work_sync(&ld->pip2_bl_from_file);
 	cancel_work_sync(&ld->calibration_work);
-	cancel_work_sync(&ld->fw_and_config_upgrade);
+	cancel_delayed_work_sync(&ld->fw_and_config_upgrade);
 
 	return 0;
 }
@@ -5981,8 +5980,8 @@ static int pt_loader_probe(struct device *dev, void **data)
 #endif
 
 	pt_debug(dev, DL_INFO, "%s: Schedule FW upgrade work\n", __func__);
-	INIT_WORK(&ld->fw_and_config_upgrade, pt_fw_and_config_upgrade);
-	schedule_work(&ld->fw_and_config_upgrade);
+	INIT_DELAYED_WORK(&ld->fw_and_config_upgrade, pt_fw_and_config_upgrade);
+	schedule_delayed_work(&ld->fw_and_config_upgrade, msecs_to_jiffies(2 * 1000));
 
 	pt_debug(dev, DL_INFO, "%s: Successful probe %s\n",
 		__func__, dev_name(dev));
