@@ -6293,10 +6293,12 @@ static int cyttsp5_fb_notifier_callback(struct notifier_block *self,
 			enable_irq_wake(cd->irq);
 			cd->irq_disabled = false;
         }
-		if (rst_gpio)
-		gpio_set_value(rst_gpio, 1); //tanlq 230425
-        cyttsp5_core_wake(cd);
-    }
+		if (rst_gpio) {
+			gpio_set_value(rst_gpio, 1); //tanlq 230425
+			msleep(200);// add msleep when wakeup
+		}
+		cyttsp5_core_wake(cd);
+	}
 
 exit:
 	return 0;
