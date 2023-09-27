@@ -2,14 +2,14 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/input.h>
-#define SLIDER_DRV_VER "230921"
+#define SLIDER_DRV_VER "230927"
 // 230919:1.双指bug
 //		  2.F13、F14上报
 // 230922:1.双指左右分开
 //		  2.tp 手掌抑制上报
 //		  3.bug:滚动只报第一个动作
-
-
+// 230927:1.键值修改成F13-F24
+//        2.长按1S
 
 #define RATTA_MT_DEBUG		0
 #define RATTA_MT_NAME		"ratta-slide"
@@ -104,7 +104,7 @@ enum slider_keys {
 static struct ratta_mt_device *ratta_device = NULL;
 int slider_mask;
 unsigned int key_now = 0;
-int key_map[]={KEY_F1,KEY_F2,KEY_F3,KEY_F4,KEY_F10,KEY_F13,KEY_F5,KEY_F6,KEY_F7,KEY_F8,KEY_F11,KEY_F14};
+int key_map[]={KEY_F13,KEY_F14,KEY_F15,KEY_F16,KEY_F17,KEY_F18,KEY_F19,KEY_F20,KEY_F21,KEY_F22,KEY_F23,KEY_F24};
 #define ratta_mt_debug(fmt, args...) do { \
 		if (RATTA_MT_DEBUG) { \
 			printk("[ratta_mt]%s:"fmt"\n", __func__, ##args); \
@@ -113,7 +113,7 @@ int key_map[]={KEY_F1,KEY_F2,KEY_F3,KEY_F4,KEY_F10,KEY_F13,KEY_F5,KEY_F6,KEY_F7,
 
 static void ratta_report_slide(int code)
 {
-    ratta_mt_debug("%s: keycode=%d\n", __func__, code);
+    printk("%s: keycode=%d\n", __func__, code);
 	input_report_key(ratta_device->input,
 			 code, 1);
 	input_report_key(ratta_device->input,
@@ -354,7 +354,7 @@ ratta_mt_debug("%s track:%d left:%d right:%d last:%d lasttime:%ld 0time:%ld time
 				}
 			}
 			
-			printk("%s track[1].done:%d is_same:%d status:0x%x\n",__func__,ratta_device->data_record[0][track][1].done,is_same,
+			ratta_mt_debug("%s track[1].done:%d is_same:%d status:0x%x\n",__func__,ratta_device->data_record[0][track][1].done,is_same,
 					ratta_device->data_record[0][track][0].status);
 			if(is_same){
 				switch (ratta_device->data_record[0][track][1].done){
@@ -424,12 +424,12 @@ ratta_mt_debug("%s track:%d left:%d right:%d last:%d lasttime:%ld 0time:%ld time
 			}
 		}
 
-		printk("%s track[1].done:%d is_same:%d status:0x%x\n",__func__,ratta_device->data_record[0][track][1].done,is_same,
+		ratta_mt_debug("%s track[1].done:%d is_same:%d status:0x%x\n",__func__,ratta_device->data_record[0][track][1].done,is_same,
 				ratta_device->data_record[0][track][0].status);
 		if(is_same){
 			switch (ratta_device->data_record[0][track][1].done){
 			case FINGER_REPEAT:
-				if(time > 3000){
+				if(time > 1000){
 					key_status |= KEY_STATUS_STAY;
 					//ratta_device->data_record[0][track][0].status = KEY_STATUS_STAY;
 				}
@@ -786,7 +786,7 @@ int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long j
 	}
 	if (!ratta_device)
 		return -ENODEV;
-	printk("====ratta_mt_record type:%d rec:%d t:%d,x:%d,y:%d,t:%d,e:%d,o:%d,tip:%d,num:%d,time:%ld \n",
+	ratta_mt_debug("====ratta_mt_record type:%d rec:%d t:%d,x:%d,y:%d,t:%d,e:%d,o:%d,tip:%d,num:%d,time:%ld \n",
 		type,record,track,tch[SLIDER_TCH_X],tch[SLIDER_TCH_Y],tch[SLIDER_TCH_T],tch[SLIDER_TCH_E],
 		tch[SLIDER_TCH_O],tch[SLIDER_TCH_TIP],tch[SLIDER_TCH_NUM_ABS],jiffs);
 	if ((track < 0) || (track >= RATTA_MAX_FINGERS)) {
@@ -919,19 +919,9 @@ int ratta_mt_probe(struct device *dev)
 	__set_bit(EV_KEY, ratta_device->input->evbit);
 	__set_bit(KEY_LEFT, ratta_device->input->keybit);
 	__set_bit(KEY_RIGHT, ratta_device->input->keybit);
-	__set_bit(KEY_F1, ratta_device->input->keybit);
-	__set_bit(KEY_F2, ratta_device->input->keybit);
-	__set_bit(KEY_F3, ratta_device->input->keybit);//left_up
-	__set_bit(KEY_F4, ratta_device->input->keybit);//right_up
-	__set_bit(KEY_F5, ratta_device->input->keybit);//left_down
-	__set_bit(KEY_F6, ratta_device->input->keybit);//right_down
-	__set_bit(KEY_F7, ratta_device->input->keybit);
-	__set_bit(KEY_F8, ratta_device->input->keybit);
-	__set_bit(KEY_F9, ratta_device->input->keybit);//left_up
-	__set_bit(KEY_F10, ratta_device->input->keybit);//right_up
-	__set_bit(KEY_F13, ratta_device->input->keybit);//right_up
-	__set_bit(KEY_F14, ratta_device->input->keybit);//right_up
-
+	for(i=0;i<SLIDER_R_LONG+1;i++){
+		__set_bit(key_map[i], ratta_device->input->keybit);
+	}
 	ret = input_register_device(ratta_device->input);
 	if (ret < 0) {
 		goto err;
