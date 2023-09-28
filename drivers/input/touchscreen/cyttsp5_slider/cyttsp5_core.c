@@ -5705,6 +5705,68 @@ static ssize_t cyttsp5_platform_data_show(struct device *dev,
 	return ret;
 }
 
+static ssize_t cyttsp5_ft_mode_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
+	ssize_t ret;
+
+	mutex_lock(&cd->system_lock);
+	if (cd->ft_mode)
+		ret = snprintf(buf, CY_MAX_PRBUF_SIZE, "true\n");
+	else
+		ret = snprintf(buf, CY_MAX_PRBUF_SIZE, "false\n");
+	mutex_unlock(&cd->system_lock);
+
+	return ret;
+}
+
+static ssize_t cyttsp5_ft_mode_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
+	unsigned long value;
+	int retval = 0;
+
+	retval = kstrtoul(buf, 10, &value);
+	if (retval < 0) {
+		dev_err(dev, "%s: Invalid value\n", __func__);
+		goto cyttsp5_ft_mode_error_exit;
+	}
+
+	mutex_lock(&cd->system_lock);
+	switch (value) {
+	case 0:
+		if (cd->ft_mode) {
+			cd->ft_mode = false;
+			dev_info(dev, "%s: ft_mode now disabled\n",
+				__func__);
+		} else
+			dev_info(dev, "%s: ft_mode already disabled\n",
+				__func__);
+		break;
+
+	case 1:
+		if (cd->ft_mode == false) {
+			cd->ft_mode = true;
+			dev_info(dev, "%s: ft_mode now enabled\n",
+				__func__);
+		} else
+			dev_info(dev, "%s: ft_mode already enabled\n",
+				__func__);
+		break;
+
+	default:
+		dev_err(dev, "%s: Invalid value\n", __func__);
+	}
+	mutex_unlock(&(cd->system_lock));
+
+cyttsp5_ft_mode_error_exit :
+
+	return size;
+}
+
+
 static struct device_attribute attributes[] = {
 	__ATTR(ic_ver, S_IRUGO, cyttsp5_ic_ver_show, NULL),
 	__ATTR(drv_ver, S_IRUGO, cyttsp5_drv_ver_show, NULL),
@@ -5725,6 +5787,8 @@ static struct device_attribute attributes[] = {
 #endif
 	__ATTR(panel_id, S_IRUGO, cyttsp5_panel_id_show, NULL),
 	__ATTR(platform_data, S_IRUGO, cyttsp5_platform_data_show, NULL),
+	__ATTR(ft_mode, S_IRUSR | S_IWUSR, cyttsp5_ft_mode_show,
+		cyttsp5_ft_mode_store),
 };
 
 static int add_sysfs_interfaces(struct device *dev)
@@ -6528,6 +6592,7 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
 				__func__, rc);
     enable_irq_wake(cd->irq);
     cd->irq_wake = 1;
+	cd->ft_mode = 0;
 
 
 	rc = cyttsp5_mt_probe(dev);
