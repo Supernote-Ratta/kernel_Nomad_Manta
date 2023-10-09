@@ -10,6 +10,7 @@
 //		  3.bug:滚动只报第一个动作
 // 230927:1.键值修改成F13-F24
 //        2.长按1S
+// 231008:1.slider 只上报上滑、下滑、不动、双指，4种状态和触摸（DOWN)
 
 #define RATTA_MT_DEBUG		0
 #define RATTA_MT_NAME		"ratta-slide"
@@ -25,22 +26,22 @@
 #define KEY_STATUS_LEFT     0x01 //左边滑条
 #define KEY_STATUS_RIGHT    0x02 //右边滑条
 
-#define KEY_STATUS_SHORT    0x04 //短按
-#define KEY_STATUS_LONG     0x08 //长按
+//#define KEY_STATUS_SHORT    0x04 //短按
+//#define KEY_STATUS_LONG     0x08 //长按
 
 #define KEY_STATUS_SLIDER_UP       0x10 //上滑
 #define KEY_STATUS_SLIDER_DOWN     0x20 //下滑
 
-#define KEY_STATUS_ROLL_UP 	0x40 //上滚
-#define KEY_STATUS_ROLL_DOWN 0x80 //下滚
+//#define KEY_STATUS_ROLL_UP 	0x40 //上滚
+//#define KEY_STATUS_ROLL_DOWN 0x80 //下滚
 
 #define KEY_STATUS_UP       0x100 //弹起
 #define KEY_STATUS_DOWN     0x200 //按下
 
 #define KEY_STATUS_STAY     0x400 //还未滚动
-#define KEY_STATUS_STOP     0x800 //停止滚动
+#define KEY_STATUS_STOP     0x800 //停止
 
-#define KEY_STATUS_WAIT     0x1000 //等待滚动
+//#define KEY_STATUS_WAIT     0x1000 //等待滚动
 
 #define KEY_STATUS_TWO_DOWN     0x2000 //双指按下
 #define KEY_STATUS_TWO_UP     0x4000 //双指弹起
@@ -85,7 +86,7 @@ struct ratta_mt_device {
 	int slider_left_count;
 	int slider_right_count;
 };
-
+#if 0
 enum slider_keys {
 	SLIDER_L_UP,
 	SLIDER_L_DOWN,
@@ -99,6 +100,22 @@ enum slider_keys {
 	SLIDER_R_ROLL_DOWN,
 	SLIDER_R_TWO,
 	SLIDER_R_LONG,
+};
+#endif
+//F14--不动，F15--上滚  F16--下滚，F17--两指 ,F18--有触摸
+enum slider_keys {
+	SLIDER_L_NONE,
+	SLIDER_L_STAY,
+	SLIDER_L_ROLL_UP,
+	SLIDER_L_ROLL_DOWN,
+	SLIDER_L_TWO,
+	SLIDER_L_DOWN,
+	SLIDER_R_NONE,
+	SLIDER_R_STAY,
+	SLIDER_R_ROLL_UP,
+	SLIDER_R_ROLL_DOWN,
+	SLIDER_R_TWO,
+	SLIDER_R_DOWN,
 };
 
 static struct ratta_mt_device *ratta_device = NULL;
@@ -128,7 +145,7 @@ static void ratta_report_slide_updown(int code,int down)
 	input_report_key(ratta_device->input,
 			 code, down);
 	input_sync(ratta_device->input);
-	for(i=0;i<SLIDER_R_LONG+1;i++){
+	for(i=0;i<SLIDER_R_DOWN+1;i++){
 		if(code == key_map[i]){
 			break;
 		}
@@ -138,7 +155,7 @@ static void ratta_report_slide_updown(int code,int down)
 	}else{
 		key_now &= (~(1<<i));
 	}
-    printk("%s: keycode=%d down=%d key_now:0x%x\n", __func__, code,down,key_now);
+    printk("%s: keycode=%d down=%d key_now:0x%x i=%d\n", __func__, code,down,key_now,i);
 }
 
 static void ratta_slide_clean_keys(int mask)
@@ -149,23 +166,66 @@ static void ratta_slide_clean_keys(int mask)
 		return;
 	}
 	if(mask & 0x01){
-		for(i=0;i<SLIDER_R_UP;i++){
-			if(key_now & key_map[i]){
+		for(i=0;i<SLIDER_R_NONE;i++){
+			if(key_now & (1<<i)){
 				input_report_key(ratta_device->input,
 				 key_map[i], 0);
+				printk("%s: keyup=%d key_now:0x%x\n", __func__, key_map[i], key_now);
+			}
+		}
+		key_now &= 0x0FC0;
+	}
+	if(mask & 0x02){
+		for(i=SLIDER_R_NONE;i<SLIDER_R_DOWN+1;i++){
+			if(key_now & (1<<i)){
+				input_report_key(ratta_device->input,
+				 key_map[i], 0);
+				printk("%s: keyup=%d key_now:0x%x\n", __func__, key_map[i], key_now);
+			}
+		}
+		key_now &= 0x003F;
+	}
+	input_sync(ratta_device->input);
+	
+}
+
+static void ratta_slide_clean_keys_except(int mask,int exceptkey)
+{
+	int i;
+
+	if((key_now == 0) || (key_now == exceptkey)){
+		return;
+	}
+	if(mask & 0x01){
+		for(i=0;i<SLIDER_R_NONE;i++){
+			if(key_now & (1<<i)){
+				if((1<<i) & exceptkey){
+				}else{
+					input_report_key(ratta_device->input,
+					 key_map[i], 0);
+					key_now &= (~(1<<i));
+					input_sync(ratta_device->input);
+					printk("%s: keyup=%d key_now:0x%x\n", __func__, key_map[i],key_now);
+				}
 			}
 		}
 	}
 	if(mask & 0x02){
-		for(i=SLIDER_R_UP;i<SLIDER_R_LONG+1;i++){
-			if(key_now & key_map[i]){
-				input_report_key(ratta_device->input,
-				 key_map[i], 0);
+		for(i=SLIDER_R_NONE;i<SLIDER_R_DOWN+1;i++){
+			if(key_now & (1<<i)){
+				if((1<<i) & exceptkey){
+				}else{
+					input_report_key(ratta_device->input,
+					 key_map[i], 0);
+					key_now &= (~(1<<i));
+					input_sync(ratta_device->input);
+					printk("%s: keyup=%d key_now:0x%x\n", __func__, key_map[i],key_now);
+				}
 			}
 		}
 	}
-	input_sync(ratta_device->input);
-	key_now = 0;;
+	//input_sync(ratta_device->input);
+	//printk("%s: exceptkey=0x%x key_now:0x%x\n", __func__, exceptkey,key_now);
 
 }
 
@@ -222,18 +282,18 @@ static void ratta_mt_rerecord_finger(int track)
 {
 	int record_num,i,j;
 
-	if(ratta_device->data_record[0][track][0].status&(KEY_STATUS_ROLL_UP|KEY_STATUS_ROLL_DOWN|KEY_STATUS_STAY|KEY_STATUS_STOP|KEY_STATUS_WAIT|KEY_STATUS_TWO_DOWN))
-		ratta_device->data_record[0][track][1].done = ratta_device->data_record[0][track][99].done;
-	else
-		ratta_device->data_record[0][track][1].done = FINGER_DROP;
-	ratta_device->data_record[0][track][1].x = ratta_device->data_record[0][track][99].x;
-	ratta_device->data_record[0][track][1].y = ratta_device->data_record[0][track][99].y;
-	ratta_device->data_record[0][track][1].t = ratta_device->data_record[0][track][99].t;
-	ratta_device->data_record[0][track][1].e = ratta_device->data_record[0][track][99].e;
-	ratta_device->data_record[0][track][1].o = ratta_device->data_record[0][track][99].o;
-	ratta_device->data_record[0][track][1].tip = ratta_device->data_record[0][track][99].tip;
-	ratta_device->data_record[0][track][1].num = ratta_device->data_record[0][track][99].num;
-	ratta_device->data_record[0][track][1].time = ratta_device->data_record[0][track][99].time;
+	//if(ratta_device->data_record[0][track][0].status&(KEY_STATUS_ROLL_UP|KEY_STATUS_ROLL_DOWN|KEY_STATUS_STAY|KEY_STATUS_STOP|KEY_STATUS_WAIT|KEY_STATUS_TWO_DOWN))
+		ratta_device->data_record[0][track][0].done = ratta_device->data_record[0][track][99].done;
+	//else
+	//	ratta_device->data_record[0][track][1].done = FINGER_DROP;
+	ratta_device->data_record[0][track][0].x = ratta_device->data_record[0][track][99].x;
+	ratta_device->data_record[0][track][0].y = ratta_device->data_record[0][track][99].y;
+	ratta_device->data_record[0][track][0].t = ratta_device->data_record[0][track][99].t;
+	ratta_device->data_record[0][track][0].e = ratta_device->data_record[0][track][99].e;
+	ratta_device->data_record[0][track][0].o = ratta_device->data_record[0][track][99].o;
+	ratta_device->data_record[0][track][0].tip = ratta_device->data_record[0][track][99].tip;
+	ratta_device->data_record[0][track][0].num = ratta_device->data_record[0][track][99].num;
+	ratta_device->data_record[0][track][0].time = ratta_device->data_record[0][track][99].time;
 
 	ratta_mt_debug("====%s :track:%d,x:%d,y:%d,t:%d,tip:%d,time:%ld done:%d statue:%d\n",
 		__func__,track,ratta_device->data_record[0][track][99].x,ratta_device->data_record[0][track][99].y,
@@ -242,7 +302,7 @@ static void ratta_mt_rerecord_finger(int track)
 		ratta_device->data_record[0][track][i].status);
 
 
-	for (i = 2; i < ratta_device->rec_now[0][track]; i++) {
+	for (i = 1; i < ratta_device->rec_now[0][track]; i++) {
 		ratta_device->data_record[0][track][i].x = RATTA_INVALID_VALUE;
 		ratta_device->data_record[0][track][i].y = RATTA_INVALID_VALUE;
 		ratta_device->data_record[0][track][i].t = RATTA_INVALID_VALUE;
@@ -254,7 +314,7 @@ static void ratta_mt_rerecord_finger(int track)
 		ratta_device->data_record[0][track][i].done = 0;
 		ratta_device->data_record[0][track][i].status = 0;
 	}
-	ratta_device->rec_now[0][track] = 2;
+	ratta_device->rec_now[0][track] = 1;
 }
 
 static void ratta_mt_clean_finger(int type,int track)
@@ -339,150 +399,21 @@ ratta_mt_debug("%s track:%d left:%d right:%d last:%d lasttime:%ld 0time:%ld time
 		}
 		return;
 	}
-
-	if(ratta_device->data_record[0][track][last].tip == 0){
-		if(ratta_device->rec_now[0][track]<3){
-			if(time<150)
-				key_status |= KEY_STATUS_SHORT;
-			else
-				key_status |= KEY_STATUS_LONG;
-		}else{
-			for(i = 1; i < ratta_device->rec_now[0][track]-2; i++) {
-				if(ratta_device->data_record[0][track][i].done!=ratta_device->data_record[0][track][1].done){
-					is_same = false;
-					break;
-				}
-			}
-			
-			ratta_mt_debug("%s track[1].done:%d is_same:%d status:0x%x\n",__func__,ratta_device->data_record[0][track][1].done,is_same,
-					ratta_device->data_record[0][track][0].status);
-			if(is_same){
-				switch (ratta_device->data_record[0][track][1].done){
-				case FINGER_REPEAT:
-				//	if(time > 3000)
-				//		key_status |= KEY_STATUS_LONG;
-				//		ratta_device->data_record[0][track][0].status = KEY_STATUS_LONG;
-				//	else
-						key_status |= KEY_STATUS_UP;
-					break;
-				case FINGER_SLIDER_UP:
-					if((ratta_device->data_record[0][track][0].x - ratta_device->data_record[0][track][last].x > RATTA_SLIDE_OFFSET)&&(time < 1500))
-						key_status |= KEY_STATUS_SLIDER_UP;
-					else
-						key_status |= KEY_STATUS_UP;
-					break;
-				case FINGER_SLIDER_DOWN:
-					if((ratta_device->data_record[0][track][last].x - ratta_device->data_record[0][track][0].x > RATTA_SLIDE_OFFSET)&&(time < 1500))
-						key_status |= KEY_STATUS_SLIDER_DOWN;
-					else
-						key_status |= KEY_STATUS_UP;
-					break;
-				case FINGER_NONE:
-				case FINGER_DOWN:
-				//case FINGER_REPEAT:
-				case FINGER_TWO_PRESS:
-				case FINGER_UP:
-				case FINGER_DROP:
-				default:
-					key_status |= KEY_STATUS_UP;
-					break;
-				}
-			}else if(ratta_device->data_record[0][track][0].status==KEY_STATUS_WAIT){
-				switch (ratta_device->data_record[0][track][last-2].done){
-				case FINGER_SLIDER_UP:
-					if((ratta_device->data_record[0][track][0].x - ratta_device->data_record[0][track][last].x > RATTA_SLIDE_OFFSET)&&(time < 2000))
-						key_status |= KEY_STATUS_SLIDER_UP;
-					else
-						key_status |= KEY_STATUS_UP;
-					break;
-				case FINGER_SLIDER_DOWN:
-					if((ratta_device->data_record[0][track][last].x - ratta_device->data_record[0][track][0].x > RATTA_SLIDE_OFFSET)&&(time < 2000))
-						key_status |= KEY_STATUS_SLIDER_DOWN;
-					else
-						key_status |= KEY_STATUS_UP;
-					break;
-				case FINGER_NONE:
-				case FINGER_DOWN:
-				//case FINGER_REPEAT:
-				case FINGER_TWO_PRESS:
-				case FINGER_UP:
-				case FINGER_DROP:
-				default:
-					key_status |= KEY_STATUS_UP;
-					break;
-				}
-			}else{
-				//if(ratta_device->data_record[0][track][0].status & (KEY_STATUS_ROLL_UP|KEY_STATUS_ROLL_DOWN))
-				key_status |= KEY_STATUS_UP;
-			}
-	    }
-	}else{
-		for(i = 2; i < ratta_device->rec_now[0][track]; i++) {
-			if(ratta_device->data_record[0][track][i].done!=ratta_device->data_record[0][track][1].done){
-				is_same = false;
-				break;
-			}
-		}
-
-		ratta_mt_debug("%s track[1].done:%d is_same:%d status:0x%x\n",__func__,ratta_device->data_record[0][track][1].done,is_same,
-				ratta_device->data_record[0][track][0].status);
-		if(is_same){
-			switch (ratta_device->data_record[0][track][1].done){
-			case FINGER_REPEAT:
-				if(time > 1000){
-					key_status |= KEY_STATUS_STAY;
-					//ratta_device->data_record[0][track][0].status = KEY_STATUS_STAY;
-				}
-				else
-					key_status |= KEY_STATUS_WAIT;
-				break;
-			case FINGER_SLIDER_UP:
-			case FINGER_SLIDER_DOWN:
-			case FINGER_NONE:
-			case FINGER_DOWN:
-			case FINGER_TWO_PRESS:
-			case FINGER_UP:
-			case FINGER_DROP:
-			default:
-				break;
-			}
-		}else{
-			if(ratta_device->data_record[0][track][0].status | (KEY_STATUS_STAY|KEY_STATUS_STOP|KEY_STATUS_ROLL_UP|KEY_STATUS_ROLL_DOWN)){
-				switch (ratta_device->data_record[0][track][last].done){
-				case FINGER_REPEAT:
-					if(ratta_device->data_record[0][track][0].status & (KEY_STATUS_ROLL_UP|KEY_STATUS_ROLL_DOWN))
-						key_status |= KEY_STATUS_STOP;
-					//ratta_device->data_record[0][track][0].status = KEY_STATUS_STAY;
-					break;
-				case FINGER_SLIDER_UP:
-					if(ratta_device->data_record[0][track][0].status & (KEY_STATUS_STAY|KEY_STATUS_ROLL_DOWN|KEY_STATUS_STAY|KEY_STATUS_STOP))
-						key_status |= KEY_STATUS_ROLL_UP;
-					break;
-				case FINGER_SLIDER_DOWN:
-					if(ratta_device->data_record[0][track][0].status & (KEY_STATUS_STAY|KEY_STATUS_ROLL_UP|KEY_STATUS_STAY|KEY_STATUS_STOP))
-						key_status |= KEY_STATUS_ROLL_DOWN;
-					break;
-				case FINGER_NONE:
-				case FINGER_DOWN:
-				case FINGER_TWO_PRESS://maybe no need
-				case FINGER_UP:
-				case FINGER_DROP://todo: stop report key
-				default:
-					break;
-				}
-			}
-		}
+	if((last>0) && (ratta_device->data_record[0][track][last-1].done==ratta_device->data_record[0][track][last].done)){
+		return;
 	}
-ratta_mt_debug("%s last_key:0x%x key_status=0x%x is_same:%d\n",__func__,ratta_device->data_record[0][track][0].status,key_status,is_same);
+
 	if((slider_left == 2)&&(ratta_device->data_record[0][track][0].y==RATTA_SLIDE_LEFT)){
 		//wait left 2 fingers up at one time
 		if((ratta_device->data_record[0][need_parse[0][0]][last].done == FINGER_DOWN) || (ratta_device->data_record[0][need_parse[0][1]][last].done == FINGER_DOWN)){
+			ratta_slide_clean_keys_except(1,1<<SLIDER_L_DOWN);
 			ratta_report_slide_updown(key_map[SLIDER_L_TWO],1);//重复按下会不会有问题？
 			ratta_device->data_record[0][need_parse[0][0]][0].status = KEY_STATUS_TWO_DOWN;
 			ratta_device->data_record[0][need_parse[0][1]][0].status = KEY_STATUS_TWO_DOWN;
 		}else if((ratta_device->data_record[0][track][0].status == KEY_STATUS_TWO_DOWN)&&(ratta_device->data_record[0][track][last].tip == 0)){
 			ratta_mt_clean_finger(0,track);
-			ratta_report_slide_updown(key_map[SLIDER_L_TWO],0);
+			ratta_slide_clean_keys_except(1,1<<SLIDER_L_DOWN);
+			//ratta_report_slide_updown(key_map[SLIDER_L_TWO],0);
 			ratta_device->data_record[0][need_parse[0][0]][0].status = 0;
 			ratta_device->data_record[0][need_parse[0][1]][0].status = 0;
 			if(need_parse[0][0] == track){
@@ -494,12 +425,14 @@ ratta_mt_debug("%s last_key:0x%x key_status=0x%x is_same:%d\n",__func__,ratta_de
 	}else if((slider_right == 2)&&(ratta_device->data_record[0][track][0].y==RATTA_SLIDE_RIGHT)){
 		//wait right 2 fingers up at one time
 		if((ratta_device->data_record[0][need_parse[1][0]][last].done == FINGER_DOWN) || (ratta_device->data_record[0][need_parse[1][1]][last].done == FINGER_DOWN)){
+			ratta_slide_clean_keys_except(2,1<<SLIDER_R_DOWN);
 			ratta_report_slide_updown(key_map[SLIDER_R_TWO],1);//重复按下会不会有问题？
 			ratta_device->data_record[0][need_parse[1][0]][0].status = KEY_STATUS_TWO_DOWN;
 			ratta_device->data_record[0][need_parse[1][1]][0].status = KEY_STATUS_TWO_DOWN;
 		}else if((ratta_device->data_record[0][track][0].status == KEY_STATUS_TWO_DOWN)&&(ratta_device->data_record[0][track][last].tip == 0)){
 			ratta_mt_clean_finger(0,track);
-			ratta_report_slide_updown(key_map[SLIDER_R_TWO],0);
+			ratta_slide_clean_keys_except(2,1<<SLIDER_R_DOWN);
+			//ratta_report_slide_updown(key_map[SLIDER_R_TWO],0);
 			ratta_device->data_record[0][need_parse[1][0]][0].status = 0;
 			ratta_device->data_record[0][need_parse[1][1]][0].status = 0;
 			if(need_parse[1][0] == track){
@@ -511,252 +444,121 @@ ratta_mt_debug("%s last_key:0x%x key_status=0x%x is_same:%d\n",__func__,ratta_de
 	}
 	if((slider_left == 1)&&(key_status&KEY_STATUS_LEFT)){
 		//report left key
-		if((key_status&KEY_STATUS_SHORT)||(key_status&KEY_STATUS_LONG)){
+		switch (ratta_device->data_record[0][track][last].done){
+			case FINGER_NONE:
+				break;
+			case FINGER_DOWN:
+				key_status |= KEY_STATUS_DOWN;
+				break;
+			case FINGER_REPEAT:
+				key_status |= KEY_STATUS_STAY;
+				break;
+			case FINGER_SLIDER_UP:
+				key_status |= KEY_STATUS_SLIDER_UP;
+				break;
+			case FINGER_SLIDER_DOWN:
+				key_status |= KEY_STATUS_SLIDER_DOWN;
+				break;
+			case FINGER_TWO_PRESS:
+				break;
+			case FINGER_UP:
+				key_status |= KEY_STATUS_UP;
+				break;
+			case FINGER_DROP:
+				key_status |= KEY_STATUS_STOP;
+				break;
+		}
+		if(key_status&KEY_STATUS_UP){
+			ratta_device->data_record[0][track][0].status = 0;
 			ratta_mt_clean_finger(0,track);
-			//ratta_report_slide(KEY_LEFT);
-			return ;
-		}
-		if(key_status&KEY_STATUS_SLIDER_UP){
-			ratta_mt_clean_finger(0,track);
-			ratta_report_slide(key_map[SLIDER_L_UP]);
-			return ;
-		}
-		if(key_status&KEY_STATUS_SLIDER_DOWN){
-			ratta_mt_clean_finger(0,track);
-			ratta_report_slide(key_map[SLIDER_L_DOWN]);
-			return ;
-		}
-		if(key_status&KEY_STATUS_ROLL_UP){
-			switch (ratta_device->data_record[0][track][0].status){
-			case 0:
-			case KEY_STATUS_STAY:
-			case KEY_STATUS_STOP:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_ROLL_UP;
-				ratta_report_slide_updown(key_map[SLIDER_L_ROLL_UP],1);
-				break;
-			case KEY_STATUS_ROLL_DOWN:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_ROLL_UP;
-				ratta_report_slide_updown(key_map[SLIDER_L_ROLL_DOWN],0);
-				ratta_report_slide_updown(key_map[SLIDER_L_ROLL_UP],1);
-				break;
-			default:
-				break;
-			}
-			return ;
-		}
-		if(key_status&KEY_STATUS_ROLL_DOWN){
-			switch (ratta_device->data_record[0][track][0].status){
-			case 0:
-			case KEY_STATUS_STAY:
-			case KEY_STATUS_STOP:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_ROLL_DOWN;
-				ratta_report_slide_updown(key_map[SLIDER_L_ROLL_DOWN],1);
-				break;
-			case KEY_STATUS_ROLL_UP:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_ROLL_DOWN;
-				ratta_report_slide_updown(key_map[SLIDER_L_ROLL_UP],0);
-				ratta_report_slide_updown(key_map[SLIDER_L_ROLL_DOWN],1);
-				break;
-			default:
-				break;
-			}
+			ratta_slide_clean_keys(1);
 			return ;
 		}
 		if(key_status&KEY_STATUS_STOP){
-			switch (ratta_device->data_record[0][track][0].status){
-			case 0:
-			case KEY_STATUS_STAY:
-			case KEY_STATUS_STOP:
-				break;
-			case KEY_STATUS_ROLL_UP:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_STOP;
-				ratta_report_slide_updown(key_map[SLIDER_L_ROLL_UP],0);
-				break;
-			case KEY_STATUS_ROLL_DOWN:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_STOP;
-				ratta_report_slide_updown(key_map[SLIDER_L_ROLL_DOWN],0);
-				break;
-			default:
-				break;
-			}
+			ratta_device->data_record[0][track][0].status = KEY_STATUS_STOP;
+			//ratta_report_slide_updown(key_map[SLIDER_L_DOWN],1);
 			return ;
 		}
+		if(ratta_device->data_record[0][track][0].status == KEY_STATUS_STOP){
+			//key_status |= KEY_STATUS_STOP;
+			return ;
+		}
+		if(key_status&KEY_STATUS_DOWN){
+			ratta_device->data_record[0][track][0].status |= KEY_STATUS_DOWN;
+			ratta_report_slide_updown(key_map[SLIDER_L_DOWN],1);
+			return ;
+		}
+		
 		if(key_status&KEY_STATUS_STAY){
-			switch (ratta_device->data_record[0][track][0].status){
-			case 0:
-			case KEY_STATUS_STOP:
-			case KEY_STATUS_STAY:
-				break;
-			case KEY_STATUS_WAIT:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_STAY;
-				ratta_report_slide_updown(key_map[SLIDER_L_LONG],1);
-				break;
-			case KEY_STATUS_ROLL_UP:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_STAY;
-				ratta_report_slide_updown(key_map[SLIDER_L_ROLL_UP],0);
-				break;
-			case KEY_STATUS_ROLL_DOWN:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_STAY;
-				ratta_report_slide_updown(key_map[SLIDER_L_ROLL_DOWN],0);
-				break;
-			default:
-				break;
-			}
+			ratta_device->data_record[0][track][0].status = (KEY_STATUS_DOWN|KEY_STATUS_STAY);
+			ratta_slide_clean_keys_except(1,1<<SLIDER_L_DOWN);
+			ratta_report_slide_updown(key_map[SLIDER_L_STAY],1);
 			return ;
 		}
-		if(key_status&KEY_STATUS_WAIT){
-			ratta_device->data_record[0][track][0].status = KEY_STATUS_WAIT;
+		if(key_status&KEY_STATUS_SLIDER_UP){
+			ratta_device->data_record[0][track][0].status = (KEY_STATUS_DOWN|KEY_STATUS_SLIDER_UP);
+			ratta_slide_clean_keys_except(1,1<<SLIDER_L_DOWN);
+			ratta_report_slide_updown(key_map[SLIDER_L_ROLL_UP],1);
 			return ;
 		}
-		if(key_status&KEY_STATUS_UP){
-			switch (ratta_device->data_record[0][track][0].status){
-			case 0:
-			case KEY_STATUS_WAIT:
-			case KEY_STATUS_STOP:
-				ratta_mt_clean_finger(0,track);
-				break;
-			case KEY_STATUS_STAY:
-				ratta_report_slide_updown(key_map[SLIDER_L_LONG],0);
-				ratta_mt_clean_finger(0,track);
-				break;
-			case KEY_STATUS_ROLL_UP:
-				ratta_report_slide_updown(key_map[SLIDER_L_ROLL_UP],0);
-				ratta_report_slide_updown(key_map[SLIDER_L_LONG],0);
-				ratta_mt_clean_finger(0,track);
-				break;
-			case KEY_STATUS_ROLL_DOWN:
-				ratta_report_slide_updown(key_map[SLIDER_L_ROLL_DOWN],0);
-				ratta_report_slide_updown(key_map[SLIDER_L_LONG],0);
-				ratta_mt_clean_finger(0,track);
-				break;
-			default:
-				break;
-			}
+		if(key_status&KEY_STATUS_SLIDER_DOWN){
+			ratta_device->data_record[0][track][0].status = (KEY_STATUS_DOWN|KEY_STATUS_SLIDER_DOWN);
+			ratta_slide_clean_keys_except(1,1<<SLIDER_L_DOWN);
+			ratta_report_slide_updown(key_map[SLIDER_L_ROLL_DOWN],1);
 			return ;
-		}	
+		}
 	}else if((slider_right == 1)&&(key_status&KEY_STATUS_RIGHT)){
 		//report right key
-		if((key_status&KEY_STATUS_SHORT)||(key_status&KEY_STATUS_LONG)){
-			ratta_mt_clean_finger(0,track);
-			//ratta_report_slide(KEY_LEFT);
-			return ;
+		switch (ratta_device->data_record[0][track][last].done){
+			case FINGER_NONE:
+				break;
+			case FINGER_DOWN:
+				key_status |= KEY_STATUS_DOWN;
+				break;
+			case FINGER_REPEAT:
+				key_status |= KEY_STATUS_STAY;
+				break;
+			case FINGER_SLIDER_UP:
+				key_status |= KEY_STATUS_SLIDER_UP;
+				break;
+			case FINGER_SLIDER_DOWN:
+				key_status |= KEY_STATUS_SLIDER_DOWN;
+				break;
+			case FINGER_TWO_PRESS:
+				break;
+			case FINGER_UP:
+				key_status |= KEY_STATUS_UP;
+				break;
+			case FINGER_DROP:
+				break;
 		}
-		if(key_status&KEY_STATUS_SLIDER_UP){
-			ratta_mt_clean_finger(0,track);
-			ratta_report_slide(key_map[SLIDER_R_UP]);
-			return ;
-		}
-		if(key_status&KEY_STATUS_SLIDER_DOWN){
-			ratta_mt_clean_finger(0,track);
-			ratta_report_slide(key_map[SLIDER_R_DOWN]);
-			return ;
-		}
-		if(key_status&KEY_STATUS_ROLL_UP){
-			switch (ratta_device->data_record[0][track][0].status){
-			case 0:
-			case KEY_STATUS_STAY:
-			case KEY_STATUS_STOP:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_ROLL_UP;
-				ratta_report_slide_updown(key_map[SLIDER_R_ROLL_UP],1);
-				break;
-			case KEY_STATUS_ROLL_DOWN:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_ROLL_UP;
-				ratta_report_slide_updown(key_map[SLIDER_R_ROLL_DOWN],0);
-				ratta_report_slide_updown(key_map[SLIDER_R_ROLL_UP],1);
-				break;
-			default:
-				break;
-			}
-			return ;
-		}
-		if(key_status&KEY_STATUS_ROLL_DOWN){
-			switch (ratta_device->data_record[0][track][0].status){
-			case 0:
-			case KEY_STATUS_STAY:
-			case KEY_STATUS_STOP:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_ROLL_DOWN;
-				ratta_report_slide_updown(key_map[SLIDER_R_ROLL_DOWN],1);
-				break;
-			case KEY_STATUS_ROLL_UP:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_ROLL_DOWN;
-				ratta_report_slide_updown(key_map[SLIDER_R_ROLL_UP],0);
-				ratta_report_slide_updown(key_map[SLIDER_R_ROLL_DOWN],1);
-				break;
-			default:
-				break;
-			}
-			return ;
-		}
-		if(key_status&KEY_STATUS_STOP){
-			switch (ratta_device->data_record[0][track][0].status){
-			case 0:
-			case KEY_STATUS_STAY:
-			case KEY_STATUS_STOP:
-				break;
-			case KEY_STATUS_ROLL_UP:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_STOP;
-				ratta_report_slide_updown(key_map[SLIDER_R_ROLL_UP],0);
-				break;
-			case KEY_STATUS_ROLL_DOWN:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_STOP;
-				ratta_report_slide_updown(key_map[SLIDER_R_ROLL_DOWN],0);
-				break;
-			default:
-				break;
-			}
-			return ;
-		}
-		if(key_status&KEY_STATUS_STAY){
-			switch (ratta_device->data_record[0][track][0].status){
-			case 0:
-			case KEY_STATUS_STOP:
-			case KEY_STATUS_STAY:
-				break;
-			case KEY_STATUS_WAIT:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_STAY;
-				ratta_report_slide_updown(key_map[SLIDER_R_LONG],1);
-				break;
-			case KEY_STATUS_ROLL_UP:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_STAY;
-				ratta_report_slide_updown(key_map[SLIDER_R_ROLL_UP],0);
-				break;
-			case KEY_STATUS_ROLL_DOWN:
-				ratta_device->data_record[0][track][0].status = KEY_STATUS_STAY;
-				ratta_report_slide_updown(key_map[SLIDER_R_ROLL_DOWN],0);
-				break;
-			default:
-				break;
-			}
-			return ;
-		}
-		if(key_status&KEY_STATUS_WAIT){
-			ratta_device->data_record[0][track][0].status = KEY_STATUS_WAIT;
+		if(key_status&KEY_STATUS_DOWN){
+			ratta_device->data_record[0][track][0].status |= KEY_STATUS_DOWN;
+			ratta_report_slide_updown(key_map[SLIDER_R_DOWN],1);
 			return ;
 		}
 		if(key_status&KEY_STATUS_UP){
-			switch (ratta_device->data_record[0][track][0].status){
-			case 0:
-			case KEY_STATUS_WAIT:
-				ratta_mt_clean_finger(0,track);
-				break;
-			case KEY_STATUS_STAY:
-			case KEY_STATUS_STOP:
-				ratta_report_slide_updown(key_map[SLIDER_R_LONG],0);
-				ratta_mt_clean_finger(0,track);
-				break;
-			case KEY_STATUS_ROLL_UP:
-				ratta_report_slide_updown(key_map[SLIDER_R_ROLL_UP],0);
-				ratta_report_slide_updown(key_map[SLIDER_R_LONG],0);
-				ratta_mt_clean_finger(0,track);
-				break;
-			case KEY_STATUS_ROLL_DOWN:
-				ratta_report_slide_updown(key_map[SLIDER_R_ROLL_DOWN],0);
-				ratta_report_slide_updown(key_map[SLIDER_R_LONG],0);
-				ratta_mt_clean_finger(0,track);
-				break;
-			default:
-				break;
-			}
+			ratta_device->data_record[0][track][0].status = 0;
+			ratta_mt_clean_finger(0,track);
+			ratta_slide_clean_keys(2);
+			return ;
+		}
+		if(key_status&KEY_STATUS_STAY){
+			ratta_device->data_record[0][track][0].status = (KEY_STATUS_DOWN|KEY_STATUS_STAY);
+			ratta_slide_clean_keys_except(1,1<<SLIDER_R_DOWN);
+			ratta_report_slide_updown(key_map[SLIDER_R_STAY],1);
+			return ;
+		}
+		if(key_status&KEY_STATUS_SLIDER_UP){
+			ratta_device->data_record[0][track][0].status = (KEY_STATUS_DOWN|KEY_STATUS_SLIDER_UP);
+			ratta_slide_clean_keys_except(1,1<<SLIDER_R_DOWN);
+			ratta_report_slide_updown(key_map[SLIDER_R_ROLL_UP],1);
+			return ;
+		}
+		if(key_status&KEY_STATUS_SLIDER_DOWN){
+			ratta_device->data_record[0][track][0].status = (KEY_STATUS_DOWN|KEY_STATUS_SLIDER_DOWN);
+			ratta_slide_clean_keys_except(1,1<<SLIDER_R_DOWN);
+			ratta_report_slide_updown(key_map[SLIDER_R_ROLL_DOWN],1);
 			return ;
 		}
 	}
@@ -771,7 +573,7 @@ ratta_mt_debug("%s last_key:0x%x key_status=0x%x is_same:%d\n",__func__,ratta_de
 int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long jiffs)
 {
 	//struct ratta_mt_record *pr;
-    int i;
+    int i = 0;
     int record_num = 0;
 	unsigned int time;
 	if((slider_mask&0x01)&&(tch[SLIDER_TCH_Y] == RATTA_SLIDE_LEFT)){
@@ -800,7 +602,7 @@ int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long j
 	record_num = ratta_device->rec_now[type][tch[SLIDER_TCH_T]];
 	if(record_num > 99){
 		ratta_mt_rerecord_finger(track);// todo:repeat 时间计算。
-		record_num = 2;
+		record_num = 1;
 		//return -EINVAL;
 	}
 	if(record_num!=0){
@@ -919,7 +721,7 @@ int ratta_mt_probe(struct device *dev)
 	__set_bit(EV_KEY, ratta_device->input->evbit);
 	__set_bit(KEY_LEFT, ratta_device->input->keybit);
 	__set_bit(KEY_RIGHT, ratta_device->input->keybit);
-	for(i=0;i<SLIDER_R_LONG+1;i++){
+	for(i=0;i<SLIDER_R_DOWN+1;i++){
 		__set_bit(key_map[i], ratta_device->input->keybit);
 	}
 	ret = input_register_device(ratta_device->input);
