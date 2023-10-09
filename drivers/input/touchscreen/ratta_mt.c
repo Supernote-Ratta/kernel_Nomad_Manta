@@ -2,7 +2,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/input.h>
-#define SLIDER_DRV_VER "230927"
+#define SLIDER_DRV_VER "231008"
 // 230919:1.双指bug
 //		  2.F13、F14上报
 // 230922:1.双指左右分开
