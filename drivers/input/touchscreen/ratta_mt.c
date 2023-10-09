@@ -530,12 +530,8 @@ ratta_mt_debug("%s track:%d left:%d right:%d last:%d lasttime:%ld 0time:%ld time
 				key_status |= KEY_STATUS_UP;
 				break;
 			case FINGER_DROP:
+				key_status |= KEY_STATUS_STOP;
 				break;
-		}
-		if(key_status&KEY_STATUS_DOWN){
-			ratta_device->data_record[0][track][0].status |= KEY_STATUS_DOWN;
-			ratta_report_slide_updown(key_map[SLIDER_R_DOWN],1);
-			return ;
 		}
 		if(key_status&KEY_STATUS_UP){
 			ratta_device->data_record[0][track][0].status = 0;
@@ -543,21 +539,36 @@ ratta_mt_debug("%s track:%d left:%d right:%d last:%d lasttime:%ld 0time:%ld time
 			ratta_slide_clean_keys(2);
 			return ;
 		}
+		if(key_status&KEY_STATUS_STOP){
+			ratta_device->data_record[0][track][0].status = KEY_STATUS_STOP;
+			//ratta_report_slide_updown(key_map[SLIDER_L_DOWN],1);
+			return ;
+		}
+		if(ratta_device->data_record[0][track][0].status == KEY_STATUS_STOP){
+			//key_status |= KEY_STATUS_STOP;
+			return ;
+		}
+		if(key_status&KEY_STATUS_DOWN){
+			ratta_device->data_record[0][track][0].status |= KEY_STATUS_DOWN;
+			ratta_report_slide_updown(key_map[SLIDER_R_DOWN],1);
+			return ;
+		}
+		
 		if(key_status&KEY_STATUS_STAY){
 			ratta_device->data_record[0][track][0].status = (KEY_STATUS_DOWN|KEY_STATUS_STAY);
-			ratta_slide_clean_keys_except(1,1<<SLIDER_R_DOWN);
+			ratta_slide_clean_keys_except(2,1<<SLIDER_R_DOWN);
 			ratta_report_slide_updown(key_map[SLIDER_R_STAY],1);
 			return ;
 		}
 		if(key_status&KEY_STATUS_SLIDER_UP){
 			ratta_device->data_record[0][track][0].status = (KEY_STATUS_DOWN|KEY_STATUS_SLIDER_UP);
-			ratta_slide_clean_keys_except(1,1<<SLIDER_R_DOWN);
+			ratta_slide_clean_keys_except(2,1<<SLIDER_R_DOWN);
 			ratta_report_slide_updown(key_map[SLIDER_R_ROLL_UP],1);
 			return ;
 		}
 		if(key_status&KEY_STATUS_SLIDER_DOWN){
 			ratta_device->data_record[0][track][0].status = (KEY_STATUS_DOWN|KEY_STATUS_SLIDER_DOWN);
-			ratta_slide_clean_keys_except(1,1<<SLIDER_R_DOWN);
+			ratta_slide_clean_keys_except(2,1<<SLIDER_R_DOWN);
 			ratta_report_slide_updown(key_map[SLIDER_R_ROLL_DOWN],1);
 			return ;
 		}
