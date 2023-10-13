@@ -157,7 +157,7 @@ static void ratta_report_slide(int code)
 static void ratta_report_slide_updown(int code,int down)
 {
 	int i;
-	if((code == SLIDER_L_DOWN)||(code == SLIDER_L_TWO)||(code == SLIDER_R_DOWN)||(code == SLIDER_R_TWO)){
+	if((code == key_map[SLIDER_L_DOWN])||(code == key_map[SLIDER_L_TWO])||(code == key_map[SLIDER_R_DOWN])||(code == key_map[SLIDER_R_TWO])){
 		input_report_key(ratta_device->input,
 				 code, down);
 		input_sync(ratta_device->input);
