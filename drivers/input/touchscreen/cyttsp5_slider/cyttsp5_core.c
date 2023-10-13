@@ -5766,6 +5766,37 @@ cyttsp5_ft_mode_error_exit :
 	return size;
 }
 
+static ssize_t cyttsp5_l_x_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
+	ssize_t ret;
+	int retval;
+	mutex_lock(&cd->system_lock);
+	retval = cd->l_x;
+	ret = snprintf(buf, CY_MAX_PRBUF_SIZE,
+		" %x\n", retval);
+
+	mutex_unlock(&cd->system_lock);
+
+	return ret;
+}
+
+static ssize_t cyttsp5_r_x_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
+	ssize_t ret;
+	int retval;
+	mutex_lock(&cd->system_lock);
+	retval = cd->r_x;
+	ret = snprintf(buf, CY_MAX_PRBUF_SIZE,
+		" %x\n", retval);
+
+	mutex_unlock(&cd->system_lock);
+
+	return ret;
+}
 
 static struct device_attribute attributes[] = {
 	__ATTR(ic_ver, S_IRUGO, cyttsp5_ic_ver_show, NULL),
@@ -5789,6 +5820,8 @@ static struct device_attribute attributes[] = {
 	__ATTR(platform_data, S_IRUGO, cyttsp5_platform_data_show, NULL),
 	__ATTR(ft_mode, S_IRUSR | S_IWUSR, cyttsp5_ft_mode_show,
 		cyttsp5_ft_mode_store),
+	__ATTR(l_x, S_IRUSR, cyttsp5_l_x_show, NULL),
+	__ATTR(r_x, S_IRUSR, cyttsp5_r_x_show, NULL),
 };
 
 static int add_sysfs_interfaces(struct device *dev)
@@ -6426,6 +6459,7 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
 		is_cyttsp5_probe_success = false;
 		cyttsp5_bus_ops_save     = NULL;
 	}
+	msleep(40);
 
 	if (!pdata || !pdata->core_pdata || !pdata->mt_pdata) {
 		dev_err(dev, "%s: Missing platform data\n", __func__);
@@ -6593,7 +6627,8 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
     enable_irq_wake(cd->irq);
     cd->irq_wake = 1;
 	cd->ft_mode = 0;
-
+	cd->l_x = 0;
+	cd->r_x = 0;
 
 	rc = cyttsp5_mt_probe(dev);
 	if (rc < 0) {

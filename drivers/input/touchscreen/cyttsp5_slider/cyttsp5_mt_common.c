@@ -206,7 +206,7 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 	struct cyttsp5_sysinfo *si = md->si;
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 	int sig;
-	int i, j, t = 0;
+	int i, j, k, t = 0;
 	DECLARE_BITMAP(ids, si->tch_abs[CY_TCH_T].max);
 	int mt_sync_count = 0;
 	u8 *tch_addr;
@@ -248,6 +248,16 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 			parade_debug(dev, DEBUG_LEVEL_2, "%s: t=%d e=%d tip=%d lift-off\n",
 				__func__, t, tch->abs[CY_TCH_E], tch->abs[CY_TCH_TIP]);
 #ifdef SLIDER_NEW
+			//printk("=====%s tip=0 t:%d X:%x\n",__func__,tch->abs[CY_TCH_T],tch->abs[CY_TCH_X]);
+			if(tch->abs[CY_TCH_Y]==30){
+				for(k=(8*tch->abs[CY_TCH_T]);k<((8*tch->abs[CY_TCH_T])+8);k++){
+					cd->l_x &= ~(1<<k);
+				}
+			}else if(tch->abs[CY_TCH_Y]==70){
+				for(k=(8*tch->abs[CY_TCH_T]);k<((8*tch->abs[CY_TCH_T])+8);k++){
+					cd->r_x &= ~(1<<k);
+				}
+			}
 			md->num_prv_rec = num_cur_tch;
 			ratta_mt_record(0,1,t,tch->abs,jiffies);
 			if(cd->ft_mode == 0){
@@ -268,7 +278,20 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 #endif
 		}
 #ifdef SLIDER_NEW
-//printk("%s ratta_mt_record \n",__func__);
+//printk("%s t:%d X:%x\n",__func__,tch->abs[CY_TCH_T],tch->abs[CY_TCH_X]);
+		if(tch->abs[CY_TCH_Y]==30){
+			for(k=(8*tch->abs[CY_TCH_T]);k<((8*tch->abs[CY_TCH_T])+8);k++){
+				cd->l_x &= ~(1<<k);
+			}
+			cd->l_x += tch->abs[CY_TCH_X]<<(8*tch->abs[CY_TCH_T]);
+
+		}else if(tch->abs[CY_TCH_Y]==70){
+			for(k=(8*tch->abs[CY_TCH_T]);k<((8*tch->abs[CY_TCH_T])+8);k++){
+				cd->r_x &= ~(1<<k);
+			}
+			cd->r_x += tch->abs[CY_TCH_X]<<(8*tch->abs[CY_TCH_T]);
+		}
+
 		ratta_mt_record(0,1,t,tch->abs,jiffies);
 		if(cd->ft_mode == 0){
 			continue; //111111111111

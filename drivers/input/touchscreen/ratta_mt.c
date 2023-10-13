@@ -2,7 +2,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/input.h>
-#define SLIDER_DRV_VER "231008"
+#define SLIDER_DRV_VER "231013"
 // 230919:1.双指bug
 //		  2.F13、F14上报
 // 230922:1.双指左右分开
@@ -12,6 +12,7 @@
 //        2.长按1S
 // 231008:1.slider 只上报上滑、下滑、不动、双指，4种状态和触摸（DOWN)
 // 231011:1.slider 滑动区分三种速度：间距分别为20、8、2
+// 231013:1.slider 上报坐标,只报触摸和双指 两个key
 
 #define RATTA_MT_DEBUG		0
 #define RATTA_MT_NAME		"ratta-slide"
@@ -156,21 +157,24 @@ static void ratta_report_slide(int code)
 static void ratta_report_slide_updown(int code,int down)
 {
 	int i;
-
-	input_report_key(ratta_device->input,
-			 code, down);
-	input_sync(ratta_device->input);
-	for(i=0;i<SLIDER_R_DOWN+1;i++){
-		if(code == key_map[i]){
-			break;
+	if((code == SLIDER_L_DOWN)||(code == SLIDER_L_TWO)||(code == SLIDER_R_DOWN)||(code == SLIDER_R_TWO)){
+		input_report_key(ratta_device->input,
+				 code, down);
+		input_sync(ratta_device->input);
+		for(i=0;i<SLIDER_R_DOWN+1;i++){
+			if(code == key_map[i]){
+				break;
+			}
 		}
-	}
-	if(down){
-		key_now |= (1<<i);
+		if(down){
+			key_now |= (1<<i);
+		}else{
+			key_now &= (~(1<<i));
+		}
+		printk("%s: keycode=%d down=%d key_now:0x%x i=%d\n", __func__, code,down,key_now,i);
 	}else{
-		key_now &= (~(1<<i));
+		printk("%s: keycode=%d down=%d no_function\n", __func__, code,down);
 	}
-    printk("%s: keycode=%d down=%d key_now:0x%x i=%d\n", __func__, code,down,key_now,i);
 }
 
 static void ratta_slide_clean_keys(int mask)
@@ -687,7 +691,7 @@ int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long j
 	if (!ratta_device)
 		return -ENODEV;
 	//ratta_mt_debug
-	printk("====ratta_mt_record type:%d rec:%d t:%d,x:%d,y:%d,t:%d,e:%d,o:%d,tip:%d,num:%d,time:%ld \n",
+	ratta_mt_debug("====ratta_mt_record type:%d rec:%d t:%d,x:%d,y:%d,t:%d,e:%d,o:%d,tip:%d,num:%d,time:%ld \n",
 		type,record,track,tch[SLIDER_TCH_X],tch[SLIDER_TCH_Y],tch[SLIDER_TCH_T],tch[SLIDER_TCH_E],
 		tch[SLIDER_TCH_O],tch[SLIDER_TCH_TIP],tch[SLIDER_TCH_NUM_ABS],jiffs);
 	if ((track < 0) || (track >= RATTA_MAX_FINGERS)) {

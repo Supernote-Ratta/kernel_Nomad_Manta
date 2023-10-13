@@ -1033,6 +1033,8 @@ struct cyttsp5_core_data {
     u32 is_suspend;
 	u8 mfg_data[MFG_DATA_NUM];
 	bool ft_mode;
+	int l_x;
+	int r_x;
 };
 struct gd_sensor {
 	int32_t cm_min;
