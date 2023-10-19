@@ -68,6 +68,8 @@ MODULE_PARM_DESC(debug, "print a lot of debug information");
             dev_printk(KERN_INFO, &(ihid)->client->dev, fmt, ##arg); \
     } while (0)
 
+static int volatile pen_type = 0;
+
 struct wacom_hid_desc {
     __le16 wHIDDescLength;
     __le16 bcdVersion;
@@ -160,6 +162,7 @@ struct wacom_hid {
     struct notifier_block fb_notifier;
     struct mutex fb_lock;
 #endif
+	struct mutex pen_type_lock;
 };
 
 static const struct wacom_hid_quirks {
@@ -178,6 +181,16 @@ static const struct wacom_hid_quirks {
     {USB_VENDOR_ID_ITE, I2C_DEVICE_ID_ITE_LENOVO_LEGION_Y720, WACOM_HID_QUIRK_BAD_INPUT_SIZE},
     {0, 0},
 };
+
+void ratta_set_pen_type(struct i2c_client *client,int pen)
+{
+    struct wacom_hid *ihid = i2c_get_clientdata(client);
+
+	mutex_lock(&ihid->pen_type_lock);
+	if (pen_type != pen)
+		pen_type = pen;
+	mutex_unlock(&ihid->pen_type_lock);
+}
 
 /*
  * wacom_hid_lookup_quirk: return any quirks associated with a I2C HID device
@@ -505,6 +518,10 @@ static void wacom_hid_get_input(struct wacom_hid *ihid)
     }
 
     //wacom_hid_dbg(ihid, "input: %*ph\n", ret_size, ihid->inbuf);
+	if(ihid->inbuf[2] == 2)
+		ratta_set_pen_type(ihid->client,12);
+	else
+		ratta_set_pen_type(ihid->client,14);
 
     if (test_bit(WACOM_HID_STARTED, &ihid->flags)) {
         if(ihid->inbuf[2] == 0x1a) ihid->inbuf[2] = 02;    // change 1a to 02. TEST ok.
@@ -1056,6 +1073,46 @@ static int wacom_hid_fetch_hid_descriptor(struct wacom_hid *ihid)
     return 0;
 }
 
+static ssize_t pen_type_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	//struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
+	ssize_t ret;
+	//&client->dev
+
+	//seq_printf(m, "G%d\n", pen_type);
+	ret = snprintf(buf, 10, "%d\n", pen_type);
+
+	return ret;
+}
+
+static struct device_attribute attributes[] = {
+			__ATTR(pen_type, S_IRUSR, pen_type_show, NULL),
+};
+
+static int add_sysfs_interfaces(struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(attributes); i++)
+		if (device_create_file(dev, attributes + i))
+			goto undo;
+	return 0;
+undo:
+	for (i--; i >= 0; i--)
+		device_remove_file(dev, attributes + i);
+	dev_err(dev, "%s: failed to create sysfs interface\n", __func__);
+	return -ENODEV;
+}
+
+static void remove_sysfs_interfaces(struct device *dev)
+{
+	u32 i;
+
+	for (i = 0; i < ARRAY_SIZE(attributes); i++)
+		device_remove_file(dev, attributes + i);
+}
+
 #ifdef CONFIG_OF
 static int wacom_hid_of_probe(struct i2c_client *client, struct i2c_hid_platform_data *pdata)
 {
@@ -1166,6 +1223,7 @@ static int wacom_hid_probe(struct i2c_client *client, const struct i2c_device_id
 
     init_waitqueue_head(&ihid->wait);
     mutex_init(&ihid->reset_lock);
+	mutex_init(&ihid->pen_type_lock);
 
     /* we need to allocate the command buffer without knowing the maximum
      * size of the reports. Let's use HID_MIN_BUFFER_SIZE, then we do the
@@ -1175,6 +1233,11 @@ static int wacom_hid_probe(struct i2c_client *client, const struct i2c_device_id
     if (ret < 0) {
         goto err_regulator;
     }
+	ret = add_sysfs_interfaces(&client->dev);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s: Error, fail sysfs init\n", __func__);
+		goto err_pm;
+	}
 
     pm_runtime_get_noresume(&client->dev);
     pm_runtime_set_active(&client->dev);
