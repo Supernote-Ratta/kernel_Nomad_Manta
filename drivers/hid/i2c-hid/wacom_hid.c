@@ -58,7 +58,7 @@
 #define SHINONOME_REFILL_REPORT_ID 0x1A
 
 /* debug option */
-static bool debug;
+static bool debug = 0;
 module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "print a lot of debug information");
 
@@ -162,7 +162,10 @@ struct wacom_hid {
     struct notifier_block fb_notifier;
     struct mutex fb_lock;
 #endif
-	struct mutex pen_type_lock;
+	//struct mutex pen_type_lock;  // hsl fix.
+
+	int     fix_tws;
+	int     tws_0_cnt;
 };
 
 static const struct wacom_hid_quirks {
@@ -184,12 +187,12 @@ static const struct wacom_hid_quirks {
 
 void ratta_set_pen_type(struct i2c_client *client,int pen)
 {
-    struct wacom_hid *ihid = i2c_get_clientdata(client);
+    //struct wacom_hid *ihid = i2c_get_clientdata(client);
 
-	mutex_lock(&ihid->pen_type_lock);
+	//mutex_lock(&ihid->pen_type_lock);
 	if (pen_type != pen)
 		pen_type = pen;
-	mutex_unlock(&ihid->pen_type_lock);
+	//mutex_unlock(&ihid->pen_type_lock);
 }
 
 /*
@@ -517,13 +520,25 @@ static void wacom_hid_get_input(struct wacom_hid *ihid)
         }
     }
 
-    //wacom_hid_dbg(ihid, "input: %*ph\n", ret_size, ihid->inbuf);
+    //wacom_hid_dbg(ihid, "input: tws=%d,fix=%d(%*ph)\n", ihid->inbuf[3],
+    //    ihid->fix_tws, ret_size, ihid->inbuf);
 	if(ihid->inbuf[2] == 2)
 		ratta_set_pen_type(ihid->client,12);
 	else
 		ratta_set_pen_type(ihid->client,14);
 
     if (test_bit(WACOM_HID_STARTED, &ihid->flags)) {
+        if(ihid->fix_tws) {
+            if(!(ihid->inbuf[3]&1)) {
+                if(!ihid->tws_0_cnt){
+                    ihid->tws_0_cnt++;
+                } else {
+                    ihid->inbuf[3] |= 1;
+                }
+            } else {
+                ihid->fix_tws = 0;
+            }
+        }
         if(ihid->inbuf[2] == 0x1a) ihid->inbuf[2] = 02;    // change 1a to 02. TEST ok.
         hid_input_report(ihid->hid, HID_INPUT_REPORT, ihid->inbuf + 2, ret_size - 2, 1);
     }
@@ -536,9 +551,14 @@ static irqreturn_t wacom_hid_pendet_irq(int irq, void *dev_id)
     struct wacom_hid *ihid = dev_id;
     int pendet_gpio_value = gpiod_get_value(ihid->gpiod_detect);
 
-    //wacom_hid_dbg(ihid, "detect irq value: %d\n", pendet_gpio_value);
+    wacom_hid_dbg(ihid, "detect irq: %d,gpio=%d,pm_wakeup_irq=%d\n",
+        irq, pendet_gpio_value, pm_wakeup_irq);
     ebc_set_tp_power(pendet_gpio_value == ihid->detect_direction_in, 50);
 
+    if(pm_wakeup_irq == irq) {
+        ihid->fix_tws = 1;
+        ihid->tws_0_cnt = 0;
+    }
     return IRQ_HANDLED;
 }
 
@@ -853,7 +873,7 @@ static int wacom_hid_power(struct hid_device *hid, int lvl)
     return 0;
 }
 
-struct hid_ll_driver wacom_hid_ll_driver = {
+struct hid_ll_driver wacom_hid_ll_driverx = {
     .parse = wacom_hid_parse,
     .start = wacom_hid_start,
     .stop = wacom_hid_stop,
@@ -1223,7 +1243,7 @@ static int wacom_hid_probe(struct i2c_client *client, const struct i2c_device_id
 
     init_waitqueue_head(&ihid->wait);
     mutex_init(&ihid->reset_lock);
-	mutex_init(&ihid->pen_type_lock);
+	//mutex_init(&ihid->pen_type_lock);
 
     /* we need to allocate the command buffer without knowing the maximum
      * size of the reports. Let's use HID_MIN_BUFFER_SIZE, then we do the
@@ -1277,7 +1297,7 @@ static int wacom_hid_probe(struct i2c_client *client, const struct i2c_device_id
     ihid->hid = hid;
 
     hid->driver_data = client;
-    hid->ll_driver = &wacom_hid_ll_driver;
+    hid->ll_driver = &wacom_hid_ll_driverx;
     hid->dev.parent = &client->dev;
     hid->bus = BUS_I2C;
     hid->version = le16_to_cpu(ihid->hdesc.wVersionID);
