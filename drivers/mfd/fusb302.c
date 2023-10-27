@@ -3180,7 +3180,6 @@ static void fusb_initialize_timer(struct fusb30x_chip *chip)
 static void fusb302_work_func(struct work_struct *work)
 {
     struct fusb30x_chip *chip;
-
     chip = container_of(work, struct fusb30x_chip, work);
     if (!chip->suspended) {
         state_machine_typec(chip);
@@ -3262,22 +3261,41 @@ static struct kobj_type htdebug_ktype = {
 };
 /* changed end. */
 
+static int fusb30x_early_suspend(struct fusb30x_chip *chip)
+{
+    dev_dbg(chip->dev, "**entering %s\n", __func__);
+
+    return 0;
+}
+
+static int fusb30x_late_resume(struct fusb30x_chip *chip)
+{
+    dev_dbg(chip->dev, "**entering %s\n", __func__);
+
+    return 0;
+}
+
 /* changed tower: for deep sleep type c poweroff and when screen on reinit cc.*/
 static int fb_notifier_callback(struct notifier_block *self, unsigned long action, void *data)
 {
     struct fusb30x_chip *chip = NULL;
     chip = container_of(self, struct fusb30x_chip, fb_notify);
-	printk("fusb302 fb_notifier_callback action:%d \n",action);
+    printk("fusb302 fb_notifier_callback action:%d \n", action);
     if (!chip) {
-	    return NOTIFY_OK;
+        return NOTIFY_OK;
     }
-    mutex_lock(&chip->fb_lock);
 
-    if (action == EINK_NOTIFY_EVENT_SCREEN_ON) {  // from htfy ebc
-        tcpm_init(chip);
-        tcpm_set_rx_enable(chip, 0);
-        chip->conn_state = unattached;
-        tcpm_set_cc(chip, chip->role);
+    mutex_lock(&chip->fb_lock);
+    if (action == EINK_NOTIFY_EVENT_SCREEN_OFF) {
+        if (!chip->screen_off) {
+            chip->screen_off = true;
+            fusb30x_early_suspend(chip);
+        }
+    } else if (action == EINK_NOTIFY_EVENT_SCREEN_ON) {
+        if (chip->screen_off) {
+            chip->screen_off = false;
+            fusb30x_late_resume(chip);
+        }
     }
     mutex_unlock(&chip->fb_lock);
 
@@ -3468,7 +3486,6 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
 		dev_err(&client->dev, "%s: Error, device_init_wakeup rc:%d\n", __func__, ret);
 	}
 	enable_irq_wake(chip->gpio_int_irq);//chip->gpio_int_irq client->irq
-	chip->enable_wake = 1;
 
     /* changed: tower for deep sleep the type c power will down, so when screen on we will init cc again. */
     memset(&chip->fb_notify, 0, sizeof( struct notifier_block));
@@ -3516,36 +3533,20 @@ static void fusb30x_shutdown(struct i2c_client *client)
 static int fusb30x_pm_suspend(struct device *dev)
 {
     struct fusb30x_chip *chip = dev_get_drvdata(dev);
-	printk("fusb30x_pm_suspend mem_sleep_current:%d chip->suspended:%d enable_irq:%d enable_wake:%d\n",mem_sleep_current,chip->suspended,chip->enable_irq,chip->enable_wake);
-	if(mem_sleep_current == PM_SUSPEND_MEM_LITE){
-		if (chip->enable_wake == 0) {
-			enable_irq_wake(chip->gpio_int_irq);
-			chip->enable_wake = 1;
-			dev_info(chip->dev, "enable irq wake.\n");
-		}
-		return 0;
-	}
-
-	if (chip->enable_wake == 1) {
-		disable_irq_wake(chip->gpio_int_irq);
-		chip->enable_wake = 0;
-		dev_info(chip->dev, "disable irq wake.\n");
-	}
-	if (chip->enable_irq) {
-		printk("fusb30x_pm_suspend irq_disable \n");
-        disable_irq(chip->gpio_int_irq);
-        chip->enable_irq = 0;
+    printk("======fusb30x_pm_suspend mem_sleep_current:%d chip->suspended:%d enable_irq:%d screen_off:%d\n",mem_sleep_current,chip->suspended,chip->enable_irq,chip->screen_off);
+        /* changed tower: keep irq and enable irq wake up system, only when system entry lite sleep. */
+    if (chip->screen_off) {
+        dev_dbg(dev, " suspend irq disable\n");
+        fusb_irq_disable(chip);
+        chip->suspended = true;
+        cancel_work_sync(&chip->work);
     } else {
-        dev_warn(chip->dev, "irq have already disabled\n");
+        dev_dbg(dev, " suspend enable irq wake.\n");
+        if (device_may_wakeup(dev)) {
+            enable_irq_wake(chip->gpio_int_irq);
+        }
     }
-    cancel_work_sync(&chip->work);
-		//tcpm_init(chip);
-		//tcpm_set_rx_enable(chip, 0);
-		//chip->conn_state = unattached;
-		//tcpm_set_cc(chip, chip->role);
-	chip->suspended = true;
-	//fusb302_pd_reset(chip);
-	//regmap_write(chip->regmap, FUSB_REG_POWER, 0x0);
+    /* changed end. */
 
     return 0;
 }
@@ -3553,17 +3554,21 @@ static int fusb30x_pm_suspend(struct device *dev)
 static int fusb30x_pm_resume(struct device *dev)
 {
     struct fusb30x_chip *chip = dev_get_drvdata(dev);
-	printk("fusb30x_pm_resume mem_sleep_current:%d chip->suspended:%d enable_irq:%d\n",mem_sleep_current,chip->suspended,chip->enable_irq);
-	if(chip->suspended){
-		tcpm_init(chip);
-		tcpm_set_rx_enable(chip, 0);
-		chip->conn_state = unattached;
-		tcpm_set_cc(chip, chip->role);
-		chip->suspended = false;
-		queue_work(chip->fusb30x_wq, &chip->work);
-	}
-	if(chip->enable_irq == 0)
-		fusb_irq_enable(chip);
+    printk("======fusb30x_pm_resume mem_sleep_current:%d chip->suspended:%d enable_irq:%d\n",mem_sleep_current,chip->suspended,chip->enable_irq);
+    /* changed tower: enable irq when system entry deep/ultra sleep, screen off. */
+    if (chip->suspended) {
+        set_state_unattached(chip);
+        dev_dbg(dev, "resume irq enable.\n");
+        fusb_irq_enable(chip);
+        chip->suspended = false;
+        queue_work(chip->fusb30x_wq, &chip->work);
+    } else {
+        dev_dbg(dev, "resume disable irq wake\n");
+        if (device_may_wakeup(dev)) {
+            disable_irq_wake(chip->gpio_int_irq);
+        }
+    }
+    /* changed end. */
     return 0;
 }
 

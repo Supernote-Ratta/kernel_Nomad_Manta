@@ -562,12 +562,12 @@ struct fusb30x_chip {
     enum role_mode try_role;
     struct input_dev *input;
     bool suspended;
+    bool screen_off;
     struct notifier_block fb_notify;
     struct mutex fb_lock;
     /* changed tower: add for typec direction. */
     struct kobject kobj;
     u8 direction_status;
-	int enable_wake;
 	struct wake_lock		suspend_lock;
     /* changed end. */
 };
