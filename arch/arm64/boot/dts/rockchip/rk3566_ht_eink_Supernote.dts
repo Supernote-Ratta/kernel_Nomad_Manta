@@ -89,14 +89,16 @@
         led@1 {
             gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-charging";
-            label = "led_r";
+            //label = "led_r";
+			label = "battery-charging";
             retain-state-suspended;
         };
 
         led@2 {
             gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-charging-or-full";
-            label = "led_g";
+            //label = "led_g";
+			label = "battery-charging-or-full";
             retain-state-suspended;
         };
 
@@ -667,7 +669,7 @@
             max_chrg_current = <1500>;
             max_chrg_voltage = <4400>;
             chrg_term_mode = <1>;
-            chrg_finish_cur = <200>;
+            chrg_finish_cur = <120>;
             virtual_power = <0>;
             dc_det_adc = <0>;
             extcon = <&usbc0>;
@@ -1394,11 +1396,11 @@
         )
     >;
     rockchip,regulator-off-in-mem-lite =
-        <&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
+        <&vdd_cpu>, <&vdd_gpu>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
         <&vccio_acodec>,
         <&sleep_sta_ctl>;
     rockchip,regulator-on-in-mem-lite =
-        <&vcc_ddr>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc_tp>, <&vccio_sd>, <&vcc3v3_pmu>, <&dcdc_boost>;
+        <&vcc_ddr>, <&vdd_logic>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc_tp>, <&vccio_sd>, <&vcc3v3_pmu>, <&dcdc_boost>;
 
     rockchip,regulator-off-in-mem =
         <&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_tp>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
