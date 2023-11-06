@@ -45,6 +45,7 @@ void cyttsp5_register_listener(touch_listener listener) {
     tp_listener = listener;
 }
 #endif
+int slider_left = 0, slider_right = 0;
 static void cyttsp5_mt_lift_all(struct cyttsp5_mt_data *md)
 {
 	int max = md->si->tch_abs[CY_TCH_T].max;
@@ -258,6 +259,8 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 					cd->r_x &= ~(1<<k);
 				}
 			}
+			slider_left = cd->l_x;
+			slider_right = cd->r_x;
 			md->num_prv_rec = num_cur_tch;
 			ratta_mt_record(0,1,t,tch->abs,jiffies);
 			if(cd->ft_mode == 0){
@@ -291,6 +294,8 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 			}
 			cd->r_x += tch->abs[CY_TCH_X]<<(8*tch->abs[CY_TCH_T]);
 		}
+		slider_left = cd->l_x;
+		slider_right = cd->r_x;
 
 		ratta_mt_record(0,1,t,tch->abs,jiffies);
 		if(cd->ft_mode == 0){
