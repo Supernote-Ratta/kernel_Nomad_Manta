@@ -683,7 +683,7 @@ int sy7636a_vcom_set(int vcom_mv)
 {
     struct pmic_sess tpmic_sess_data = pmic_sess_data;
     struct papyrus_sess *sess = (struct papyrus_sess *)pmic_sess_data.drvpar;
-    uint8_t rev_val1 = 0, rev_val2 = 0;
+    //uint8_t rev_val1 = 0, rev_val2 = 0;
     int stat = 0;
     int read_vcom_mv = 0;
 
@@ -700,16 +700,20 @@ int sy7636a_vcom_set(int vcom_mv)
     stat |= papyrus_hw_setreg(sess, VCOM_Adjustment_Control_2, (sess->vcom2&0x01)<<7);
     sy7636a_printk("sess->vcom1 = 0x%x\n", sess->vcom1);
 
+#if 0
     read_vcom_mv = 0;
     stat |= papyrus_hw_getreg(sess, VCOM_Adjustment_Control_1, &rev_val1);
     read_vcom_mv = rev_val1 * 10;
     stat |= papyrus_hw_getreg(sess, VCOM_Adjustment_Control_2, &rev_val2);
 	read_vcom_mv += ((rev_val2 & 0x0080)<<1)*10;
-    sy7636a_printk("read_vcom_mv = %d\n", read_vcom_mv);
+    //sy7636a_printk("read_vcom_mv = %d\n", read_vcom_mv);
     if (stat) {
         pr_err("papyrus: I2C error: %d\n", stat);
     }
-
+#else
+    printk("%s:set vcom=%d,read vcom0=%d, vcom1=%d\n", __func__,
+        vcom_mv, read_vcom_mv, sy7636a_vcom_get());
+#endif
     return 0;
 }
 
@@ -763,7 +767,7 @@ int sy7636a_power_check(void *priv, int timeout)
         msleep(20);
         gpiod_direction_output(sess->pwr_up_pin, 1);
         msleep(PAPYRUS_EEPROM_DELAY_MS);
-        
+
         papyrus_hw_reset(sess);
         papyrus_hw_send_powerup(sess);
         return -1;
