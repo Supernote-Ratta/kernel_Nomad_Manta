@@ -68,8 +68,6 @@ MODULE_PARM_DESC(debug, "print a lot of debug information");
             dev_printk(KERN_INFO, &(ihid)->client->dev, fmt, ##arg); \
     } while (0)
 
-static int volatile pen_type = 0;
-
 struct wacom_hid_desc {
     __le16 wHIDDescLength;
     __le16 bcdVersion;
@@ -162,10 +160,9 @@ struct wacom_hid {
     struct notifier_block fb_notifier;
     struct mutex fb_lock;
 #endif
-	//struct mutex pen_type_lock;  // hsl fix.
-
-	int     fix_tws;
-	int     tws_0_cnt;
+    int fix_tws;
+    int tws_0_cnt;
+    int pen_type;
 };
 
 static const struct wacom_hid_quirks {
@@ -185,14 +182,9 @@ static const struct wacom_hid_quirks {
     {0, 0},
 };
 
-void ratta_set_pen_type(struct i2c_client *client,int pen)
+void ratta_set_pen_type(struct wacom_hid *ihid, int pen)
 {
-    //struct wacom_hid *ihid = i2c_get_clientdata(client);
-
-	//mutex_lock(&ihid->pen_type_lock);
-	if (pen_type != pen)
-		pen_type = pen;
-	//mutex_unlock(&ihid->pen_type_lock);
+    ihid->pen_type = pen;
 }
 
 /*
@@ -264,11 +256,9 @@ static int __wacom_hid_command(struct i2c_client *client, const struct wacom_hid
     }
 
     ret = i2c_transfer(client->adapter, msg, msg_num);
-
     if (data_len > 0) {
         clear_bit(WACOM_HID_READ_PENDING, &ihid->flags);
     }
-
     if (ret != msg_num) {
         return ret < 0 ? ret : -EIO;
     }
@@ -520,17 +510,17 @@ static void wacom_hid_get_input(struct wacom_hid *ihid)
         }
     }
 
-    //wacom_hid_dbg(ihid, "input: tws=%d,fix=%d(%*ph)\n", ihid->inbuf[3],
-    //    ihid->fix_tws, ret_size, ihid->inbuf);
-	if(ihid->inbuf[2] == 2)
-		ratta_set_pen_type(ihid->client,12);
-	else
-		ratta_set_pen_type(ihid->client,14);
+    //wacom_hid_dbg(ihid, "input: tws=%d,fix=%d(%*ph)\n", ihid->inbuf[3], ihid->fix_tws, ret_size, ihid->inbuf);
+    if (ihid->inbuf[2] == 2) {
+        ratta_set_pen_type(ihid, 12);
+    } else {
+        ratta_set_pen_type(ihid, 14);
+    }
 
     if (test_bit(WACOM_HID_STARTED, &ihid->flags)) {
-        if(ihid->fix_tws) {
-            if(!(ihid->inbuf[3]&1)) {
-                if(!ihid->tws_0_cnt){
+        if (ihid->fix_tws) {
+            if (!(ihid->inbuf[3] & 1)) {
+                if (!ihid->tws_0_cnt) {
                     ihid->tws_0_cnt++;
                 } else {
                     ihid->inbuf[3] |= 1;
@@ -539,7 +529,9 @@ static void wacom_hid_get_input(struct wacom_hid *ihid)
                 ihid->fix_tws = 0;
             }
         }
-        if(ihid->inbuf[2] == 0x1a) ihid->inbuf[2] = 02;    // change 1a to 02. TEST ok.
+        if (ihid->inbuf[2] == 0x1a) {
+            ihid->inbuf[2] = 02;  // change 1a to 02. TEST ok.
+        }
         hid_input_report(ihid->hid, HID_INPUT_REPORT, ihid->inbuf + 2, ret_size - 2, 1);
     }
 
@@ -551,8 +543,8 @@ static irqreturn_t wacom_hid_pendet_irq(int irq, void *dev_id)
     struct wacom_hid *ihid = dev_id;
     int pendet_gpio_value = gpiod_get_value(ihid->gpiod_detect);
 
-    wacom_hid_dbg(ihid, "detect irq: %d,gpio=%d,pm_wakeup_irq=%d\n",
-        irq, pendet_gpio_value, pm_wakeup_irq);
+    wacom_hid_dbg(ihid, "detect irq: %d,gpio=%d,pm_wakeup_irq=%d\n", irq, pendet_gpio_value, pm_wakeup_irq);
+
     ebc_set_tp_power(pendet_gpio_value == ihid->detect_direction_in, 50);
 
     if(pm_wakeup_irq == irq) {
@@ -895,9 +887,9 @@ static int wacom_hid_early_suspend(struct wacom_hid *ihid)
 
     if (hid->driver && hid->driver->suspend) {
         /*
-		 * Wake up the device so that IO issues in
-		 * HID driver's suspend code can succeed.
-		 */
+         * Wake up the device so that IO issues in
+         * HID driver's suspend code can succeed.
+         */
         ret = pm_runtime_resume(&client->dev);
         if (ret < 0) {
             return ret;
@@ -1093,44 +1085,66 @@ static int wacom_hid_fetch_hid_descriptor(struct wacom_hid *ihid)
     return 0;
 }
 
-static ssize_t pen_type_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t pen_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	//struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
-	ssize_t ret;
-	//&client->dev
+    struct wacom_hid *ihid = dev_get_drvdata(dev);
+    ssize_t ret;
 
-	//seq_printf(m, "G%d\n", pen_type);
-	ret = snprintf(buf, 10, "%d\n", pen_type);
+    ret = snprintf(buf, 10, "%d\n", ihid->pen_type);
 
-	return ret;
+    return ret;
 }
 
+/* changed tower: for update hid info when fw update. */
+static ssize_t fw_update_notice(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    struct wacom_hid *ihid = dev_get_drvdata(dev);
+    struct hid_device *hid = ihid->hid;
+    ssize_t ret;
+
+    dev_info(dev, "update firmwared...\n");
+    if (wacom_hid_fetch_hid_descriptor(ihid) < 0) {
+        dev_err(dev, "update hid descriptor failed!\n");
+    } else {
+        hid->version = le16_to_cpu(ihid->hdesc.wVersionID);
+    }
+    dev_info(dev, "new firmwared version: %x\n", hid->version);
+    ret = snprintf(buf, 10, "%x\n", hid->version);
+
+    return ret;
+}
+/* changed end. */
+
 static struct device_attribute attributes[] = {
-			__ATTR(pen_type, S_IRUSR, pen_type_show, NULL),
+    __ATTR(pen_type, S_IRUSR, pen_type_show, NULL),
+    __ATTR(fw_update, S_IRUSR, fw_update_notice, NULL),
 };
 
 static int add_sysfs_interfaces(struct device *dev)
 {
-	int i;
+    int i;
 
-	for (i = 0; i < ARRAY_SIZE(attributes); i++)
-		if (device_create_file(dev, attributes + i))
-			goto undo;
-	return 0;
+    for (i = 0; i < ARRAY_SIZE(attributes); i++) {
+        if (device_create_file(dev, attributes + i)) {
+            goto undo;
+        }
+    }
+    return 0;
 undo:
-	for (i--; i >= 0; i--)
-		device_remove_file(dev, attributes + i);
-	dev_err(dev, "%s: failed to create sysfs interface\n", __func__);
-	return -ENODEV;
+    for (i--; i >= 0; i--) {
+        device_remove_file(dev, attributes + i);
+    }
+    dev_err(dev, "%s: failed to create sysfs interface\n", __func__);
+    return -ENODEV;
 }
 
 static void remove_sysfs_interfaces(struct device *dev)
 {
-	u32 i;
+    u32 i;
 
-	for (i = 0; i < ARRAY_SIZE(attributes); i++)
-		device_remove_file(dev, attributes + i);
+    for (i = 0; i < ARRAY_SIZE(attributes); i++) {
+        device_remove_file(dev, attributes + i);
+    }
 }
 
 #ifdef CONFIG_OF
@@ -1243,7 +1257,6 @@ static int wacom_hid_probe(struct i2c_client *client, const struct i2c_device_id
 
     init_waitqueue_head(&ihid->wait);
     mutex_init(&ihid->reset_lock);
-	//mutex_init(&ihid->pen_type_lock);
 
     /* we need to allocate the command buffer without knowing the maximum
      * size of the reports. Let's use HID_MIN_BUFFER_SIZE, then we do the
@@ -1253,11 +1266,12 @@ static int wacom_hid_probe(struct i2c_client *client, const struct i2c_device_id
     if (ret < 0) {
         goto err_regulator;
     }
-	ret = add_sysfs_interfaces(&client->dev);
-	if (ret < 0) {
-		dev_err(&client->dev, "%s: Error, fail sysfs init\n", __func__);
-		goto err_pm;
-	}
+
+    ret = add_sysfs_interfaces(&client->dev);
+    if (ret < 0) {
+        dev_err(&client->dev, "%s: Error, fail sysfs init\n", __func__);
+        goto err_pm;
+    }
 
     pm_runtime_get_noresume(&client->dev);
     pm_runtime_set_active(&client->dev);
