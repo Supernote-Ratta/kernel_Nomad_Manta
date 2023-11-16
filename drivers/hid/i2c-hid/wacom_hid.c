@@ -1100,6 +1100,7 @@ static ssize_t fw_update_notice(struct device *dev, struct device_attribute *att
 {
     struct wacom_hid *ihid = dev_get_drvdata(dev);
     struct hid_device *hid = ihid->hid;
+    struct hid_report *report;
     ssize_t ret;
 
     dev_info(dev, "update firmwared...\n");
@@ -1108,6 +1109,16 @@ static ssize_t fw_update_notice(struct device *dev, struct device_attribute *att
     } else {
         hid->version = le16_to_cpu(ihid->hdesc.wVersionID);
     }
+
+    list_for_each_entry(report, &hid->report_enum[HID_INPUT_REPORT].report_list, list)
+    {
+        for (int i = 0; i < report->maxfield; i++) {
+            if (report->field[i]->hidinput) {
+                report->field[i]->hidinput->input->id.version = hid->version;
+            }
+        }
+    }
+
     dev_info(dev, "new firmwared version: %x\n", hid->version);
     ret = snprintf(buf, 10, "%x\n", hid->version);
 
