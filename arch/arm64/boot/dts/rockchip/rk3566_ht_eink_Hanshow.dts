@@ -610,9 +610,9 @@
         battery {
             compatible = "rk817,battery";
 			ocv_table = <
-                3358 3616 3647 3684 3712 3731 3746
-                3764 3784 3809 3837 3871 3913 3957
-                4022 4072 4127 4184 4242 4299 4368>;
+                3350 3593 3620 3653 3675 3692 3705
+                3721 3741 3765 3791 3821 3860 3907
+                3958 4016 4072 4130 4192 4253 4337>;
             tempadc_table = <
                 272 261 250 240 230 220 211 203 194
                 187 179 172 165 159 152 147 141 135
@@ -626,8 +626,8 @@
                 646 677 711 746 784 823 865 909 956
                 1006 1058 1113 1172 1234 1300 1369
                 1443 1521 1604 1692 1786 1885>;
-            design_capacity = <3540>;
-            design_qmax = <3890>;
+            design_capacity = <3000>;
+            design_qmax = <3300>;
             bat_res = <100>;
             sleep_enter_current = <150>;
             sleep_exit_current = <180>;
@@ -646,7 +646,7 @@
             compatible = "rk817,charger";
             min_input_voltage = <4500>;
             max_input_current = <2000>;
-            max_chrg_current = <2000>;
+            max_chrg_current = <1500>;
             max_chrg_voltage = <4400>;
             chrg_term_mode = <1>;
             chrg_finish_cur = <200>;
