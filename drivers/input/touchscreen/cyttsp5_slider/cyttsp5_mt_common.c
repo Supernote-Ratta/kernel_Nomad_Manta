@@ -300,9 +300,12 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 			}
 
 			md->num_prv_rec = num_cur_tch;
-			ratta_mt_record(0,1,t,tch->abs,jiffies);
+			//0: report key 1:report x,y 2:report null
 			if(cd->ft_mode == 0){
-				continue;  // 111111111
+				ratta_mt_record(0,1,t,tch->abs,jiffies);
+			}
+			if((cd->ft_mode == 0)||(cd->ft_mode == 2)){
+				continue;  // 111111111 report key
 			}else{
 				goto cyttsp5_get_mt_touches_pr_tch; //111111111111
 			}
@@ -336,8 +339,11 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 			if(r_x_pre == 0)
 				schedule_delayed_work(&md->filter_right_delay_work, msecs_to_jiffies(200));
 		}
-		ratta_mt_record(0,1,t,tch->abs,jiffies);
+		//0: report key 1:report x,y 2:report null
 		if(cd->ft_mode == 0){
+			ratta_mt_record(0,1,t,tch->abs,jiffies);
+		}
+		if((cd->ft_mode == 0)||(cd->ft_mode == 2)){
 			continue; //111111111111
 		}
 #else

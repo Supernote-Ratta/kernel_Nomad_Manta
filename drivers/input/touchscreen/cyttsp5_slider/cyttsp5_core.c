@@ -5712,10 +5712,8 @@ static ssize_t cyttsp5_ft_mode_show(struct device *dev,
 	ssize_t ret;
 
 	mutex_lock(&cd->system_lock);
-	if (cd->ft_mode)
-		ret = snprintf(buf, CY_MAX_PRBUF_SIZE, "true\n");
-	else
-		ret = snprintf(buf, CY_MAX_PRBUF_SIZE, "false\n");
+	
+	ret = snprintf(buf, CY_MAX_PRBUF_SIZE, "%d\n",cd->ft_mode);
 	mutex_unlock(&cd->system_lock);
 
 	return ret;
@@ -5737,23 +5735,34 @@ static ssize_t cyttsp5_ft_mode_store(struct device *dev,
 	mutex_lock(&cd->system_lock);
 	switch (value) {
 	case 0:
-		if (cd->ft_mode) {
-			cd->ft_mode = false;
-			dev_info(dev, "%s: ft_mode now disabled\n",
-				__func__);
-		} else
-			dev_info(dev, "%s: ft_mode already disabled\n",
-				__func__);
+		//if (cd->ft_mode) {
+			cd->ft_mode = 0;
+		dev_info(dev, "%s: ft_mode now %d\n",
+			__func__,cd->ft_mode);
+
+		//} else
+		//	dev_info(dev, "%s: ft_mode already disabled\n",
+		//		__func__);
 		break;
 
 	case 1:
-		if (cd->ft_mode == false) {
-			cd->ft_mode = true;
-			dev_info(dev, "%s: ft_mode now enabled\n",
-				__func__);
-		} else
-			dev_info(dev, "%s: ft_mode already enabled\n",
-				__func__);
+		//if (cd->ft_mode == false) {
+			cd->ft_mode = 1;
+		dev_info(dev, "%s: ft_mode now %d\n",
+			__func__,cd->ft_mode);
+
+		//} else
+		//	dev_info(dev, "%s: ft_mode already enabled\n",
+		//		__func__);
+		break;
+	case 2:
+		//if (cd->ft_mode == false) {
+			cd->ft_mode = 2;
+			dev_info(dev, "%s: ft_mode now %d\n",
+				__func__,cd->ft_mode);
+		//} else
+		//	dev_info(dev, "%s: ft_mode already enabled\n",
+		//		__func__);
 		break;
 
 	default:
