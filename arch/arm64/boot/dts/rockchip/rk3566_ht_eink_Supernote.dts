@@ -90,7 +90,7 @@
             gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-charging";
             //label = "led_r";
-			label = "battery-charging";
+            label = "battery-charging";
             retain-state-suspended;
         };
 
@@ -98,7 +98,7 @@
             gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
             linux,default-trigger = "battery-charging-or-full";
             //label = "led_g";
-			label = "battery-charging-or-full";
+            label = "battery-charging-or-full";
             retain-state-suspended;
         };
 
@@ -467,7 +467,7 @@
                 regulator-ramp-delay = <6001>;
                 regulator-initial-mode = <0x2>;
                 regulator-name = "vdd_gpu";
-                    regulator-state-mem {
+                regulator-state-mem {
                     regulator-off-in-suspend;
                     regulator-changeable-in-suspend;
                 };
@@ -620,8 +620,8 @@
             otg_switch: OTG_SWITCH {
                 regulator-name = "otg_switch";
                 regulator-state-mem {
-                    //regulator-off-in-suspend;
-                    //regulator-changeable-in-suspend;
+                    regulator-off-in-suspend;
+                    regulator-changeable-in-suspend;
                 };
             };
         };
@@ -648,7 +648,7 @@
             design_capacity = <2700>;
             design_qmax = <2970>;
             bat_res = <150>;
-			bat_temp_res = <34>;
+            bat_temp_res = <34>;
             sleep_enter_current = <150>;
             sleep_exit_current = <180>;
             sleep_filter_current = <100>;
@@ -736,6 +736,7 @@
         //vbus-5v-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
         int-n-gpios = <&gpio0 RK_PC6 IRQ_TYPE_LEVEL_LOW>;
         //switch-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+        connected-never-suspend = <1>;
         usb_con: connector {
             compatible = "usb-c-connector";
             label = "USB-C";
@@ -1396,16 +1397,12 @@
         )
     >;
     rockchip,regulator-off-in-mem-lite =
-        <&vdd_cpu>, <&vdd_gpu>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
-        <&vccio_acodec>,
-        <&sleep_sta_ctl>;
+        <&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>, <&vccio_acodec>, <&sleep_sta_ctl>;
     rockchip,regulator-on-in-mem-lite =
-        <&vcc_ddr>, <&vdd_logic>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc_tp>, <&vccio_sd>, <&vcc3v3_pmu>, <&dcdc_boost>;
+        <&vcc_ddr>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc_tp>, <&vccio_sd>, <&vcc3v3_pmu>, <&dcdc_boost>;
 
     rockchip,regulator-off-in-mem =
-        <&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_tp>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
-        <&vccio_acodec>, <&vccio_sd>, <&dcdc_boost>, <&otg_switch>,
-        <&sleep_sta_ctl>;
+        <&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_tp>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>, <&vccio_acodec>, <&vccio_sd>, <&dcdc_boost>, <&otg_switch>, <&sleep_sta_ctl>;
     rockchip,regulator-on-in-mem =
         <&vcc_ddr>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc3v3_pmu>;
 

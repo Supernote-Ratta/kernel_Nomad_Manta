@@ -568,7 +568,11 @@ struct fusb30x_chip {
     /* changed tower: add for typec direction. */
     struct kobject kobj;
     u8 direction_status;
-	struct wake_lock		suspend_lock;
+    struct wake_lock suspend_lock;
+    /* changed end. */
+    /* changed tower: for supernote not suspend when chargering. */
+    int no_suspend_charging;
+    struct wake_lock suspend_block;
     /* changed end. */
 };
 

@@ -9,6 +9,7 @@
  * Some ideas are from chrome ec and fairchild GPL fusb302 driver.
  */
 
+#define DEBUG
 #include <linux/delay.h>
 #include <linux/extcon-provider.h>
 #include <linux/gpio.h>
@@ -471,14 +472,7 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *cc1, int *cc2)
 {
     if (CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_UFP) {
         *cc1 = tcpm_get_cc_pull_down(chip, TYPEC_ORIENTATION_CC1);
-		/* tower changed: connection has disconnected error. the otg diff the type c power*/
-        //*cc2 = tcpm_get_cc_pull_down(chip, TYPEC_ORIENTATION_CC2);
-        if (*cc1 == TYPEC_CC_VOLT_OPEN) {
-            *cc2 = tcpm_get_cc_pull_down(chip, TYPEC_ORIENTATION_CC2);
-        } else {
-            *cc2 = TYPEC_CC_VOLT_OPEN;
-        }
-		/* tower changed end.*/
+        *cc2 = tcpm_get_cc_pull_down(chip, TYPEC_ORIENTATION_CC2);
     } else if (CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_DFP) {
         if (chip->cc_state & CC_STATE_TOGSS_CC1) {
             *cc1 = tcpm_get_cc_pull_up(chip, TYPEC_ORIENTATION_CC1);
@@ -703,7 +697,7 @@ static void tcpm_init(struct fusb30x_chip *chip)
     regmap_read(chip->regmap, FUSB_REG_DEVICEID, &tmp);
     chip->chip_id = (u8)tmp;
 
-    printk(KERN_INFO "CC chip id: 0x%x\n", chip->chip_id);
+    dev_info(chip->dev, "CC chip id: 0x%x\n", chip->chip_id);
 
     platform_set_vbus_lvl_enable(chip, 0, 0);
     chip->notify.is_cc_connected = false;
@@ -856,16 +850,22 @@ static void mux_alert(struct fusb30x_chip *chip, u32 *evt)
 
 static void set_state_unattached(struct fusb30x_chip *chip)
 {
-    printk(KERN_INFO "CC connection has disconnected\n");
+    dev_info(chip->dev, "connection has disconnected\n");
 
     if (chip->notify.is_cc_connected && CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_ACC) {
         /* changed tower: try to switch audio digital phone */
         if (chip->gpio_switch) {
             gpiod_set_value(chip->gpio_switch, 1);
         }
+        /* changed end. */
         input_report_switch(chip->input, SW_HEADPHONE_INSERT, 0);
         input_sync(chip->input);
     }
+    /* changed tower: for supernote not suspend when chargering. */
+    if (chip->no_suspend_charging) {
+        wake_unlock(&chip->suspend_block);
+    }
+    /* changed end. */
 
     tcpm_init(chip);
     tcpm_set_rx_enable(chip, 0);
@@ -1738,11 +1738,12 @@ static void fusb_state_attached_audio_acc(struct fusb30x_chip *chip, u32 evt)
     chip->hardrst_count = 0;
     set_state(chip, disabled);
     regmap_update_bits(chip->regmap, FUSB_REG_MASK, MASK_M_COMP_CHNG, 0);
-    printk(KERN_INFO "CC connected as Audio Accessory\n");
+    dev_info(chip->dev, "CC connected as Audio Accessory\n");
     /* changed tower: try to switch audio analog phone */
     if (chip->gpio_switch) {
         gpiod_set_value(chip->gpio_switch, 0);
     }
+    /* changed end. */
     input_report_switch(chip->input, SW_HEADPHONE_INSERT, 1);
     input_sync(chip->input);
 }
@@ -2516,6 +2517,11 @@ static void fusb_state_snk_transition_sink(struct fusb30x_chip *chip, u32 evt)
             chip->notify.is_pd_connected = true;
             dev_info(chip->dev, "PD connected as UFP, fetching 5V\n");
             set_state(chip, policy_snk_ready);
+            /* changed tower: for supernote not suspend when chargering. */
+            if (chip->no_suspend_charging) {
+                wake_lock(&chip->suspend_block);
+            }
+            /* changed end. */
         } else if (PACKET_IS_DATA_MSG(chip->rec_head, DMT_SOURCECAPABILITIES)) {
             set_state(chip, policy_snk_evaluate_caps);
         }
@@ -3091,7 +3097,7 @@ static irqreturn_t cc_interrupt_handler(int irq, void *dev_id)
 {
     struct fusb30x_chip *chip = dev_id;
 
-	wake_lock_timeout(&chip->suspend_lock, 4*HZ);
+    wake_lock_timeout(&chip->suspend_lock, 4 * HZ);
     queue_work(chip->fusb30x_wq, &chip->work);
     fusb_irq_disable(chip);
     return IRQ_HANDLED;
@@ -3128,7 +3134,7 @@ static int fusb_initialize_gpio(struct fusb30x_chip *chip)
     }
 
     chip->gpio_switch = devm_gpiod_get_optional(chip->dev, "switch", GPIOD_OUT_HIGH);
-    if (IS_ERR(chip->gpio_switch)) {
+    if (IS_ERR_OR_NULL(chip->gpio_switch)) {
         dev_warn(chip->dev, "Could not get named GPIO for switch!\n");
         chip->gpio_switch = NULL;
     } else {
@@ -3369,6 +3375,12 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
         string[1] = "ROLE_MODE_NONE";
     }
 
+    /* changed tower: for supernote not suspend when chargering. */
+    chip->no_suspend_charging = 0;
+    of_property_read_u32(chip->dev->of_node, "connected-never-suspend", &chip->no_suspend_charging);
+    dev_info(chip->dev, "no_suspend_charging: %d", chip->no_suspend_charging);
+    wake_lock_init(&chip->suspend_block, WAKE_LOCK_SUSPEND, "fusb302_suspend_block");
+    /* changed end. */
     chip->vconn_supported = true;
     tcpm_init(chip);
     tcpm_set_rx_enable(chip, 0);
@@ -3485,7 +3497,7 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
 	if (ret < 0) {
 		dev_err(&client->dev, "%s: Error, device_init_wakeup rc:%d\n", __func__, ret);
 	}
-	enable_irq_wake(chip->gpio_int_irq);//chip->gpio_int_irq client->irq
+	//enable_irq_wake(chip->gpio_int_irq);//chip->gpio_int_irq client->irq
 
     /* changed: tower for deep sleep the type c power will down, so when screen on we will init cc again. */
     memset(&chip->fb_notify, 0, sizeof( struct notifier_block));
@@ -3533,8 +3545,8 @@ static void fusb30x_shutdown(struct i2c_client *client)
 static int fusb30x_pm_suspend(struct device *dev)
 {
     struct fusb30x_chip *chip = dev_get_drvdata(dev);
-    printk("======fusb30x_pm_suspend mem_sleep_current:%d chip->suspended:%d enable_irq:%d screen_off:%d\n",mem_sleep_current,chip->suspended,chip->enable_irq,chip->screen_off);
-        /* changed tower: keep irq and enable irq wake up system, only when system entry lite sleep. */
+    dev_info(dev, "======fusb30x_pm_suspend mem_sleep_current:%d chip->suspended:%d enable_irq:%d screen_off:%d\n",mem_sleep_current,chip->suspended,chip->enable_irq,chip->screen_off);
+    /* changed tower: keep irq and enable irq wake up system, only when system entry lite sleep. */
     if (chip->screen_off) {
         dev_dbg(dev, " suspend irq disable\n");
         fusb_irq_disable(chip);
@@ -3554,7 +3566,7 @@ static int fusb30x_pm_suspend(struct device *dev)
 static int fusb30x_pm_resume(struct device *dev)
 {
     struct fusb30x_chip *chip = dev_get_drvdata(dev);
-    printk("======fusb30x_pm_resume mem_sleep_current:%d chip->suspended:%d enable_irq:%d\n",mem_sleep_current,chip->suspended,chip->enable_irq);
+    dev_info(dev, "======fusb30x_pm_resume mem_sleep_current:%d chip->suspended:%d enable_irq:%d\n",mem_sleep_current,chip->suspended,chip->enable_irq);
     /* changed tower: enable irq when system entry deep/ultra sleep, screen off. */
     if (chip->suspended) {
         set_state_unattached(chip);
