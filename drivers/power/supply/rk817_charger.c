@@ -1443,6 +1443,9 @@ static void rk817_charge_irq_delay_work(struct work_struct *work)
 
     if (charge->plugin_trigger) {
         printk("pmic: plug in\n");
+        /* changed tower: lock system, for cc can complete identification device. */
+        wake_lock_timeout(&charge->suspend_lock, 2 * HZ);
+        /* changed end. */
         charge->plugin_trigger = 0;
 		//charge_enable = 1;
 		temperature_disable_charge = 0;

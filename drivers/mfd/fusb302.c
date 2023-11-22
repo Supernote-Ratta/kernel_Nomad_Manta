@@ -9,7 +9,6 @@
  * Some ideas are from chrome ec and fairchild GPL fusb302 driver.
  */
 
-#define DEBUG
 #include <linux/delay.h>
 #include <linux/extcon-provider.h>
 #include <linux/gpio.h>
