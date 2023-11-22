@@ -1664,6 +1664,11 @@ static void fusb_state_attached_sink(struct fusb30x_chip *chip, u32 evt)
         chip->hardrst_count = 0;
         set_state(chip, policy_snk_startup);
         dev_info(chip->dev, "CC connected in %s as UFP\n", chip->cc_polarity ? "CC1" : "CC2");
+        /* changed tower: for supernote not suspend when chargering. */
+        if (chip->no_suspend_charging) {
+            wake_lock(&chip->suspend_block);
+        }
+        /* changed end. */
         return;
     } else if (evt & EVENT_TIMER_MUX) {
         set_state_unattached(chip);
@@ -2516,11 +2521,6 @@ static void fusb_state_snk_transition_sink(struct fusb30x_chip *chip, u32 evt)
             chip->notify.is_pd_connected = true;
             dev_info(chip->dev, "PD connected as UFP, fetching 5V\n");
             set_state(chip, policy_snk_ready);
-            /* changed tower: for supernote not suspend when chargering. */
-            if (chip->no_suspend_charging) {
-                wake_lock(&chip->suspend_block);
-            }
-            /* changed end. */
         } else if (PACKET_IS_DATA_MSG(chip->rec_head, DMT_SOURCECAPABILITIES)) {
             set_state(chip, policy_snk_evaluate_caps);
         }
