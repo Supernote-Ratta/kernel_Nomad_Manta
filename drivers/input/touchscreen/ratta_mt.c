@@ -2,7 +2,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/input.h>
-#define SLIDER_DRV_VER "231013"
+#define SLIDER_DRV_VER "231123"
 // 230919:1.双指bug
 //		  2.F13、F14上报
 // 230922:1.双指左右分开
@@ -13,6 +13,8 @@
 // 231008:1.slider 只上报上滑、下滑、不动、双指，4种状态和触摸（DOWN)
 // 231011:1.slider 滑动区分三种速度：间距分别为20、8、2
 // 231013:1.slider 上报坐标,只报触摸和双指 两个key
+// 231123:1.slider 左右不能同时滑动
+//		  2.抬手后清除所有key
 
 #define RATTA_MT_DEBUG		0
 #define RATTA_MT_NAME		"ratta-slide"
@@ -144,6 +146,8 @@ int key_map[]={KEY_F13,KEY_F14,KEY_F15,KEY_F16,KEY_F17,KEY_F18,KEY_F19,KEY_F20,K
 		} \
 	} while (0);
 
+extern int slider_left_down,slider_right_down;
+
 static void ratta_report_slide(int code)
 {
     printk("%s: keycode=%d\n", __func__, code);
@@ -192,7 +196,7 @@ static void ratta_slide_clean_keys(int mask)
 				printk("%s: keyup=%d key_now:0x%x\n", __func__, key_map[i], key_now);
 			}
 		}
-		key_now &= 0x0FC0;
+		key_now &= 0xFFC00;
 	}
 	if(mask & 0x02){
 		for(i=SLIDER_R_STAY;i<SLIDER_R_DOWN+1;i++){
@@ -202,7 +206,7 @@ static void ratta_slide_clean_keys(int mask)
 				printk("%s: keyup=%d key_now:0x%x\n", __func__, key_map[i], key_now);
 			}
 		}
-		key_now &= 0x003F;
+		key_now &= 0x003FF;
 	}
 	input_sync(ratta_device->input);
 	
@@ -396,9 +400,11 @@ static void ratta_mt_parse(int track)
 			}
 		}
 	}
+	ratta_device->slider_left_count = slider_left;
+	ratta_device->slider_right_count = slider_right;
 	last = ratta_device->rec_now[0][track]-1;
 	time = jiffies_to_msecs(ratta_device->data_record[0][track][last].time-ratta_device->data_record[0][track][0].time);
-ratta_mt_debug("%s track:%d left:%d right:%d last:%d lasttime:%ld 0time:%ld time:%d rec:%d\n",__func__,
+	ratta_mt_debug("-------------%s track:%d left:%d right:%d last:%d lasttime:%ld 0time:%ld time:%d rec:%d\n",__func__,
 	track,slider_left,slider_right,last,ratta_device->data_record[0][track][last].time,ratta_device->data_record[0][track][0].time,time,ratta_device->rec_now[0][track]);
 	if(ratta_device->data_record[0][track][0].y==RATTA_SLIDE_LEFT && ratta_device->data_record[0][track][last].y==RATTA_SLIDE_LEFT)
 		key_status |= KEY_STATUS_LEFT;
@@ -408,22 +414,28 @@ ratta_mt_debug("%s track:%d left:%d right:%d last:%d lasttime:%ld 0time:%ld time
 	if((ratta_device->slider_left_count > 2)&&(ratta_device->data_record[0][track][0].y==RATTA_SLIDE_LEFT)){
 		if(ratta_device->data_record[0][track][last].tip == 0){
 			ratta_mt_clean_finger(0,track);
+			ratta_mt_debug("%s left keycount>2 track:%d \n",__func__,track);
 			return;//left area more then 2 fingers
 		}
 		return;
 	}else if((ratta_device->slider_right_count > 2)&&(ratta_device->data_record[0][track][0].y==RATTA_SLIDE_RIGHT)){
 		if(ratta_device->data_record[0][track][last].tip == 0){
 			ratta_mt_clean_finger(0,track);
+			ratta_mt_debug("%s right keycount>2 track:%d \n",__func__,track);
 			return;//right area more then 2 fingers
 		}
 		return;
 	}
 	if((last>0) && (ratta_device->data_record[0][track][last-1].done==ratta_device->data_record[0][track][last].done)){
+		ratta_mt_debug("%s done not change track:%d done:%d\n",__func__,track,ratta_device->data_record[0][track][last].done);
 		return;
 	}
 
 	if((slider_left == 2)&&(ratta_device->data_record[0][track][0].y==RATTA_SLIDE_LEFT)){
 		//wait left 2 fingers up at one time
+		ratta_mt_debug("%s two left fingers track:%d done0:%d done1:%d status:0x%x tip:%d\n",
+			__func__,track,ratta_device->data_record[0][need_parse[0][0]][last].done,ratta_device->data_record[0][need_parse[0][1]][last].done
+			,ratta_device->data_record[0][track][0].status,ratta_device->data_record[0][track][last].tip);
 		if((ratta_device->data_record[0][need_parse[0][0]][last].done == FINGER_DOWN) || (ratta_device->data_record[0][need_parse[0][1]][last].done == FINGER_DOWN)){
 			ratta_slide_clean_keys_except(1,1<<SLIDER_L_DOWN);
 			ratta_report_slide_updown(key_map[SLIDER_L_TWO],1);//重复按下会不会有问题？
@@ -440,9 +452,17 @@ ratta_mt_debug("%s track:%d left:%d right:%d last:%d lasttime:%ld 0time:%ld time
 			}else{
 				ratta_device->data_record[0][need_parse[0][0]][last].done = FINGER_DROP;
 			}
+		}else if(ratta_device->data_record[0][track][last].tip == 0){
+			ratta_mt_clean_finger(0,track);
+			ratta_slide_clean_keys_except(1,1<<SLIDER_L_DOWN);
+			//printk("%s right keycount>2 track:%d \n",__func__,track);
+			return;//right area more then 2 fingers
 		}
 	}else if((slider_right == 2)&&(ratta_device->data_record[0][track][0].y==RATTA_SLIDE_RIGHT)){
 		//wait right 2 fingers up at one time
+		ratta_mt_debug("%s two right fingers track:%d done0:%d done1:%d status:0x%x tip:%d\n",
+			__func__,track,ratta_device->data_record[0][need_parse[1][0]][last].done,ratta_device->data_record[0][need_parse[1][1]][last].done
+			,ratta_device->data_record[0][track][0].status,ratta_device->data_record[0][track][last].tip);
 		if((ratta_device->data_record[0][need_parse[1][0]][last].done == FINGER_DOWN) || (ratta_device->data_record[0][need_parse[1][1]][last].done == FINGER_DOWN)){
 			ratta_slide_clean_keys_except(2,1<<SLIDER_R_DOWN);
 			ratta_report_slide_updown(key_map[SLIDER_R_TWO],1);//重复按下会不会有问题？
@@ -459,8 +479,16 @@ ratta_mt_debug("%s track:%d left:%d right:%d last:%d lasttime:%ld 0time:%ld time
 			}else{
 				ratta_device->data_record[0][need_parse[1][0]][last].done = FINGER_DROP;
 			}
+		}else if(ratta_device->data_record[0][track][last].tip == 0){
+			ratta_mt_clean_finger(0,track);
+			ratta_slide_clean_keys_except(2,1<<SLIDER_R_DOWN);
+			//printk("%s right keycount>2 track:%d \n",__func__,track);
+			return;//right area more then 2 fingers
 		}
 	}
+
+	ratta_mt_debug("%s slider_left:%d slider_right:%d track:%d done:%d \n",
+		__func__,slider_left,slider_right,track,ratta_device->data_record[0][track][last].done);
 	if((slider_left == 1)&&(key_status&KEY_STATUS_LEFT)){
 		//report left key
 		switch (ratta_device->data_record[0][track][last].done){
@@ -678,22 +706,50 @@ int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long j
     int i = 0;
     int record_num = 0;
 	unsigned int time;
+	//printk("====key_now:0x%x y:%d (1<<SLIDER_R_STAY):0x%x\n", key_now,tch[SLIDER_TCH_Y], (1<<SLIDER_R_STAY));
+	if((slider_left_down==0)&&(key_now&0x003FF)){
+		ratta_mt_clean(0x01);
+		ratta_slide_clean_keys(0x01);
+		ratta_mt_debug("%s====slider_left_down:0x%x \n", __func__, slider_left_down);
+		//return 0;
+	}
+	if((slider_right_down==0)&&(key_now&0xFFC00)){
+		ratta_mt_clean(0x02);
+		ratta_slide_clean_keys(0x02);
+		ratta_mt_debug("%s====slider_right_down:0x%x \n", __func__, slider_left_down);
+		//return 0;
+	}
 	if((slider_mask&0x01)&&(tch[SLIDER_TCH_Y] == RATTA_SLIDE_LEFT)){
 		ratta_mt_clean(slider_mask);
 		ratta_slide_clean_keys(slider_mask);
+		ratta_mt_debug("%s====slider_mask:0x%x \n", __func__, slider_mask);
 		return 0;
 	}
 	if((slider_mask&0x02)&&(tch[SLIDER_TCH_Y] == RATTA_SLIDE_RIGHT)){
 		ratta_mt_clean(slider_mask);
 		ratta_slide_clean_keys(slider_mask);
+		ratta_mt_debug("%s====slider_mask:0x%x \n", __func__, slider_mask);
+		return 0;
+	}
+
+	if((key_now>=(1<<SLIDER_R_STAY))&&(tch[SLIDER_TCH_Y] == RATTA_SLIDE_LEFT)){
+		ratta_mt_clean(0x01);
+		ratta_mt_debug("%s====key_now:0x%x left nofunction\n", __func__, key_now);
+		ratta_slide_clean_keys(0x01);
+		return 0;
+	}
+	if((key_now !=0) &&(key_now<(1<<SLIDER_R_STAY))&&(tch[SLIDER_TCH_Y] == RATTA_SLIDE_RIGHT)){
+		ratta_mt_clean(0x02);
+		ratta_mt_debug("%s====key_now:0x%x right nofunction\n", __func__, key_now);
+		ratta_slide_clean_keys(0x02);
 		return 0;
 	}
 	if (!ratta_device)
 		return -ENODEV;
 	//ratta_mt_debug
-	ratta_mt_debug("====ratta_mt_record type:%d rec:%d t:%d,x:%d,y:%d,t:%d,e:%d,o:%d,tip:%d,num:%d,time:%ld \n",
-		type,record,track,tch[SLIDER_TCH_X],tch[SLIDER_TCH_Y],tch[SLIDER_TCH_T],tch[SLIDER_TCH_E],
-		tch[SLIDER_TCH_O],tch[SLIDER_TCH_TIP],tch[SLIDER_TCH_NUM_ABS],jiffs);
+	ratta_mt_debug("====ratta_mt_record rec:%d t:%d,x:%d,y:%d,t:%d,e:%d,o:%d,tip:%d,num:%d,time:%ld x:%d\n",
+		record,track,tch[SLIDER_TCH_X],tch[SLIDER_TCH_Y],tch[SLIDER_TCH_T],tch[SLIDER_TCH_E],
+		tch[SLIDER_TCH_O],tch[SLIDER_TCH_TIP],tch[SLIDER_TCH_NUM_ABS],jiffs,ratta_device->data_record[0][tch[SLIDER_TCH_T]][0].x);
 	if ((track < 0) || (track >= RATTA_MAX_FINGERS)) {
 		return -EINVAL;
 	}
@@ -728,6 +784,7 @@ int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long j
 	}
 	//2-----------------------------------
 	if(ratta_device->data_record[0][tch[SLIDER_TCH_T]][0].x==RATTA_INVALID_VALUE){
+		ratta_mt_debug("======ratta_mt_record:first down y:%d\n",tch[SLIDER_TCH_Y]);
 		ratta_mt_add_record(tch, jiffs);
 		ratta_device->data_record[0][tch[SLIDER_TCH_T]][record_num].done = FINGER_DOWN;
 		goto parse;

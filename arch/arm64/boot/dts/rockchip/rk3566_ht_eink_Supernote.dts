@@ -655,7 +655,7 @@
             power_off_thresd = <3450>;
             zero_algorithm_vol = <3850>;
             max_soc_offset = <60>;
-            monitor_sec = <5>;
+            monitor_sec = <2>;
             sample_res = <10>;
             virtual_power = <0>;
             low_power_sleep = <1>;

@@ -46,13 +46,15 @@ void cyttsp5_register_listener(touch_listener listener) {
 }
 #endif
 int slider_left = 0, slider_right = 0;
+int slider_left_down = 0, slider_right_down = 0;
+
 static void cyttsp5_filter_left_work(struct work_struct *work)
 {
 	struct cyttsp5_mt_data *md = container_of(work,
 			struct cyttsp5_mt_data, filter_left_delay_work.work);
 	struct device *dev = md->dev;
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
-	printk("%s: slider_left=%d\n", __func__, slider_left);
+	//printk("%s: slider_left=%d\n", __func__, slider_left);
 
 	slider_left = cd->l_x;
 
@@ -64,8 +66,20 @@ static void cyttsp5_filter_right_work(struct work_struct *work)
 	struct device *dev = md->dev;
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 
-	printk("%s: slider_left=%d\n", __func__, slider_left);
+	//printk("%s: slider_right=%d\n", __func__, slider_right);
 	slider_right = cd->r_x;
+
+}
+static void cyttsp5_down_left_work(struct work_struct *work)
+{
+	printk("%s: slider_left_down=%d\n", __func__, slider_left_down);
+	slider_left_down = 0;
+
+}
+static void cyttsp5_down_right_work(struct work_struct *work)
+{
+	printk("%s: slider_right_down=%d\n", __func__, slider_right_down);
+	slider_right_down = 0;
 
 }
 
@@ -279,7 +293,7 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 				for(k=(8*tch->abs[CY_TCH_T]);k<((8*tch->abs[CY_TCH_T])+8);k++){
 					cd->l_x &= ~(1<<k);
 					if(cd->l_x==0){
-						printk("=====%s cancel_delayed_work filter_left\n",__func__);
+						parade_debug(dev, DEBUG_LEVEL_2,"=====%s cancel_delayed_work filter_left\n",__func__);
 						cancel_delayed_work(&md->filter_left_delay_work);
 						slider_left = cd->l_x;
 					}else if(slider_left != 0){
@@ -290,7 +304,7 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 				for(k=(8*tch->abs[CY_TCH_T]);k<((8*tch->abs[CY_TCH_T])+8);k++){
 					cd->r_x &= ~(1<<k);
 					if(cd->r_x==0){
-						printk("=====%s cancel_delayed_work filter_right\n",__func__);
+						parade_debug(dev, DEBUG_LEVEL_2,"=====%s cancel_delayed_work filter_right\n",__func__);
 						cancel_delayed_work(&md->filter_right_delay_work);
 						slider_right = cd->r_x;
 					}else if(slider_right != 0){
@@ -329,7 +343,10 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 			}
 			cd->l_x += tch->abs[CY_TCH_X]<<(8*tch->abs[CY_TCH_T]);
 			if(l_x_pre == 0)
-				schedule_delayed_work(&md->filter_left_delay_work, msecs_to_jiffies(200));
+				schedule_delayed_work(&md->filter_left_delay_work, msecs_to_jiffies(100));
+			cancel_delayed_work(&md->down_left_delay_work);
+			schedule_delayed_work(&md->down_left_delay_work, msecs_to_jiffies(100));
+			slider_left_down = 1;
 
 		}else if(tch->abs[CY_TCH_Y]==70){
 			for(k=(8*tch->abs[CY_TCH_T]);k<((8*tch->abs[CY_TCH_T])+8);k++){
@@ -337,7 +354,10 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 			}
 			cd->r_x += tch->abs[CY_TCH_X]<<(8*tch->abs[CY_TCH_T]);
 			if(r_x_pre == 0)
-				schedule_delayed_work(&md->filter_right_delay_work, msecs_to_jiffies(200));
+				schedule_delayed_work(&md->filter_right_delay_work, msecs_to_jiffies(100));
+			cancel_delayed_work(&md->down_right_delay_work);
+			schedule_delayed_work(&md->down_right_delay_work, msecs_to_jiffies(100));
+			slider_right_down = 1;
 		}
 		//0: report key 1:report x,y 2:report null
 		if(cd->ft_mode == 0){
@@ -823,6 +843,8 @@ int cyttsp5_mt_probe(struct device *dev)
 
 	INIT_DELAYED_WORK(&md->filter_left_delay_work, cyttsp5_filter_left_work);
 	INIT_DELAYED_WORK(&md->filter_right_delay_work, cyttsp5_filter_right_work);
+	INIT_DELAYED_WORK(&md->down_left_delay_work, cyttsp5_down_left_work);
+	INIT_DELAYED_WORK(&md->down_right_delay_work, cyttsp5_down_right_work);
 
 	return 0;
 

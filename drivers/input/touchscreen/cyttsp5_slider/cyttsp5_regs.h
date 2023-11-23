@@ -806,6 +806,8 @@ struct cyttsp5_mt_data {
 	int t_max;
 	struct delayed_work filter_left_delay_work;
 	struct delayed_work filter_right_delay_work;
+	struct delayed_work down_left_delay_work;
+	struct delayed_work down_right_delay_work;
 };
 
 struct cyttsp5_btn_data {
