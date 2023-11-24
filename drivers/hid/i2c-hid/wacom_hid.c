@@ -1096,7 +1096,7 @@ static ssize_t pen_type_show(struct device *dev, struct device_attribute *attr, 
 }
 
 /* changed tower: for update hid info when fw update. */
-static ssize_t fw_update_notice(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t wacom_fw_update_notice(struct device *dev, struct device_attribute *attr, char *buf)
 {
     struct wacom_hid *ihid = dev_get_drvdata(dev);
     struct hid_device *hid = ihid->hid;
@@ -1128,7 +1128,7 @@ static ssize_t fw_update_notice(struct device *dev, struct device_attribute *att
 
 static struct device_attribute attributes[] = {
     __ATTR(pen_type, S_IRUSR, pen_type_show, NULL),
-    __ATTR(fw_update, S_IRUSR, fw_update_notice, NULL),
+    __ATTR(fw_update, S_IRUSR, wacom_fw_update_notice, NULL),
 };
 
 static int add_sysfs_interfaces(struct device *dev)
@@ -1278,12 +1278,6 @@ static int wacom_hid_probe(struct i2c_client *client, const struct i2c_device_id
         goto err_regulator;
     }
 
-    ret = add_sysfs_interfaces(&client->dev);
-    if (ret < 0) {
-        dev_err(&client->dev, "%s: Error, fail sysfs init\n", __func__);
-        goto err_pm;
-    }
-
     pm_runtime_get_noresume(&client->dev);
     pm_runtime_set_active(&client->dev);
     pm_runtime_enable(&client->dev);
@@ -1339,6 +1333,12 @@ static int wacom_hid_probe(struct i2c_client *client, const struct i2c_device_id
         if (ret != -ENODEV) {
             hid_err(client, "can't add hid device: %d\n", ret);
         }
+        goto err_mem_free;
+    }
+
+    ret = add_sysfs_interfaces(&client->dev);
+    if (ret < 0) {
+        dev_err(&client->dev, "%s: Error, fail sysfs init\n", __func__);
         goto err_mem_free;
     }
 
