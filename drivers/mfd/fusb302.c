@@ -471,7 +471,14 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *cc1, int *cc2)
 {
     if (CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_UFP) {
         *cc1 = tcpm_get_cc_pull_down(chip, TYPEC_ORIENTATION_CC1);
-        *cc2 = tcpm_get_cc_pull_down(chip, TYPEC_ORIENTATION_CC2);
+        /* tower changed: connection has disconnected error. the otg diff the type c power*/
+        //*cc2 = tcpm_get_cc_pull_down(chip, TYPEC_ORIENTATION_CC2);
+        if (*cc1 == TYPEC_CC_VOLT_OPEN) {
+            *cc2 = tcpm_get_cc_pull_down(chip, TYPEC_ORIENTATION_CC2);
+        } else {
+            *cc2 = TYPEC_CC_VOLT_OPEN;
+        }
+        /* tower changed end.*/
     } else if (CC_STATE_ROLE(chip) == CC_STATE_TOGSS_IS_DFP) {
         if (chip->cc_state & CC_STATE_TOGSS_CC1) {
             *cc1 = tcpm_get_cc_pull_up(chip, TYPEC_ORIENTATION_CC1);
@@ -2881,7 +2888,7 @@ static void state_machine_typec(struct fusb30x_chip *chip)
         }
     }
 
-	//printk(KERN_INFO "CC connect state: %d\n", chip->conn_state);
+    //printk(KERN_INFO "CC connect state: %d\n", chip->conn_state);
     switch (chip->conn_state) {
         case disabled:
             fusb_state_disabled(chip, evt);
@@ -3455,7 +3462,7 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
     }
 
     i2c_set_clientdata(client, chip);
-	wake_lock_init(&chip->suspend_lock, WAKE_LOCK_SUSPEND, "fusb302");
+    wake_lock_init(&chip->suspend_lock, WAKE_LOCK_SUSPEND, "fusb302");
 
     spin_lock_init(&chip->irq_lock);
     chip->enable_irq = 1;
@@ -3492,11 +3499,11 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
         dev_err(chip->dev, "Can't register input device: %d\n", ret);
         goto IRQ_ERR;
     }
-	ret = device_init_wakeup(&client->dev, true);
-	if (ret < 0) {
-		dev_err(&client->dev, "%s: Error, device_init_wakeup rc:%d\n", __func__, ret);
-	}
-	//enable_irq_wake(chip->gpio_int_irq);//chip->gpio_int_irq client->irq
+    ret = device_init_wakeup(&client->dev, true);
+    if (ret < 0) {
+        dev_err(&client->dev, "%s: Error, device_init_wakeup rc:%d\n", __func__, ret);
+    }
+    //enable_irq_wake(chip->gpio_int_irq);//chip->gpio_int_irq client->irq
 
     /* changed: tower for deep sleep the type c power will down, so when screen on we will init cc again. */
     memset(&chip->fb_notify, 0, sizeof( struct notifier_block));
