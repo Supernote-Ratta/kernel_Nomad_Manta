@@ -72,7 +72,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
         dev_err(&client->dev, "%s:fail to active sensor\n", __func__);
     }
 
-    dev_info(&client->dev, "%s:reg = 0x%x, reg_ctrl = 0x%x, enable= %d\n", __func__, sensor->ops->ctrl_reg, sensor->ops->ctrl_data, enable);
+    dev_info(&client->dev, "%s enable: %d ret: %d\n", __func__, enable, result);
 
     return result;
 }
@@ -91,18 +91,17 @@ static ssize_t sensor_value_show(struct class *cls, struct class_attribute *attr
     char buffer[6] = {0};
     int x, y, z;
     int ret = 0;
-    sensor_active(client_test, 1, 9600);
 
     if (sensor->ops->read_len < 6) {
         dev_err(&client_test->dev, "%s:Read len is error,len= %d\n", __func__, sensor->ops->read_len);
         return -1;
     }
-
+    sensor_active(client_test, SENSOR_ON, 0);
     *buffer = sensor->ops->read_reg;
     ret = sensor_rx_data(client_test, buffer, sensor->ops->read_len);
     if (ret < 0) {
         dev_err(&client_test->dev, "mxc6655 read data failed, ret = %d\n", ret);
-        return ret;
+        goto end;
     }
 
     /* x,y,z axis is the 12-bit acceleration output */
@@ -117,6 +116,11 @@ static ssize_t sensor_value_show(struct class *cls, struct class_attribute *attr
     axis.z = (pdata->orientation[6]) * x + (pdata->orientation[7]) * y + (pdata->orientation[8]) * z;
 
     len += sprintf(_buf, "%d %d %d\n", axis.x, axis.y, axis.z);
+
+end:
+    if (SENSOR_OFF == sensor->status_cur) {
+        sensor_active(sensor->client, SENSOR_OFF, 0);
+    }
     return len;
 }
 
@@ -147,13 +151,7 @@ static int sensor_init(struct i2c_client *client)
     int status = 0;
     int result = 0;
 
-    result = sensor->ops->active(client, 0, 0);
-    if (result) {
-        dev_err(&client->dev, "%s:line=%d,error\n", __func__, __LINE__);
-        return result;
-    }
-    sensor->status_cur = SENSOR_OFF;
-
+    dev_info(&client->dev, "mxc6655 %s init ...\n", __func__);
     /*  Operating mode control and full-scale range(2g) */
     result = sensor_write_reg(client, sensor->ops->ctrl_reg, 0x01);
     if (result) {
@@ -179,6 +177,7 @@ static int sensor_init(struct i2c_client *client)
         return result;
     }
 
+    dev_info(&client->dev, "mxc6655 %s successful \n", __func__);
     return result;
 }
 
@@ -252,7 +251,7 @@ static int sensor_report_value(struct i2c_client *client)
     if (sensor->pdata->irq_enable) {
         value = sensor_read_reg(client, sensor->ops->int_status_reg);
         if (value & 0x01) {
-            printk("%s:gsensor int status :0x%x\n",  __func__, value);
+            dev_info(&client->dev, "%s:gsensor int status :0x%x\n", __func__, value);
             ret = sensor_write_reg(client, MXC6655_INT_CLR1, 0x01);
             if (ret) {
                 dev_err(&client->dev, "%s:fail to clear MXC6655_INT_CLR1.\n", __func__);
@@ -347,7 +346,7 @@ static int gsensor_mxc6655_remove(struct i2c_client *client)
 
 static const struct i2c_device_id gsensor_mxc6655_id[] = {
     {"gs_mxc6655xa", ACCEL_ID_MXC6655XA},
-    {}
+    {},
 };
 
 static struct i2c_driver gsensor_mxc6655_driver = {

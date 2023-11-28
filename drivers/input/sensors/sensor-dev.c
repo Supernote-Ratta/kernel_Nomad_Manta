@@ -705,6 +705,7 @@ static int __maybe_unused sensor_of_resume(struct device *dev)
 
     if (sensor->pdata->power_off_in_suspend) {
         sensor_initial(sensor->client);
+        sensor->ops->active(sensor->client, sensor->status_cur, sensor->pdata->poll_delay_ms + 4);
     }
 
     return 0;
@@ -762,6 +763,7 @@ static int sensor_enable(struct sensor_private_data *sensor, int enable)
             return result;
         }
         sensor->status_cur = SENSOR_OFF;
+        dev_info(&client->dev, "sensor off\n");
     }
 
     return result;
@@ -882,6 +884,7 @@ static long gsensor_dev_ioctl(struct file *file, unsigned int cmd, unsigned long
 
     switch (cmd) {
         case GSENSOR_IOCTL_START:
+            dev_info(&client->dev, "set enable. curent status: %d, start count: %d\n", sensor->status_cur, sensor->start_count);
             mutex_lock(&sensor->operation_mutex);
             if (++sensor->start_count == 1) {
                 if (sensor->status_cur == SENSOR_OFF) {
@@ -892,6 +895,7 @@ static long gsensor_dev_ioctl(struct file *file, unsigned int cmd, unsigned long
             break;
 
         case GSENSOR_IOCTL_CLOSE:
+            dev_info(&client->dev, "set disable. curent status: %d, start count: %d\n", sensor->status_cur, sensor->start_count);
             mutex_lock(&sensor->operation_mutex);
             if (--sensor->start_count == 0) {
                 if (sensor->status_cur == SENSOR_ON) {
@@ -1301,7 +1305,7 @@ static long light_dev_ioctl(struct file *file, unsigned int cmd, unsigned long a
                 return -EFAULT;
             }
             mutex_lock(&sensor->operation_mutex);
-            printk("%s set status %s\n", __func__, result ? "enable" : "disable");
+            dev_info(&client->dev, "set %s. curent status: %d\n", result ? "enable" : "disable", sensor->status_cur);
             if (result) {
                 if (sensor->status_cur == SENSOR_OFF) {
                     sensor_enable(sensor, SENSOR_ON);
