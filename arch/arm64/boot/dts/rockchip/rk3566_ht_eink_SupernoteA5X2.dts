@@ -268,6 +268,8 @@
     //backlight = <&backlight>;
 
     /* 10.65 EPD */
+	// width/height 在uboot/kernel的TCON设置里面使用，必须和EPD的屏幕控制器一致，
+	// 所以此处不能改为 1920x2560.
     panel,width = <3840>;
     panel,height = <1280>;
     panel,vir_width = <3840>;
@@ -807,8 +809,8 @@
     tsc@24 {
         compatible = "parade,pt_i2c_adapter";
         reg = <0x24>;
-        //status = "disabled";
-        status = "okay";
+        status = "disabled";
+        //status = "okay";
         //interrupt-parent = <&msmgpio>;
         //interrupts = <59 0x2>;
         parade,adapter_id = "pt_i2c_adapter";
@@ -1026,8 +1028,8 @@
     };
 
     cyttsp5: slide@28 {
-        //status = "disabled";
-        status = "okay";
+        status = "disabled";
+        //status = "okay";
         compatible = "cy,cyttsp5_i2c_silder";
         reg = <0x28>;
         cy,adapter_id = "cyttsp5_i2c_silder";
