@@ -30,7 +30,7 @@ extern int ht_ebc_dbg_bits;
 #define 	EDBG_AUTO 			(1<<4)
 #define 	EDBG_XALIGN			(1<<5)		// align msg.
 #define 	EDBG_POWER 			(1<<6)
-#define 	EDBG_DRAW 			(1<<7)
+#define 	EDBG_EPD107			(1<<7)
 #define 	EDBG_WF 			(1<<8)		//for waveform.
 
 #define 	EDBG_INIT			(1<<9)
