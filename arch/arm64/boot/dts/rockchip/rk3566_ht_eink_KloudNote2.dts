@@ -16,7 +16,7 @@
 #include "rk3568-android.dtsi"
 #include "rk3566-eink.dtsi"
 
-#define SEEKWAVE
+//#define SEEKWAVE
 
 / {
     model = "Rockchip RK3566 EINK KloudNote2 10.3 Board";
@@ -160,8 +160,9 @@
         rockchip,grf = <&grf>;
         wifi_chip_type = "ap6255";
         pinctrl-names = "default";
-        pinctrl-0 = <&wifi_vbat &wifi_host_wake_irq>;
-        WIFI,host_wake_irq = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+        pinctrl-0 = <&wifi_gpio>;
+		WIFI,vbat_gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+        WIFI,host_wake_irq = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
         status = "okay";
     };
 
@@ -175,8 +176,8 @@
         pinctrl-0 = <&uart1m0_rtsn>, <&bt_reset_gpio>, <&bt_wake_gpio>, <&bt_irq_gpio>;
         pinctrl-1 = <&uart1_gpios>;
         BT,reset_gpio = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
-        BT,wake_gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
-        BT,wake_host_irq = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+        BT,wake_gpio = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+        BT,wake_host_irq = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
         status = "okay";
     };
 #else
@@ -941,7 +942,13 @@
                 <0 RK_PA2 RK_FUNC_2 &pcfg_pull_none>;
         };
     };
-
+#ifndef SEEKWAVE
+    sdio-pwrseq {
+        wifi_enable_h: wifi-enable-h {
+            rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;// WIFI_REG_ON_H
+        };
+    };
+#else
     sdio-pwrseq {
         wifi_enable_h: wifi-enable-h {
             rockchip,pins =
@@ -949,15 +956,13 @@
                 <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;// sdio power on for seekwave
         };
     };
-
+#endif
 #ifndef SEEKWAVE
     wireless-wlan {
-        wifi_vbat: wifi-vbat {
-            rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
-        };
-
-        wifi_host_wake_irq: wifi-host-wake-irq {
-            rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+        wifi_gpio: wifi-gpio {
+            rockchip,pins =
+                <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>,// WIFI_WAKE_HOST_H
+                <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;// WIFI_PWR_EN
         };
     };
 
@@ -971,11 +976,11 @@
         };
 
         bt_wake_gpio: bt-wake-gpio {
-            rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+            rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
         };
 
         bt_irq_gpio: bt-irq-gpio {
-            rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>;
+            rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;
         };
     };
 #else
