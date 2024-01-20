@@ -869,7 +869,7 @@
     pinctrl-0 = <&i2c4m1_xfer>;
 
     gs_mxc6655xa: gsensor@15 {
-        status = "okay";
+        status = "disabled"; //"okay"; kloud slim gsensor nofunction
         compatible = "gs_mxc6655xa";
         reg = <0x15>;
         pinctrl-names = "default";
