@@ -1553,6 +1553,11 @@ config CYTTSP5_SLIDER_SUPPORT
 	depends on I2C
 	default n
 
+config TOUCHSCREEN_ELAN
+	bool "ELAN tp & pen"
+	depends on I2C
+	default n
+	
 source "drivers/input/touchscreen/cyttsp5/Kconfig"
 source "drivers/input/touchscreen/cyttsp5_slider/Kconfig"
 source "drivers/input/touchscreen/gtx8/Kconfig"

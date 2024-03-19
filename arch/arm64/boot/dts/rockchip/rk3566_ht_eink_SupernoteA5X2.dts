@@ -873,12 +873,12 @@
                  * PT_MT_FLAG_INV_Y = 0x20
                  * PT_MT_FLAG_VKEYS = 0x40
                  */
-                parade,flags = <0x28>;
+                parade,flags = <0x20>;
                 parade,abs =
                     /* ABS_MT_POSITION_X, PT_ABS_MIN_X, PT_ABS_MAX_X, 0, 0 */
-                    <0x35 0 880 0 0
+                    <0x35 0 1920 0 0
                     /* ABS_MT_POSITION_Y, PT_ABS_MIN_Y, PT_ABS_MAX_Y, 0, 0 */
-                    0x36 0 1280 0 0
+                    0x36 0 2560 0 0
                     /* ABS_MT_PRESSURE, PT_ABS_MIN_P, PT_ABS_MAX_P, 0, 0 */
                     0x3a 0 255 0 0
                     /* PT_IGNORE_VALUE, PT_ABS_MIN_W, PT_ABS_MAX_W, 0, 0 */
@@ -927,6 +927,22 @@
          //tp-support-wakeup;
     };
 #endif
+	elan_touch: elan_ktf@10 {
+		compatible = "elan,ektf";
+		reg = <0x10>;
+		status = "okay";
+		//interrupt-parent = <&tlmm>;
+		//interrupts = <65 0x2>;
+		elan,rst-gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+		elan,irq-gpio = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
+		vdd-supply = <&vcc_tp>;
+		//vcc_i2c-supply = <&vcc_tp>;
+		chip_type = <0x01>;		/*1:HID IIC, 0: NORMAL IIC*/
+		report_type = <0x01>;	/*1:B protocol, 0:A protocol*/
+		direction_switch = <0x05>;
+		lcm_resolution = <1920 2560>;
+	};
+
 };
 
 &i2c3 {
@@ -1028,8 +1044,8 @@
     };
 
     cyttsp5: slide@28 {
-        status = "disabled";
-        //status = "okay";
+        //status = "disabled";
+        status = "okay";
         compatible = "cy,cyttsp5_i2c_silder";
         reg = <0x28>;
         cy,adapter_id = "cyttsp5_i2c_silder";

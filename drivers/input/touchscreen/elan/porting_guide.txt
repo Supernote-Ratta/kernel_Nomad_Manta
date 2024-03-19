@@ -1,0 +1,24 @@
+elan_ts_probe
+	- 驅動初始化
+	
+elan_ts_hw_initial
+	- 获取rst 、int-gpio、interrupt的设定
+	- 设置report的protocol、fw存放位置等的flag
+
+elan_ts_set_power
+	- 获取vcc & vio的配置，设置使能
+	
+elan_ts_setup
+	- 设置ic的状态
+
+elan_touch_node_init
+	- 创建sysfs的节点，方便debug
+	
+elan_ic_init_work
+	- 创建ioctl的node
+	- 获取 fw information
+	- 根据fw information 判断是否要upgrade fw
+	- 注册irq
+
+elan_ts_work_func
+	- 处理irq的数据recv & report

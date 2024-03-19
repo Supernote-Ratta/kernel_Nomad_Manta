@@ -1,0 +1,46 @@
+Elantech I2C/HID_I2C Touchscreen
+
+Required properties:
+- compatible: must be "elan,ektf".
+- reg: I2C address of the chip.
+- interrupt-parent: a phandle for the interrupt controller (see interrupt binding[0]).
+- interrupts: interrupt to which the chip is connected (see interrupt binding[0]).
+- elan,rst-gpio: reset gpio the chip is connected to.
+- elan,irq-gpio: interrupt gpio the chip is connected to.
+- vdd-supply: a phandle for the regulator supplying 3.3V power.
+- chip_type = <0x01>;	/*1:HID IIC, 0: NORMAL IIC*/
+- report_type = <0x01>;	/*1:B protocol, 0:A protocol*/
+- direction_switch = <0x00> /*bit0-3 for finger, bit4-7 for stylus*/
+
+
+Optional properties:
+- wakeup-source: touchscreen can be used as a wakeup source.
+- pinctrl-names: should be "default" (see pinctrl binding [1]).
+- pinctrl-0: a phandle pointing to the pin settings for the device (see pinctrl binding [1]).
+- vcc_i2c-supply: a phandle for the regulator supplying IO power.
+
+
+[0]: Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+[1]: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+Example:
+	&i2c_xxx {
+		/* ... */
+
+		elan_touch: elan_ktf@10 {
+			compatible = "elan,ektf";
+			reg = <0x10>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <65 0x2>;
+			elan,rst-gpio = <&tlmm 64 0x00>;
+			elan,irq-gpio = <&tlmm 65 0x2008>;
+			vdd-supply = <&pm8953_l10>;
+			//vcc_i2c-supply = <&pm8953_l6>;
+			chip_type = <0x01>;		/*1:HID IIC, 0: NORMAL IIC*/
+			report_type = <0x01>;	/*1:B protocol, 0:A protocol*/
+			direction_switch = <0x00>;
+			lcm_resolution = <1400  1920>;
+		};
+
+		/* ... */
+	};
