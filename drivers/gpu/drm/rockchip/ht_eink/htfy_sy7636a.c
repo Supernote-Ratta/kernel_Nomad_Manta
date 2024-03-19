@@ -535,7 +535,9 @@ static int papyrus_pm_sleep(struct pmic_sess *sess)
 
     sy7636a_printk(" enter sleep,fb off=%d\n", fb_is_power_off());
 	gpiod_direction_output(s->vcom_ctl_pin, 0);
-    s->need_init = fb_is_power_off();
+
+	// 20240319: 亮屏休眠和深休 芯片供电都会掉，所以下次显示需要重新初始化。否则VCOM不对。
+    s->need_init = true; //fb_is_power_off();
 
     return 0;
 }
