@@ -109,9 +109,15 @@
             retain-state-suspended;
         };
     };
-
+	
+	hardware {
+		compatible =  "ratta,board";
+		id = "a6x";
+		status = "okay";
+	};
+	
     blepower: ble-power {
-        status = "okay";
+        status = "disabled";
         compatible = "ble-power";
         //pinctrl-names = "default";
         //pinctrl-0 = <&ble_det_gpio>;
@@ -846,6 +852,7 @@
             parade,panel_id_support = <0>;
             /* 0:PIP, 1: Hybrid HID, 2: pure HID */
             parade,protocol_mode = <0>;
+			parade,fw_name = "tt_fw.bin";
 #if 0
             parade,btn_keys = <172 /* KEY_HOMEPAGE */
                 /* previously was KEY_HOME, new Android versions use KEY_HOMEPAGE */

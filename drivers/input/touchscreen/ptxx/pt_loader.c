@@ -1582,20 +1582,26 @@ static char *generate_firmware_filename(struct device *dev)
 {
 	char *filename;
 	u8 panel_id;
+	struct pt_platform_data *pdata = dev_get_platdata(dev);
 
 	filename = kzalloc(FILENAME_LEN_MAX, GFP_KERNEL);
 	if (!filename)
 		return NULL;
 
 	panel_id = pt_get_panel_id(dev);
-	if (panel_id == PANEL_ID_NOT_ENABLED)
-		snprintf(filename, FILENAME_LEN_MAX, "%s", PT_FW_FILE_NAME);
+	if (panel_id == PANEL_ID_NOT_ENABLED){
+		if(pdata->core_pdata->fw_name)
+			snprintf(filename, FILENAME_LEN_MAX, "%s", pdata->core_pdata->fw_name);
+		else
+			snprintf(filename, FILENAME_LEN_MAX, "%s", PT_FW_FILE_NAME);
+		}
 	else
 		snprintf(filename, FILENAME_LEN_MAX, "%s_pid%02X%s",
 			PT_FW_FILE_PREFIX, panel_id, PT_FW_FILE_SUFFIX);
 
 	pt_debug(dev, DL_INFO, "%s: Filename: %s\n",
 		__func__, filename);
+	printk("%s: Filename: %s\n",__func__, filename);
 
 	return filename;
 }
@@ -5981,7 +5987,7 @@ static int pt_loader_probe(struct device *dev, void **data)
 
 	pt_debug(dev, DL_INFO, "%s: Schedule FW upgrade work\n", __func__);
 	INIT_DELAYED_WORK(&ld->fw_and_config_upgrade, pt_fw_and_config_upgrade);
-	schedule_delayed_work(&ld->fw_and_config_upgrade, msecs_to_jiffies(2 * 1000));
+	//schedule_delayed_work(&ld->fw_and_config_upgrade, msecs_to_jiffies(2 * 1000));
 
 	pt_debug(dev, DL_INFO, "%s: Successful probe %s\n",
 		__func__, dev_name(dev));

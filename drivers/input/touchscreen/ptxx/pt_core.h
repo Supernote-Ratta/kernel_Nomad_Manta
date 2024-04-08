@@ -169,6 +169,7 @@ struct pt_core_platform_data {
 	u8 watchdog_force_stop;
 	u8 panel_id_support;
 	u8 protocol_mode;
+	char const *fw_name;
 #ifdef PT_PINCTRL_EN
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_active;

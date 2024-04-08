@@ -103,3 +103,9 @@ config PROC_UID
 	depends on PROC_FS && RT_MUTEXES
 	help
 	Provides aggregated per-uid information under /proc/uid.
+
+config PROC_HT
+	bool "ht project proc"
+	default y
+	help
+	HT Project proc

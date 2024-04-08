@@ -2443,8 +2443,18 @@ static int rk817_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 		if (battery->pdata->bat_mode == MODE_VIRTUAL)
 			val->intval = VIRTUAL_STATUS;
-		else if (battery->dsoc == 100 * 1000)
-			val->intval = POWER_SUPPLY_STATUS_FULL;
+		else if (battery->dsoc == 100 * 1000){
+			//val->intval = POWER_SUPPLY_STATUS_FULL;
+			//tanlq mod 240326 满电插拔充电器时，优先报充电状态
+			if ((battery->chip_id != RK809_ID) &&
+				    rk817_bat_get_charge_state(battery))
+					val->intval = POWER_SUPPLY_STATUS_FULL;
+				else if (battery->chip_id == RK809_ID &&
+					 battery->plugin_trigger)
+					val->intval = POWER_SUPPLY_STATUS_FULL;
+				else
+					val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+			}
 		else {
 			if ((battery->chip_id != RK809_ID) &&
 				rk817_bat_get_charge_state(battery)){

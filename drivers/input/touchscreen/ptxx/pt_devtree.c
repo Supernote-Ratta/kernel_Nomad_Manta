@@ -943,7 +943,11 @@ static struct pt_core_platform_data *create_and_get_core_pdata(
 			__func__);
 		pdata->protocol_mode = PT_PROTOCOL_MODE_UNKNOWN;
 	}
-
+	rc = of_property_read_string(core_node, "parade,fw_name", &pdata->fw_name);
+	if (rc) {
+		pdata->fw_name = "tt_fw.bin";
+	}
+	printk("create_and_get_core_pdata ：fw_name:%s",pdata->fw_name);
 	for (i = 0; (unsigned int)i < ARRAY_SIZE(touch_setting_names); i++) {
 		if (touch_setting_names[i] == NULL)
 			continue;
