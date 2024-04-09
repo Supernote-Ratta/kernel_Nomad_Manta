@@ -296,7 +296,7 @@
     panel,panel_color = <0>;
     panel,width-mm = <210>;
     panel,height-mm = <157>;
-    panel,dpi = <220>;
+    panel,dpi = <300>;
     panel,vcom-mv = <1670>;
     status = "okay";
 };
@@ -1529,4 +1529,8 @@
 
 &vop_mmu {
     status = "okay";
+};
+
+&chosen {
+	bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyFIQ0 htboot.ro.product.board=A6X2";
 };

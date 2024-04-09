@@ -291,7 +291,7 @@
     panel,fsl = <1>;
     panel,fbl = <4>;
     panel,fdl = <1280>;
-    panel,fel = <15>;
+    panel,fel = <2>;
 
     panel,mirror = <0>;
     panel,panel_16bit = <1>;
@@ -1550,4 +1550,8 @@
 
 &vop_mmu {
     status = "okay";
+};
+
+&chosen {
+	bootargs = "earlycon=uart8250,mmio32,0xfe660000 console=ttyFIQ0 htboot.ro.product.board=A5X2 htboot.ro.surface_flinger.primary_display_orientation=ORIENTATION_0";
 };
