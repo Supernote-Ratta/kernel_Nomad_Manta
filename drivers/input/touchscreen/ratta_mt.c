@@ -732,18 +732,18 @@ int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long j
 		return 0;
 	}
 
-	if((key_now>=(1<<SLIDER_R_STAY))&&(tch[SLIDER_TCH_Y] == RATTA_SLIDE_LEFT)){
-		ratta_mt_clean(0x01);
-		ratta_mt_debug("%s====key_now:0x%x left nofunction\n", __func__, key_now);
-		ratta_slide_clean_keys(0x01);
-		return 0;
-	}
-	if((key_now !=0) &&(key_now<(1<<SLIDER_R_STAY))&&(tch[SLIDER_TCH_Y] == RATTA_SLIDE_RIGHT)){
-		ratta_mt_clean(0x02);
-		ratta_mt_debug("%s====key_now:0x%x right nofunction\n", __func__, key_now);
-		ratta_slide_clean_keys(0x02);
-		return 0;
-	}
+	//if((key_now>=(1<<SLIDER_R_STAY))&&(tch[SLIDER_TCH_Y] == RATTA_SLIDE_LEFT)){
+	//	ratta_mt_clean(0x01);
+	//	ratta_mt_debug("%s====key_now:0x%x left nofunction\n", __func__, key_now);
+	//	ratta_slide_clean_keys(0x01);
+	//	return 0;
+	//}
+	//if((key_now !=0) &&(key_now<(1<<SLIDER_R_STAY))&&(tch[SLIDER_TCH_Y] == RATTA_SLIDE_RIGHT)){
+	//	ratta_mt_clean(0x02);
+	//	ratta_mt_debug("%s====key_now:0x%x right nofunction\n", __func__, key_now);
+	//	ratta_slide_clean_keys(0x02);
+	//	return 0;
+	//}
 	if (!ratta_device)
 		return -ENODEV;
 	//ratta_mt_debug
