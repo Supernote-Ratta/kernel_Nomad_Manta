@@ -232,6 +232,7 @@
     panel,height-mm = <157>;
     panel,dpi = <220>;
     panel,vcom-mv = <1450>; //for OED 10.3 LANDSCAPE EPD.
+    panel,wsync = <1>;	// 20240520,add one buffer for win-sync
 };
 
 // 20220523,hsl fix: 6*fb_size + 2*lcd_size + 512K 
@@ -239,8 +240,9 @@
 // EINKX: 4612800*6 + 2*1153216 + 512*1024 = 27676800 + 2306432 + 524288 = 30507520 = 1D18200
 // 20230213: for serria-C,dither-error-buf is short. 17608192 + 2628288*2 = 22864768 = 0x15CE380
 // OED103H: 8*3763200 + 940800*2 + 524288 = 994688 + 38063104 = 39057792 = 0x253F980
+// 20240520: add 2628288 for win-sync, 0x15d0000 + 2628288 = 0x185 1AC0
 &display_reserved {
-    reg = <0x0 0x10900000 0x0 0x15d0000>;
+    reg = <0x0 0x10900000 0x0 0x1860000>;
 };
 
 &cpu0 {

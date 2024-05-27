@@ -253,13 +253,15 @@
     panel,height-mm = <157>;
     panel,dpi = <220>;
     panel,vcom-mv = <1300>;	//for OED 10.3 LANDSCAPE EPD.
+    panel,wsync = <1>;	// 20240520,add one buffer for win-sync
     status = "okay";
 };
 
 // 20220523,hsl fix: 6*fb_size + 2*lcd_size + 512K 
 // 10.3: 6*2628288 + 2*657088 + 512*1024= 17608192 = 0X10CAE00
+// 20240520: add 2628288 for win-sync, 0x15d0000 + 2628288 = 0x185 1AC0
 &display_reserved {
-    reg = <0x0 0x10900000 0x0 0x15d0000>;
+    reg = <0x0 0x10900000 0x0 0x1860000>;
 };
 
 &cpu0 {
