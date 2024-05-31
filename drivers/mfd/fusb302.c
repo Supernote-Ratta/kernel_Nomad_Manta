@@ -19,6 +19,8 @@
 #include <linux/power_supply.h>
 //#include "../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
 #include <linux/htfy_dbg.h>
+#include <linux/kthread.h>
+#include <uapi/linux/sched/types.h>
 
 #include "fusb302.h"
 
@@ -179,9 +181,9 @@ static void fusb_set_pos_power(struct fusb30x_chip *chip, int max_vol, int max_c
                 break;
             case 1:
                 /* Battery */
-                if ((CAP_VPDO_VOLTAGE(chip->rec_load[i]) * 50) <= max_vol && (CAP_VPDO_CURRENT(chip->rec_load[i]) * 10) <= max_cur) {
+                if ((CAP_VPDO_MAX_VOLTAGE(chip->rec_load[i]) * 50) <= max_vol && (CAP_VPDO_CURRENT(chip->rec_load[i]) * 10) <= max_cur) {
                     chip->pos_power = i + 1;
-                    tmp = CAP_VPDO_VOLTAGE(chip->rec_load[i]);
+                    tmp = CAP_VPDO_MAX_VOLTAGE(chip->rec_load[i]);
                     chip->pd_output_vol = tmp * 50;
                     tmp = CAP_VPDO_CURRENT(chip->rec_load[i]);
                     chip->pd_output_cur = tmp * 10;
@@ -897,6 +899,7 @@ static void set_state_unattached(struct fusb30x_chip *chip)
 static void set_mesg(struct fusb30x_chip *chip, int cmd, int is_DMT)
 {
     int i;
+    uint32_t rec_load;
     struct PD_CAP_INFO *pd_cap_info = &chip->pd_cap_info;
 
     chip->send_head = ((chip->msg_id & 0x7) << 9) | ((chip->notify.power_role & 0x1) << 8) | (1 << 6) | ((chip->notify.data_role & 0x1) << 5);
@@ -927,23 +930,49 @@ static void set_mesg(struct fusb30x_chip *chip, int cmd, int is_DMT)
                                      (0 << 25) |
                                      (0 << 24);
 
-                switch (CAP_POWER_TYPE(chip->rec_load[chip->pos_power - 1])) {
+                rec_load = chip->rec_load[chip->pos_power - 1];
+                switch (CAP_POWER_TYPE(rec_load)) {
                     case 0:
                         /* Fixed Supply */
-                        chip->send_load[0] |= ((CAP_FPDO_VOLTAGE(chip->rec_load[chip->pos_power - 1]) << 10) & 0x3ff);
-                        chip->send_load[0] |= (CAP_FPDO_CURRENT(chip->rec_load[chip->pos_power - 1]) & 0x3ff);
+                        chip->sink_supply_type = 0;
+                        chip->sink_volt = CAP_FPDO_VOLTAGE(rec_load);
+                        chip->sink_opr_cur = CAP_FPDO_CURRENT(rec_load);
+                        chip->send_load[0] |= chip->sink_volt << 10;
+                        chip->send_load[0] |= chip->sink_opr_cur;
                         break;
                     case 1:
-                        /* Battery */
-                        chip->send_load[0] |= ((CAP_VPDO_VOLTAGE(chip->rec_load[chip->pos_power - 1]) << 10) & 0x3ff);
-                        chip->send_load[0] |= (CAP_VPDO_CURRENT(chip->rec_load[chip->pos_power - 1]) & 0x3ff);
+                        /* Battery Supply */
+                        chip->sink_supply_type = 1;
+                        chip->sink_max_volt = CAP_VPDO_MAX_VOLTAGE(rec_load);
+                        chip->sink_min_volt = CAP_VPDO_MIN_VOLTAGE(rec_load);
+                        chip->sink_opr_power = CAP_VPDO_CURRENT(rec_load);
+                        chip->send_load[0] |= chip->sink_max_volt << 20;
+                        chip->send_load[0] |= chip->sink_min_volt << 10;
+                        chip->send_load[0] |= chip->sink_opr_power;
                         break;
                     default:
-                        /* not meet battery caps */
+                        dev_warn(chip->dev, "No support supply req type %d\n", CAP_POWER_TYPE(rec_load));
                         break;
                 }
                 break;
             case DMT_SINKCAPABILITIES:
+                chip->send_head |= (1 << 12) | (cmd & 0xf);
+                switch (chip->sink_supply_type) {
+                    case 0:
+                        /*
+                         * Fixed Supply
+                         * bit26 for 'USB Communiications Capable'
+                         */
+                        chip->send_load[0] = (chip->sink_supply_type << 30) | (1 << 26) | (chip->sink_volt << 10) | (chip->sink_opr_cur);
+                        break;
+                    case 1:
+                        /* Battery Supply */
+                        chip->send_load[0] = (chip->sink_supply_type << 30) | (chip->sink_max_volt << 20) | (chip->sink_min_volt << 10) | (chip->sink_opr_cur);
+                        break;
+                    default:
+                        dev_warn(chip->dev, "No support sink supply type %d\n", chip->sink_supply_type);
+                        break;
+                }
                 break;
             case DMT_VENDERDEFINED:
                 break;
@@ -2442,7 +2471,7 @@ static void fusb_state_snk_evaluate_caps(struct fusb30x_chip *chip, u32 evt)
                 break;
             case 1:
                 /* Battery */
-                if (CAP_VPDO_VOLTAGE(chip->rec_load[tmp]) <= 100) {
+                if (CAP_VPDO_MAX_VOLTAGE(chip->rec_load[tmp]) <= 100) {
                     chip->pos_power = tmp + 1;
                 }
                 break;
@@ -2527,6 +2556,12 @@ static void fusb_state_snk_transition_sink(struct fusb30x_chip *chip, u32 evt)
         if (PACKET_IS_CONTROL_MSG(chip->rec_head, CMT_PS_RDY)) {
             chip->notify.is_pd_connected = true;
             dev_info(chip->dev, "PD connected as UFP, fetching 5V\n");
+            tcpm_get_message(chip);
+            if (PACKET_IS_CONTROL_MSG(chip->rec_head, CMT_GETSINKCAP)) {
+                set_mesg(chip, DMT_SINKCAPABILITIES, DATAMESSAGE);
+                chip->tx_state = tx_idle;
+                policy_send_data(chip);
+            }
             set_state(chip, policy_snk_ready);
         } else if (PACKET_IS_DATA_MSG(chip->rec_head, DMT_SOURCECAPABILITIES)) {
             set_state(chip, policy_snk_evaluate_caps);
@@ -2574,7 +2609,11 @@ static void fusb_state_snk_transition_default(struct fusb30x_chip *chip, u32 evt
 static void fusb_state_snk_ready(struct fusb30x_chip *chip, u32 evt)
 {
     if (evt & EVENT_RX) {
-        if (PACKET_IS_DATA_MSG(chip->rec_head, DMT_VENDERDEFINED)) {
+        if (PACKET_IS_CONTROL_MSG(chip->rec_head, CMT_GETSINKCAP)) {
+            set_mesg(chip, DMT_SINKCAPABILITIES, DATAMESSAGE);
+            chip->tx_state = tx_idle;
+            policy_send_data(chip);
+        } else if (PACKET_IS_DATA_MSG(chip->rec_head, DMT_VENDERDEFINED)) {
             process_vdm_msg(chip);
             chip->work_continue |= EVENT_WORK_CONTINUE;
             chip->timer_state = T_DISABLED;
@@ -3088,14 +3127,14 @@ static void state_machine_typec(struct fusb30x_chip *chip)
 
 BACK:
     if (chip->work_continue) {
-        queue_work(chip->fusb30x_wq, &chip->work);
+        kthread_queue_work(chip->irq_worker, &chip->irq_work);
         return;
     }
 
     if (!platform_get_device_irq_state(chip)) {
         fusb_irq_enable(chip);
     } else {
-        queue_work(chip->fusb30x_wq, &chip->work);
+        kthread_queue_work(chip->irq_worker, &chip->irq_work);
     }
 }
 
@@ -3103,9 +3142,8 @@ static irqreturn_t cc_interrupt_handler(int irq, void *dev_id)
 {
     struct fusb30x_chip *chip = dev_id;
 
-    wake_lock_timeout(&chip->suspend_lock, 4 * HZ);
-    queue_work(chip->fusb30x_wq, &chip->work);
     fusb_irq_disable(chip);
+    kthread_queue_work(chip->irq_worker, &chip->irq_work);
     return IRQ_HANDLED;
 }
 
@@ -3139,14 +3177,6 @@ static int fusb_initialize_gpio(struct fusb30x_chip *chip)
         chip->gpio_discharge = NULL;
     }
 
-    chip->gpio_switch = devm_gpiod_get_optional(chip->dev, "switch", GPIOD_OUT_HIGH);
-    if (IS_ERR_OR_NULL(chip->gpio_switch)) {
-        dev_warn(chip->dev, "Could not get named GPIO for switch!\n");
-        chip->gpio_switch = NULL;
-    } else {
-        gpiod_set_value(chip->gpio_switch, 1);
-    }
-
     return 0;
 }
 
@@ -3171,7 +3201,7 @@ static enum hrtimer_restart fusb_timer_handler(struct hrtimer *timer)
     }
 
     if (i != fusb30x_port_used) {
-        queue_work(fusb30x_port_info[i]->fusb30x_wq, &fusb30x_port_info[i]->work);
+        kthread_queue_work(fusb30x_port_info[i]->irq_worker, &fusb30x_port_info[i]->irq_work);
     }
 
     return HRTIMER_NORESTART;
@@ -3189,10 +3219,11 @@ static void fusb_initialize_timer(struct fusb30x_chip *chip)
     chip->timer_mux = T_DISABLED;
 }
 
-static void fusb302_work_func(struct work_struct *work)
+static void fusb302_work_func(struct kthread_work *work)
 {
     struct fusb30x_chip *chip;
-    chip = container_of(work, struct fusb30x_chip, work);
+
+    chip = container_of(work, struct fusb30x_chip, irq_work);
     if (!chip->suspended) {
         state_machine_typec(chip);
     }
@@ -3319,6 +3350,7 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
 {
     struct fusb30x_chip *chip;
     struct PD_CAP_INFO *pd_cap_info;
+    struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
     int ret;
     char *string[2];
 
@@ -3348,8 +3380,12 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
 
     fusb_initialize_timer(chip);
 
-    chip->fusb30x_wq = create_workqueue("fusb302_wq");
-    INIT_WORK(&chip->work, fusb302_work_func);
+    chip->irq_worker = kthread_create_worker(0, dev_name(chip->dev));
+    if (IS_ERR(chip->irq_worker)) {
+        return PTR_ERR(chip->irq_worker);
+    }
+    sched_setscheduler_nocheck(chip->irq_worker->task, SCHED_FIFO, &param);
+    kthread_init_work(&chip->irq_work, fusb302_work_func);
 
     chip->role = ROLE_MODE_NONE;
     chip->try_role = ROLE_MODE_NONE;
@@ -3396,6 +3432,8 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
     chip->n_caps_used = 1;
     chip->source_power_supply[0] = 0x64;
     chip->source_max_current[0] = 0x96;
+    chip->sink_volt = 100;
+    chip->sink_opr_cur = 200;
 
     pd_cap_info = &chip->pd_cap_info;
     pd_cap_info->dual_role_power = 1;
@@ -3462,7 +3500,6 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
     }
 
     i2c_set_clientdata(client, chip);
-    wake_lock_init(&chip->suspend_lock, WAKE_LOCK_SUSPEND, "fusb302");
 
     spin_lock_init(&chip->irq_lock);
     chip->enable_irq = 1;
@@ -3474,7 +3511,7 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
         goto IRQ_ERR;
     }
 
-    ret = devm_request_threaded_irq(&client->dev, chip->gpio_int_irq, NULL, cc_interrupt_handler, IRQF_ONESHOT | IRQF_TRIGGER_LOW, client->name, chip);
+    ret = request_irq(chip->gpio_int_irq, cc_interrupt_handler, IRQF_TRIGGER_LOW, "fsc_interrupt_int_n", chip);
     if (ret) {
         dev_err(&client->dev, "irq request failed\n");
         goto IRQ_ERR;
@@ -3499,10 +3536,6 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
         dev_err(chip->dev, "Can't register input device: %d\n", ret);
         goto IRQ_ERR;
     }
-    ret = device_init_wakeup(&client->dev, true);
-    if (ret < 0) {
-        dev_err(&client->dev, "%s: Error, device_init_wakeup rc:%d\n", __func__, ret);
-    }
     //enable_irq_wake(chip->gpio_int_irq);//chip->gpio_int_irq client->irq
 
     /* changed: tower for deep sleep the type c power will down, so when screen on we will init cc again. */
@@ -3522,7 +3555,7 @@ static int fusb30x_probe(struct i2c_client *client, const struct i2c_device_id *
 
     return 0;
 IRQ_ERR:
-    destroy_workqueue(chip->fusb30x_wq);
+    kthread_destroy_worker(chip->irq_worker);
     return ret;
 }
 
@@ -3530,7 +3563,8 @@ static int fusb30x_remove(struct i2c_client *client)
 {
     struct fusb30x_chip *chip = i2c_get_clientdata(client);
 
-    destroy_workqueue(chip->fusb30x_wq);
+    free_irq(chip->gpio_int_irq, chip);
+    kthread_destroy_worker(chip->irq_worker);
     return 0;
 }
 
@@ -3557,7 +3591,7 @@ static int fusb30x_pm_suspend(struct device *dev)
         dev_dbg(dev, " suspend irq disable\n");
         fusb_irq_disable(chip);
         chip->suspended = true;
-        cancel_work_sync(&chip->work);
+        kthread_cancel_work_sync(&chip->irq_work);
     } else {
         dev_dbg(dev, " suspend enable irq wake.\n");
         if (device_may_wakeup(dev)) {
@@ -3579,7 +3613,7 @@ static int fusb30x_pm_resume(struct device *dev)
         dev_dbg(dev, "resume irq enable.\n");
         fusb_irq_enable(chip);
         chip->suspended = false;
-        queue_work(chip->fusb30x_wq, &chip->work);
+        kthread_queue_work(chip->irq_worker, &chip->irq_work);
     } else {
         dev_dbg(dev, "resume disable irq wake\n");
         if (device_may_wakeup(dev)) {
