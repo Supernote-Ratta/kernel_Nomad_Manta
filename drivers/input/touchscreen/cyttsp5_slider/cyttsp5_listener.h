@@ -9,6 +9,7 @@
 #define SLIDER_NEW
 #ifdef SLIDER_NEW
 int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long jiffs);
+int ratta_mt_clean_attime(int left_right);
 extern int ratta_mt_probe(struct device *dev);
 extern int slider_mask;
 #else

@@ -160,6 +160,7 @@ struct cyttsp5_mt_platform_data {
     int swap_x;
     int swap_y;
     int xy_exchange;
+	unsigned short isa5;
 };
 
 struct cyttsp5_btn_platform_data {

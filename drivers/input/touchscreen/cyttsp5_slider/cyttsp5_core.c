@@ -37,6 +37,7 @@
 #endif
 static struct cyttsp5_core_data *priv_data;
 #define CY_CORE_STARTUP_RETRY_COUNT		3
+#define CYTTSP5_SLIDER_DRV_VER "240626"
 
 MODULE_FIRMWARE(CY_FW_FILE_NAME);
 
@@ -6343,6 +6344,9 @@ static void cyttsp5_setup_early_suspend(struct cyttsp5_core_data *cd)
 }
 #endif
 #if 1 //defined(CONFIG_FB)
+extern void ratta_mt_clean(int mask);
+extern void ratta_slide_clean_keys(int mask);
+
 static int cyttsp5_fb_notifier_callback(struct notifier_block *self,
 		unsigned long event, void *data)
 {
@@ -6389,8 +6393,12 @@ static int cyttsp5_fb_notifier_callback(struct notifier_block *self,
 			disable_irq_wake(cd->irq);
             cd->irq_disabled = 1;
         }
+		cd->r_x = 0;
+		cd->l_x = 0;
 		if (rst_gpio)
 		gpio_set_value(rst_gpio, 0); //tanlq 230425
+		ratta_mt_clean(3);
+		ratta_slide_clean_keys(3);
     //} else if (EINK_NOTIFY_TP_POWERON == event) {
     } else if (EINK_NOTIFY_EVENT_SCREEN_ON == event) {
 		//printk("cyttsp5_fb_notifier_callback :event=EINK_NOTIFY_TP_POWERON\n");
@@ -6461,6 +6469,7 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
 	struct cyttsp5_platform_data *pdata = dev_get_platdata(dev);
 	enum cyttsp5_atten_type type;
 	int rc = 0;
+	printk("%s: >>>>>> %s <<<<<<\n", __func__,CYTTSP5_SLIDER_DRV_VER);
 
 	/* Set default values on first probe */
 	if (cyttsp5_first_probe) {
