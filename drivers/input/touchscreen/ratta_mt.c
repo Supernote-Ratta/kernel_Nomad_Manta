@@ -2,7 +2,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/input.h>
-#define SLIDER_DRV_VER "231123"
+#define SLIDER_DRV_VER "240626"
 // 230919:1.双指bug
 //		  2.F13、F14上报
 // 230922:1.双指左右分开
@@ -181,7 +181,7 @@ static void ratta_report_slide_updown(int code,int down)
 	}
 }
 
-static void ratta_slide_clean_keys(int mask)
+void ratta_slide_clean_keys(int mask)
 {
 	int i;
 
@@ -252,7 +252,7 @@ static void ratta_slide_clean_keys_except(int mask,int exceptkey)
 
 }
 
-static void ratta_mt_clean(int mask)
+void ratta_mt_clean(int mask)
 {
 	int record_num,i,j;
 	for (i = 0; i < RATTA_MAX_FINGERS; i++) {	
@@ -692,6 +692,24 @@ static void ratta_mt_parse(int track)
 			return ;
 		}
 	}
+}
+
+int ratta_mt_clean_attime(int left_right)
+{
+	//printk("====key_now:0x%x y:%d (1<<SLIDER_R_STAY):0x%x\n", key_now,tch[SLIDER_TCH_Y], (1<<SLIDER_R_STAY));
+	if((left_right==1)&&(key_now&0x003FF)){
+		ratta_mt_clean(0x01);
+		ratta_slide_clean_keys(0x01);
+		ratta_mt_debug("%s====slider_left_down:0x%x \n", __func__, slider_left_down);
+		//return 0;
+	}
+	if((left_right==2)&&(key_now&0xFFC00)){
+		ratta_mt_clean(0x02);
+		ratta_slide_clean_keys(0x02);
+		ratta_mt_debug("%s====slider_right_down:0x%x \n", __func__, slider_left_down);
+		//return 0;
+	}
+	return 0;
 }
 
 /*
