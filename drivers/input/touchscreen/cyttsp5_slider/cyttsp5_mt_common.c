@@ -52,7 +52,7 @@ enum trace_left_right {
 	TRACE_RIGHT,
 };
 
-int slider_left = 0, slider_right = 0;
+unsigned int slider_left= 0,slider_right = 0; //after slider down 100ms,record l_x r_x
 int slider_left_down = 0, slider_right_down = 0;
 int t_lr[8]={0,0,0,0,0,0,0,0};
 
@@ -63,9 +63,24 @@ static void cyttsp5_filter_left_work(struct work_struct *work)
 			struct cyttsp5_mt_data, filter_left_delay_work.work);
 	struct device *dev = md->dev;
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
-	//printk("%s: slider_left=%d\n", __func__, slider_left);
-
+	int i,j;
+	cd->l_x = 0;
+	j = 0;
+	for(i=0;i<4;i++){
+		if(cd->l_x_l & (0xff<<8*i)){
+			cd->l_x += (((cd->l_x_l & (0xff<<8*i))>>8*i)<<8*j);
+			j++;
+		}
+	}
+	for(i=0;i<4;i++){
+		if(cd->l_x_h & (0xff<<8*i)){
+			cd->l_x += (((cd->l_x_h & (0xff<<8*i))>>8*i)<<8*j);
+			j++;
+		}
+	}
 	slider_left = cd->l_x;
+    //printk("%s: slider_left=%d\n", __func__, slider_left);
+
 
 }
 static void cyttsp5_filter_right_work(struct work_struct *work)
@@ -74,24 +89,56 @@ static void cyttsp5_filter_right_work(struct work_struct *work)
 			struct cyttsp5_mt_data, filter_right_delay_work.work);
 	struct device *dev = md->dev;
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
-
-	//printk("%s: slider_right=%d\n", __func__, slider_right);
+	int i,j;
+	cd->r_x = 0;
+	j = 0;
+	for(i=0;i<4;i++){
+		if(cd->r_x_l & (0xff<<8*i)){
+			cd->r_x += (((cd->r_x_l & (0xff<<8*i))>>8*i)<<8*j);
+			j++;
+		}
+	}
+	for(i=0;i<4;i++){
+		if(cd->r_x_h & (0xff<<8*i)){
+			cd->r_x += (((cd->r_x_h & (0xff<<8*i))>>8*i)<<8*j);
+			j++;
+		}
+	}
 	slider_right = cd->r_x;
+    //printk("%s: slider_right=%d\n", __func__, slider_right);
+
 
 }
 static void cyttsp5_down_left_work(struct work_struct *work)
 {
+	struct cyttsp5_mt_data *md = container_of(work,
+			struct cyttsp5_mt_data, down_left_delay_work.work);
+	struct device *dev = md->dev;
+	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
+
 	printk("%s: slider_left_down=%d\n", __func__, slider_left_down);
 	slider_left_down = 0;
 	ratta_mt_clean_attime(1);
+	cd->l_x_l = 0;
+	cd->l_x_h = 0;
+	cd->l_x = 0;
+	slider_left = cd->l_x;
 
 }
 static void cyttsp5_down_right_work(struct work_struct *work)
 {
+	//struct cyttsp5_mt_data *md = container_of(work,
+	//		struct cyttsp5_mt_data, down_right_delay_work.work);
+	//struct device *dev = md->dev;
+	//struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
+
 	printk("%s: slider_right_down=%d\n", __func__, slider_right_down);
 	slider_right_down = 0;
 	ratta_mt_clean_attime(2);
-
+	//cd->r_x_l = 0;
+	//cd->r_x_h = 0;
+	//cd->r_x = 0;
+	//slider_right = cd->r_x;
 }
 
 static void cyttsp5_mt_lift_all(struct cyttsp5_mt_data *md)
@@ -257,7 +304,7 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 	struct cyttsp5_sysinfo *si = md->si;
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 	int sig;
-	int i, j, k, t = 0;
+	int i, j, k, l, m, t = 0, t_trace;
 	DECLARE_BITMAP(ids, si->tch_abs[CY_TCH_T].max);
 	int mt_sync_count = 0;
 	u8 *tch_addr;
@@ -266,6 +313,7 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 	bitmap_zero(ids, si->tch_abs[CY_TCH_T].max);
 	memset(tch->abs, 0, sizeof(tch->abs));
 	memset(&tchslider.abs, 0, sizeof(tchslider.abs));
+	//printk("%s==== \n", __func__);
 
 	for (i = 0; i < num_cur_tch; i++) {
 		tch_addr = si->xy_data + (i * si->desc.tch_record_size);
@@ -303,6 +351,63 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 			tchslider.abs[CY_TCH_X] = tch->abs[CY_TCH_Y];
 		}
 		/* Lift-off */
+		if(tchslider.abs[CY_TCH_T]>3){
+			t_trace = tchslider.abs[CY_TCH_T]-4;
+		}else{
+			t_trace = tchslider.abs[CY_TCH_T];
+		}
+		if(slider_mask&0x01){
+			if(t_lr[tchslider.abs[CY_TCH_T]]==TRACE_LEFT){
+				slider_left_down = 0;
+				ratta_mt_clean_attime(1);
+				cd->l_x_l = 0;
+				cd->l_x_h = 0;
+				cd->l_x = 0;
+				slider_left = cd->l_x;
+				printk("%s====slider_mask:0x%x \n", __func__, slider_mask);
+				if((cd->ft_mode == 0)||(cd->ft_mode == 2)){
+					continue;  // 111111111 report key
+				}else{
+					goto cyttsp5_get_mt_touches_pr_tch; //111111111111
+				}
+			}else if((tchslider.abs[CY_TCH_Y]==30)&&(t_lr[tchslider.abs[CY_TCH_T]]==TRACE_RIGHT)){
+			//right->left,run record liftoff
+			}else if(tchslider.abs[CY_TCH_Y]==30){
+			//first down
+				printk("%s====slider_mask:0x%x \n", __func__, slider_mask);
+				if((cd->ft_mode == 0)||(cd->ft_mode == 2)){
+					continue;  // 111111111 report key
+				}else{
+					goto cyttsp5_get_mt_touches_pr_tch; //111111111111
+				}
+			}
+		}
+		if(slider_mask&0x02){
+			if(t_lr[tchslider.abs[CY_TCH_T]]==TRACE_RIGHT){
+				slider_right_down = 0;
+				ratta_mt_clean_attime(2);
+				cd->r_x_l = 0;
+				cd->r_x_h = 0;
+				cd->r_x = 0;
+				slider_right = cd->r_x;
+				printk("%s====slider_mask:0x%x \n", __func__, slider_mask);
+				if((cd->ft_mode == 0)||(cd->ft_mode == 2)){
+					continue;  // 111111111 report key
+				}else{
+					goto cyttsp5_get_mt_touches_pr_tch; //111111111111
+				}
+			}else if((tchslider.abs[CY_TCH_Y]==70)&&(t_lr[tchslider.abs[CY_TCH_T]]==TRACE_LEFT)){
+			//left->right,run record liftoff
+			}else if(tchslider.abs[CY_TCH_Y]==70){
+			//first down
+				printk("%s====slider_mask:0x%x \n", __func__, slider_mask);
+				if((cd->ft_mode == 0)||(cd->ft_mode == 2)){
+					continue;  // 111111111 report key
+				}else{
+					goto cyttsp5_get_mt_touches_pr_tch; //111111111111
+				}
+			}
+		}
 		if (tchslider.abs[CY_TCH_E] == CY_EV_LIFTOFF) {
 			parade_debug(dev, DEBUG_LEVEL_2, "%s: t=%d e=%d tip=%d lift-off\n",
 				__func__, t, tchslider.abs[CY_TCH_E], tchslider.abs[CY_TCH_TIP]);
@@ -310,59 +415,135 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 			printk("=====%s tip=0 t:%d X:%x Y:%x\n",__func__,tchslider.abs[CY_TCH_T],tchslider.abs[CY_TCH_X],tchslider.abs[CY_TCH_Y]);
 			if(((t_lr[tchslider.abs[CY_TCH_T]]==TRACE_LEFT)&&(tchslider.abs[CY_TCH_Y]!=30))||((t_lr[tchslider.abs[CY_TCH_T]]==TRACE_RIGHT)&&(tchslider.abs[CY_TCH_Y]!=70))){
 				if(t_lr[tchslider.abs[CY_TCH_T]]==TRACE_LEFT){
-					for(k=(8*tchslider.abs[CY_TCH_T]);k<((8*tchslider.abs[CY_TCH_T])+8);k++){
-						cd->l_x &= ~(1<<k);
-						if(cd->l_x==0){
+					for(k=(8*t_trace);k<((8*t_trace)+8);k++){
+						if(tchslider.abs[CY_TCH_T]<4){
+							cd->l_x_l &= ~(1<<k);
+						}else{
+							cd->l_x_h &= ~(1<<k);
+						}
+						if((cd->l_x_l+cd->l_x_h)==0){
 							parade_debug(dev, DEBUG_LEVEL_2,"=====%s cancel_delayed_work filter_left\n",__func__);
 							cancel_delayed_work(&md->filter_left_delay_work);
+							cd->l_x = 0;
 							slider_left = cd->l_x;
 						}else if(slider_left != 0){
+							cd->l_x = 0;
+							m = 0;
+							for(l=0;l<4;l++){
+								if(cd->l_x_l & (0xff<<8*l)){
+									cd->l_x += (((cd->l_x_l & (0xff<<8*l))>>8*l)<<8*m);
+									m++;
+								}
+							}
+							for(l=0;l<4;l++){
+								if(cd->l_x_h & (0xff<<8*l)){
+									cd->l_x += (((cd->l_x_h & (0xff<<8*l))>>8*l)<<8*m);
+									m++;
+								}
+							}		
 							slider_left = cd->l_x;
 						}
 					}
 					tchslider.abs[CY_TCH_Y] = 30;
-					t_lr[tchslider.abs[CY_TCH_T]]=TRACE_NONE;
+					//t_lr[tchslider.abs[CY_TCH_T]]=TRACE_NONE;
 					printk("=====%s tip=0 slider_left:%lx\n",__func__,slider_left);
 				}else if(t_lr[tchslider.abs[CY_TCH_T]]==TRACE_RIGHT){
-					for(k=(8*tchslider.abs[CY_TCH_T]);k<((8*tchslider.abs[CY_TCH_T])+8);k++){
-						cd->r_x &= ~(1<<k);
-						if(cd->r_x==0){
+					for(k=(8*t_trace);k<((8*t_trace)+8);k++){
+						if(tchslider.abs[CY_TCH_T]<4){
+							cd->r_x_l &= ~(1<<k);
+						}else{
+							cd->r_x_h &= ~(1<<k);
+						}
+						if((cd->r_x_l+cd->r_x_h)==0){
 							parade_debug(dev, DEBUG_LEVEL_2,"=====%s cancel_delayed_work filter_right\n",__func__);
 							cancel_delayed_work(&md->filter_right_delay_work);
+							cd->r_x = 0;
 							slider_right = cd->r_x;
 						}else if(slider_right != 0){
+							cd->r_x = 0;
+							m = 0;
+							for(l=0;l<4;l++){
+								if(cd->r_x_l & (0xff<<8*l)){
+									cd->r_x += (((cd->r_x_l & (0xff<<8*l))>>8*l)<<8*m);
+									m++;
+								}
+							}
+							for(l=0;l<4;l++){
+								if(cd->r_x_h & (0xff<<8*l)){
+									cd->r_x += (((cd->r_x_h & (0xff<<8*l))>>8*l)<<8*m);
+									m++;
+								}
+							}
 							slider_right = cd->r_x;
 						}
 					}
 					tchslider.abs[CY_TCH_Y] = 70;
-					t_lr[tchslider.abs[CY_TCH_T]]=TRACE_NONE;
+					//t_lr[tchslider.abs[CY_TCH_T]]=TRACE_NONE;
 					printk("=====%s tip=0 slider_right:%lx\n",__func__,slider_right);
 				}
 			}else if(tchslider.abs[CY_TCH_Y]==30){
-				for(k=(8*tchslider.abs[CY_TCH_T]);k<((8*tchslider.abs[CY_TCH_T])+8);k++){
-					cd->l_x &= ~(1<<k);
-					if(cd->l_x==0){
+				for(k=(8*t_trace);k<((8*t_trace)+8);k++){
+					if(tchslider.abs[CY_TCH_T]<4){
+						cd->l_x_l &= ~(1<<k);
+					}else{
+						cd->l_x_h &= ~(1<<k);
+					}
+					if((cd->l_x_l+cd->l_x_h)==0){
 						parade_debug(dev, DEBUG_LEVEL_2,"=====%s cancel_delayed_work filter_left\n",__func__);
 						cancel_delayed_work(&md->filter_left_delay_work);
+						cd->l_x = 0;
 						slider_left = cd->l_x;
 					}else if(slider_left != 0){
+						cd->l_x = 0;
+						m = 0;
+						for(l=0;l<4;l++){
+							if(cd->l_x_l & (0xff<<8*l)){
+								cd->l_x += (((cd->l_x_l & (0xff<<8*l))>>8*l)<<8*m);
+								m++;
+							}
+						}
+						for(l=0;l<4;l++){
+							if(cd->l_x_h & (0xff<<8*l)){
+								cd->l_x += (((cd->l_x_h & (0xff<<8*l))>>8*l)<<8*m);
+								m++;
+							}
+						}		
 						slider_left = cd->l_x;
 					}
 				}
-				t_lr[tchslider.abs[CY_TCH_T]]=TRACE_NONE;
+				//t_lr[tchslider.abs[CY_TCH_T]]=TRACE_NONE;
                 printk("=====%s tip=0 slider_left:%lx\n",__func__,slider_left);
 			}else if(tchslider.abs[CY_TCH_Y]==70){
-				for(k=(8*tchslider.abs[CY_TCH_T]);k<((8*tchslider.abs[CY_TCH_T])+8);k++){
-					cd->r_x &= ~(1<<k);
-					if(cd->r_x==0){
+				for(k=(8*t_trace);k<((8*t_trace)+8);k++){
+					if(tchslider.abs[CY_TCH_T]<4){
+						cd->r_x_l &= ~(1<<k);
+					}else{
+						cd->r_x_h &= ~(1<<k);
+					}
+					if((cd->r_x_l+cd->r_x_h)==0){
 						parade_debug(dev, DEBUG_LEVEL_2,"=====%s cancel_delayed_work filter_right\n",__func__);
 						cancel_delayed_work(&md->filter_right_delay_work);
+						cd->r_x = 0;
 						slider_right = cd->r_x;
 					}else if(slider_right != 0){
+						cd->r_x = 0;
+						m = 0;
+						for(l=0;l<4;l++){
+							if(cd->r_x_l & (0xff<<8*l)){
+								cd->r_x += (((cd->r_x_l & (0xff<<8*l))>>8*l)<<8*m);
+								m++;
+							}
+						}
+						for(l=0;l<4;l++){
+							if(cd->r_x_h & (0xff<<8*l)){
+								cd->r_x += (((cd->r_x_h & (0xff<<8*l))>>8*l)<<8*m);
+								m++;
+							}
+						}
 						slider_right = cd->r_x;
 					}
 				}
-				t_lr[tchslider.abs[CY_TCH_T]]=TRACE_NONE;
+				//t_lr[tchslider.abs[CY_TCH_T]]=TRACE_NONE;
 				printk("=====%s tip=0 slider_right:%lx\n",__func__,slider_right);
 			}
 
@@ -389,69 +570,162 @@ static void cyttsp5_get_mt_touches(struct cyttsp5_mt_data *md,
 #endif
 		}
 #ifdef SLIDER_NEW
-printk("%s t:%d X:%x Y:%x tip:%d \n",__func__,tchslider.abs[CY_TCH_T],tchslider.abs[CY_TCH_X],tchslider.abs[CY_TCH_Y],tchslider.abs[CY_TCH_TIP]);
+printk("%s left_right:%d t:%d X:%x Y:%x tip:%d t_trace:%d\n",__func__,t_lr[tchslider.abs[CY_TCH_T]],tchslider.abs[CY_TCH_T],tchslider.abs[CY_TCH_X],tchslider.abs[CY_TCH_Y],tchslider.abs[CY_TCH_TIP],t_trace);
 		if(((t_lr[tchslider.abs[CY_TCH_T]]==TRACE_LEFT)&&(tchslider.abs[CY_TCH_Y]!=30))||((t_lr[tchslider.abs[CY_TCH_T]]==TRACE_RIGHT)&&(tchslider.abs[CY_TCH_Y]!=70))){
 			if(t_lr[tchslider.abs[CY_TCH_T]]==TRACE_LEFT){
-				for(k=(8*tchslider.abs[CY_TCH_T]);k<((8*tchslider.abs[CY_TCH_T])+8);k++){
-					cd->l_x &= ~(1<<k);
-					if(cd->l_x==0){
-						parade_debug(dev, DEBUG_LEVEL_2,"=====%s cancel_delayed_work filter_left\n",__func__);
-						cancel_delayed_work(&md->filter_left_delay_work);
-						slider_left = cd->l_x;
-					}else if(slider_left != 0){
-						slider_left = cd->l_x;
-					}	
-				}
-				tchslider.abs[CY_TCH_E] = CY_EV_LIFTOFF;
-				tchslider.abs[CY_TCH_Y] = 30;
-				t_lr[tchslider.abs[CY_TCH_T]]=TRACE_NONE;
-				printk("=====%s tip=0 slider_left:%lx\n",__func__,slider_left);
-			}else if(t_lr[tchslider.abs[CY_TCH_T]]==TRACE_RIGHT){
-				for(k=(8*tchslider.abs[CY_TCH_T]);k<((8*tchslider.abs[CY_TCH_T])+8);k++){
-					cd->r_x &= ~(1<<k);
-					if(cd->r_x==0){
-						parade_debug(dev, DEBUG_LEVEL_2,"=====%s cancel_delayed_work filter_right\n",__func__);
-						cancel_delayed_work(&md->filter_right_delay_work);
-						slider_right = cd->r_x;
-					}else if(slider_right != 0){
-						slider_right = cd->r_x;
+				for(k=(8*t_trace);k<((8*t_trace)+8);k++){
+					if(tchslider.abs[CY_TCH_T]<4){
+						cd->l_x_l &= ~(1<<k);
+					}else{
+						cd->l_x_h &= ~(1<<k);
 					}
 				}
+				if((cd->l_x_l+cd->l_x_h)==0){
+					parade_debug(dev, DEBUG_LEVEL_2,"=====%s cancel_delayed_work filter_left\n",__func__);
+					cancel_delayed_work(&md->filter_left_delay_work);
+					cd->l_x = 0;
+					slider_left = cd->l_x;
+				}else if(slider_left != 0){
+					cd->l_x = 0;
+					m = 0;
+					for(l=0;l<4;l++){
+						if(cd->l_x_l & (0xff<<8*l)){
+							cd->l_x += (((cd->l_x_l & (0xff<<8*l))>>8*l)<<8*m);
+							m++;
+						}
+					}
+					for(l=0;l<4;l++){
+						if(cd->l_x_h & (0xff<<8*l)){
+							cd->l_x += (((cd->l_x_h & (0xff<<8*l))>>8*l)<<8*m);
+							m++;
+						}
+					}		
+					slider_left = cd->l_x;
+				}	
 				tchslider.abs[CY_TCH_E] = CY_EV_LIFTOFF;
+				tchslider.abs[CY_TCH_TIP] = 0;
+				tchslider.abs[CY_TCH_Y] = 30;
+				//t_lr[tchslider.abs[CY_TCH_T]]=TRACE_NONE;
+				printk("=====%s tip=0 slider_left:%lx\n",__func__,slider_left);
+			}else if(t_lr[tchslider.abs[CY_TCH_T]]==TRACE_RIGHT){
+				for(k=(8*t_trace);k<((8*t_trace)+8);k++){
+					if(tchslider.abs[CY_TCH_T]<4){
+						cd->r_x_l &= ~(1<<k);
+					}else{
+						cd->r_x_h &= ~(1<<k);
+					}
+				}
+				if((cd->r_x_l+cd->r_x_h)==0){
+					parade_debug(dev, DEBUG_LEVEL_2,"=====%s cancel_delayed_work filter_right\n",__func__);
+					cancel_delayed_work(&md->filter_right_delay_work);
+					cd->r_x = 0;
+					slider_right = cd->r_x;
+				}else if(slider_right != 0){
+					cd->r_x = 0;
+					m = 0;
+					for(l=0;l<4;l++){
+						if(cd->r_x_l & (0xff<<8*l)){
+							cd->r_x += (((cd->r_x_l & (0xff<<8*l))>>8*l)<<8*m);
+							m++;
+						}
+					}
+					for(l=0;l<4;l++){
+						if(cd->r_x_h & (0xff<<8*l)){
+							cd->r_x += (((cd->r_x_h & (0xff<<8*l))>>8*l)<<8*m);
+							m++;
+						}
+					}
+					slider_right = cd->r_x;
+				}
+				tchslider.abs[CY_TCH_E] = CY_EV_LIFTOFF;
+				tchslider.abs[CY_TCH_TIP] = 0;
 				tchslider.abs[CY_TCH_Y] = 70;
-				t_lr[tchslider.abs[CY_TCH_T]]=TRACE_NONE;
+				//t_lr[tchslider.abs[CY_TCH_T]]=TRACE_NONE;
 				printk("=====%s tip=0 slider_right:%lx\n",__func__,slider_right);
 			}
+		}else if(tchslider.abs[CY_TCH_X]>240){
+			continue;
 		}else if(tchslider.abs[CY_TCH_Y]==30){
-			for(k=(8*tchslider.abs[CY_TCH_T]);k<((8*tchslider.abs[CY_TCH_T])+8);k++){
-				cd->l_x &= ~(1<<k);
+			for(k=(8*t_trace);k<((8*t_trace)+8);k++){
+				if(tchslider.abs[CY_TCH_T]<4){
+					cd->l_x_l &= ~(1<<k);
+				}else{
+					cd->l_x_h &= ~(1<<k);
+				}
 			}
-			cd->l_x += tchslider.abs[CY_TCH_X]<<(8*tchslider.abs[CY_TCH_T]);
+			if(tchslider.abs[CY_TCH_T]<4){
+				cd->l_x_l += (tchslider.abs[CY_TCH_X]<<(8*t_trace));
+			}
+			else{
+				cd->l_x_h += (tchslider.abs[CY_TCH_X]<<(8*t_trace));
+			}
+			cd->l_x = 0;
+			m = 0;
+			for(l=0;l<4;l++){
+				if(cd->l_x_l & (0xff<<8*l)){
+					cd->l_x += (((cd->l_x_l & (0xff<<8*l))>>8*l)<<8*m);
+					m++;
+				}
+			}
+			for(l=0;l<4;l++){
+				if(cd->l_x_h & (0xff<<8*l)){
+					cd->l_x += (((cd->l_x_h & (0xff<<8*l))>>8*l)<<8*m);
+					m++;
+				}
+			}		
 			if(l_x_pre == 0)
 				schedule_delayed_work(&md->filter_left_delay_work, msecs_to_jiffies(100));
 			cancel_delayed_work(&md->down_left_delay_work);
 			schedule_delayed_work(&md->down_left_delay_work, msecs_to_jiffies(100));
 			slider_left_down = 1;
-			t_lr[tchslider.abs[CY_TCH_T]]=TRACE_LEFT;
+			//t_lr[tchslider.abs[CY_TCH_T]]=TRACE_LEFT;
             printk("=====%s cd->l_x:%lx\n",__func__,cd->l_x);
 		}else if(tchslider.abs[CY_TCH_Y]==70){
-			for(k=(8*tchslider.abs[CY_TCH_T]);k<((8*tchslider.abs[CY_TCH_T])+8);k++){
-				cd->r_x &= ~(1<<k);
+			for(k=(8*t_trace);k<((8*t_trace)+8);k++){
+				if(tchslider.abs[CY_TCH_T]<4){
+					cd->r_x_l &= ~(1<<k);
+				}else{
+					cd->r_x_h &= ~(1<<k);
+				}
 			}
-			cd->r_x += tchslider.abs[CY_TCH_X]<<(8*tchslider.abs[CY_TCH_T]);
+			if(tchslider.abs[CY_TCH_T]<4){
+				cd->r_x_l += (tchslider.abs[CY_TCH_X]<<(8*t_trace));
+			}
+			else{
+				cd->r_x_h += (tchslider.abs[CY_TCH_X]<<(8*t_trace));
+			}
+			cd->r_x = 0;
+			m = 0;
+			for(l=0;l<4;l++){
+				if(cd->r_x_l & (0xff<<8*l)){
+					cd->r_x += (((cd->r_x_l & (0xff<<8*l))>>8*l)<<8*m);
+					m++;
+				}
+			}
+			for(l=0;l<4;l++){
+				if(cd->r_x_h & (0xff<<8*l)){
+					cd->r_x += (((cd->r_x_h & (0xff<<8*l))>>8*l)<<8*m);
+					m++;
+				}
+			}
+
 			if(r_x_pre == 0)
 				schedule_delayed_work(&md->filter_right_delay_work, msecs_to_jiffies(100));
 			cancel_delayed_work(&md->down_right_delay_work);
 			schedule_delayed_work(&md->down_right_delay_work, msecs_to_jiffies(100));
 			slider_right_down = 1;
-			t_lr[tchslider.abs[CY_TCH_T]]=TRACE_RIGHT;
+			//t_lr[tchslider.abs[CY_TCH_T]]=TRACE_RIGHT;
             printk("=====%s cd->r_x:%lx\n",__func__,cd->r_x);
 		}
 		//0: report key 1:report x,y 2:report null
 		if(cd->ft_mode == 0){
 			if((tchslider.abs[CY_TCH_Y] == 30)||(tchslider.abs[CY_TCH_Y] == 70)){ 
 				//240624 Sometimes,new touch is not left or right,do nothing
-				ratta_mt_record(0,1,t,tchslider.abs,jiffies);
+				//240710 slider x > 240 ,not report down
+				if((tchslider.abs[CY_TCH_X]>240)&&(tchslider.abs[CY_TCH_E] != CY_EV_LIFTOFF)){
+				}else{
+					ratta_mt_record(0,1,t,tchslider.abs,jiffies);
+				}
 			}
 		}
 		if((cd->ft_mode == 0)||(cd->ft_mode == 2)){

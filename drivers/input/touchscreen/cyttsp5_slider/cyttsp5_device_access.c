@@ -1598,9 +1598,11 @@ start_testing:
 	result->cm_test_pass = true;
 	result->cp_test_pass = true;
 	/*stop watchdog*/
+#ifdef CYTTSP_WATCHDOG_DELAY_ENBALE
 	rc = cmd->request_stop_wd(dev);
 	if (rc)
 		dev_err(dev, "stop watchdog failed");
+#endif
 	/*force single tx*/
 	rc = cmd->nonhid_cmd->set_param(dev, 0, 0x1F, 1, 1);
 	if (rc)
@@ -1678,11 +1680,12 @@ start_testing:
 	if (self_test_id_supported)
 		dev_err(dev, "cyttsp5_get_cmcp_info failed");
 
+#ifdef CYTTSP_WATCHDOG_DELAY_ENBALE
 	/*start  watchdog*/
 	rc = cmd->request_start_wd(dev);
 	if (rc)
 		dev_err(dev, "start watchdog failed");
-
+#endif
 	if (self_test_id_supported)
 		goto self_test_id_failed;
 
@@ -4684,7 +4687,7 @@ static int cyttsp5_setup_sysfs(struct device *dev)
 		goto unregister_status;
 	}
 
-	dad->base_dentry = debugfs_create_dir(dev_name(dev), NULL);
+	dad->base_dentry = debugfs_create_dir("cyttsp5", NULL);
 	if (IS_ERR_OR_NULL(dad->base_dentry)) {
 		dev_err(dev, "%s: Error, could not create base directory\n",
 				__func__);
@@ -4788,7 +4791,7 @@ static int cyttsp5_setup_sysfs(struct device *dev)
 		dev_err(dev, "%s: Error, could not create get_panel_data\n",
 				__func__);
 		dad->tthe_get_panel_data_debugfs = NULL;
-		goto unregister_base_dir;
+		//goto unregister_base_dir;
 	}
 #endif
 

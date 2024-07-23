@@ -33,6 +33,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/platform_data/i2c-hid.h>
 #include <linux/htfy_dbg.h> 
+
+#include <linux/gpio.h>
+
 #include "../hid-ids.h"
 #include "i2c-hid.h"
 
@@ -1413,7 +1416,13 @@ static int wacom_hid_suspend(struct device *dev)
         if (device_may_wakeup(dev)) {
             enable_irq_wake(ihid->detect_irq);
         }
-    }
+    }else{
+	    // rst 设置默认电平
+		if (!IS_ERR(ihid->gpiod_rst)) {
+			gpiod_direction_output(ihid->gpiod_rst, GPIOD_OUT_HIGH);
+	    }
+		wacom_hid_dbg(ihid, "%s reset low \n ", __func__);
+	}
 
     return 0;
 }
@@ -1422,13 +1431,30 @@ static int wacom_hid_resume(struct device *dev)
 {
     struct i2c_client *client = to_i2c_client(dev);
     struct wacom_hid *ihid = i2c_get_clientdata(client);
+	int reset_io;
+	int gpio_value = 0;
 
     wacom_hid_dbg(ihid, "%s\n", __func__);
+	reset_io = desc_to_gpio(ihid->gpiod_rst);
+	gpio_value = gpio_get_value(reset_io);
 
     if (!ihid->screen_off) {
         if (device_may_wakeup(dev)) {
             disable_irq_wake(ihid->detect_irq);
         }
+    }else{
+	    // rst 设置默认电平
+		//if (!IS_ERR(ihid->gpiod_rst)) {
+		//	gpiod_direction_output(ihid->gpiod_rst, GPIOD_OUT_LOW);
+		//	gpiod_direction_output(ihid->gpiod_rst, GPIOD_OUT_HIGH);
+		//	msleep(100);
+		//	gpiod_direction_output(ihid->gpiod_rst, GPIOD_OUT_LOW);
+			//gpiod_set_value(ihid->gpiod_rst, 1);
+	    //}
+		gpio_set_value(reset_io,1);
+
+
+		wacom_hid_dbg(ihid, "%s wacom_hid_resume reset high \n ", __func__);
     }
 
     return 0;

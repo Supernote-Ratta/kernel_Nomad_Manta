@@ -159,7 +159,7 @@ enum PARADE_DEBUG_LEVEL {
 
 /*  Timeout in ms */
 #define CY_REQUEST_EXCLUSIVE_TIMEOUT		8000
-#define CY_WATCHDOG_TIMEOUT			1000
+#define CY_WATCHDOG_TIMEOUT			10000
 #define CY_HID_RESET_TIMEOUT			5000
 #define CY_HID_AUTO_CALI_CPLT_TIMEOUT          2500
 /* HID_DESCRIPTOR_TIMEOUT value based on FW spec (CAL_OS) */
@@ -1037,8 +1037,12 @@ struct cyttsp5_core_data {
     u32 is_suspend;
 	u8 mfg_data[MFG_DATA_NUM];
 	int ft_mode;
-	int l_x;
-	int r_x;
+	unsigned int l_x;
+	unsigned int r_x;
+	unsigned int l_x_l;
+	unsigned int r_x_l;
+	unsigned int l_x_h;
+	unsigned int r_x_h;
 };
 struct gd_sensor {
 	int32_t cm_min;

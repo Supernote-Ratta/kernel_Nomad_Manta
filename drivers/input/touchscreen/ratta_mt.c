@@ -15,10 +15,11 @@
 // 231013:1.slider 上报坐标,只报触摸和双指 两个key
 // 231123:1.slider 左右不能同时滑动
 //		  2.抬手后清除所有key
+// 240717:1.在清除record时，同时清除t_lr[8]
 
 #define RATTA_MT_DEBUG		0
 #define RATTA_MT_NAME		"ratta-slide"
-#define RATTA_MAX_FINGERS	5
+#define RATTA_MAX_FINGERS	8
 #define RATTA_MAX_REC	100
 
 #define RATTA_INVALID_VALUE	0x7FFFFFFF
@@ -83,6 +84,12 @@ enum finger_status {
 	FINGER_DROP,
 };
 
+enum trace_left_right {
+	TRACE_NONE,
+	TRACE_LEFT,
+	TRACE_RIGHT,
+};
+
 struct ratta_mt_data {
 	/* start x and y position */
 	int x, y, t, e, o, tip, num;
@@ -93,7 +100,7 @@ struct ratta_mt_data {
 
 struct ratta_mt_device {
 	struct input_dev *input;
-	struct ratta_mt_data data_record[2][RATTA_MAX_FINGERS][RATTA_MAX_REC];
+	struct ratta_mt_data data_record[1][RATTA_MAX_FINGERS][RATTA_MAX_REC];
 	int rec_now[2][RATTA_MAX_FINGERS];
 	int slider_left_count;
 	int slider_right_count;
@@ -147,6 +154,7 @@ int key_map[]={KEY_F13,KEY_F14,KEY_F15,KEY_F16,KEY_F17,KEY_F18,KEY_F19,KEY_F20,K
 	} while (0);
 
 extern int slider_left_down,slider_right_down;
+extern int t_lr[];
 
 static void ratta_report_slide(int code)
 {
@@ -258,6 +266,8 @@ void ratta_mt_clean(int mask)
 	for (i = 0; i < RATTA_MAX_FINGERS; i++) {	
 		if((mask&0x01)&&(ratta_device->data_record[0][i][0].y == RATTA_SLIDE_LEFT)||
 			(mask&0x02)&&(ratta_device->data_record[0][i][0].y == RATTA_SLIDE_RIGHT)){
+			if(ratta_device->data_record[0][i][0].t < RATTA_MAX_FINGERS)
+				t_lr[ratta_device->data_record[0][i][0].t] = TRACE_NONE;
 			for (j = 0; j < RATTA_MAX_REC; j++) {
 				ratta_device->data_record[0][i][j].x = RATTA_INVALID_VALUE;
 				ratta_device->data_record[0][i][j].y = RATTA_INVALID_VALUE;
@@ -356,6 +366,7 @@ static void ratta_mt_clean_finger(int type,int track)
 		ratta_device->data_record[type][track][i].done = 0;
 		ratta_device->data_record[type][track][i].status = 0;
 	}
+	t_lr[track] = TRACE_NONE;
 	ratta_device->rec_now[type][track] = 0;
 }
 
@@ -691,6 +702,53 @@ static void ratta_mt_parse(int track)
 			ratta_report_slide_updown(key_map[SLIDER_R_ROLL_DOWN_2],1);
 			return ;
 		}
+	}else{
+		switch (ratta_device->data_record[0][track][last].done){
+			case FINGER_NONE:
+				break;
+			case FINGER_DOWN:
+				key_status |= KEY_STATUS_DOWN;
+				break;
+			case FINGER_REPEAT:
+				key_status |= KEY_STATUS_STAY;
+				break;
+			case FINGER_SLIDER_UP:
+				key_status |= KEY_STATUS_SLIDER_UP;
+				break;
+			case FINGER_SLIDER_UP_1:
+				key_status |= KEY_STATUS_SLIDER_UP_1;
+				break;
+			case FINGER_SLIDER_UP_2:
+				key_status |= KEY_STATUS_SLIDER_UP_2;
+				break;
+			case FINGER_SLIDER_DOWN:
+				key_status |= KEY_STATUS_SLIDER_DOWN;
+				break;
+			case FINGER_SLIDER_DOWN_1:
+				key_status |= KEY_STATUS_SLIDER_DOWN_1;
+				break;
+			case FINGER_SLIDER_DOWN_2:
+				key_status |= KEY_STATUS_SLIDER_DOWN_2;
+				break;
+			case FINGER_TWO_PRESS:
+				break;
+			case FINGER_UP:
+				key_status |= KEY_STATUS_UP;
+				break;
+			case FINGER_DROP:
+				key_status |= KEY_STATUS_STOP;
+				break;
+		}
+		if(key_status&KEY_STATUS_UP){
+			ratta_device->data_record[0][track][0].status = 0;
+			ratta_mt_clean_finger(0,track);
+			if(ratta_device->data_record[0][track][0].y==RATTA_SLIDE_LEFT){
+				ratta_slide_clean_keys(1);
+			}else{
+				ratta_slide_clean_keys(2);
+			}
+			return ;
+		}
 	}
 }
 
@@ -725,6 +783,7 @@ int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long j
     int record_num = 0;
 	unsigned int time;
 	//printk("====key_now:0x%x y:%d (1<<SLIDER_R_STAY):0x%x\n", key_now,tch[SLIDER_TCH_Y], (1<<SLIDER_R_STAY));
+#if 0
 	if((slider_left_down==0)&&(key_now&0x003FF)){
 		ratta_mt_clean(0x01);
 		ratta_slide_clean_keys(0x01);
@@ -749,7 +808,7 @@ int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long j
 		ratta_mt_debug("%s====slider_mask:0x%x \n", __func__, slider_mask);
 		return 0;
 	}
-
+#endif
 	//if((key_now>=(1<<SLIDER_R_STAY))&&(tch[SLIDER_TCH_Y] == RATTA_SLIDE_LEFT)){
 	//	ratta_mt_clean(0x01);
 	//	ratta_mt_debug("%s====key_now:0x%x left nofunction\n", __func__, key_now);
@@ -798,6 +857,7 @@ int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long j
 	if(tch[SLIDER_TCH_TIP]==0){
 		ratta_mt_add_record(tch, jiffs);
 		ratta_device->data_record[0][tch[SLIDER_TCH_T]][record_num].done = FINGER_UP;
+		t_lr[tch[SLIDER_TCH_T]] = TRACE_NONE;
 		goto parse;
 	}
 	//2-----------------------------------
@@ -805,6 +865,11 @@ int ratta_mt_record(int type, bool record, int track, int tch[], unsigned long j
 		ratta_mt_debug("======ratta_mt_record:first down y:%d\n",tch[SLIDER_TCH_Y]);
 		ratta_mt_add_record(tch, jiffs);
 		ratta_device->data_record[0][tch[SLIDER_TCH_T]][record_num].done = FINGER_DOWN;
+		if(tch[SLIDER_TCH_Y] == RATTA_SLIDE_LEFT){
+			t_lr[tch[SLIDER_TCH_T]] = TRACE_LEFT;
+		}else if(tch[SLIDER_TCH_Y] == RATTA_SLIDE_RIGHT){
+			t_lr[tch[SLIDER_TCH_T]] = TRACE_RIGHT;
+		}
 		goto parse;
 	}
 	//3-----------------------------------
@@ -947,7 +1012,7 @@ int ratta_mt_probe(struct device *dev)
 		ret = -ENOMEM;
 		goto err;
 	}
-	for(type = 0; type < 2; type++) {
+	for(type = 0; type < 1; type++) {
 		for (i = 0; i < RATTA_MAX_FINGERS; i++) {
 			for (j = 0; j < RATTA_MAX_REC; j++) {
 				ratta_device->data_record[type][i][j].x = RATTA_INVALID_VALUE;

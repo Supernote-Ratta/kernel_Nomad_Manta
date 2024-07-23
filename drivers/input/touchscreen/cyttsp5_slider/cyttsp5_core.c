@@ -37,7 +37,13 @@
 #endif
 static struct cyttsp5_core_data *priv_data;
 #define CY_CORE_STARTUP_RETRY_COUNT		3
-#define CYTTSP5_SLIDER_DRV_VER "240626"
+// 240710:1.slider x > 240 ,not report down
+// 240716:1.slider t > 3 ,shift out of data bits
+//        2.slider x change to unsigned int.Avoid shifting to the right and adding 1 to the high position
+// 240717:1.disable irq before poweroff.Sometimes report 0xffffxx when poweroff
+// 240723:1.lite sleep V-logic high 
+
+#define CYTTSP5_SLIDER_DRV_VER "240723"
 
 MODULE_FIRMWARE(CY_FW_FILE_NAME);
 
@@ -47,6 +53,7 @@ static const char *cy_driver_core_date = CY_DRIVER_DATE;
 static bool cyttsp5_first_probe = true;
 static bool is_cyttsp5_probe_success;
 static const struct cyttsp5_bus_ops *cyttsp5_bus_ops_save;
+extern int slider_left_down ,slider_right_down;
 
 struct cyttsp5_hid_field {
 	int report_count;
@@ -6387,18 +6394,26 @@ static int cyttsp5_fb_notifier_callback(struct notifier_block *self,
          */
 		//printk("cyttsp5_fb_notifier_callback :event=EINK_NOTIFY_TP_POWEROFF\n");
        //printk("cyttsp5_fb_notifier_callback :EINK_NOTIFY_TP_POWEROFF cd->irq_disabled:%d \n",cd->irq_disabled);
-        cyttsp5_core_sleep(cd);
+//240717 tanlq Stop the interrupt first.Avoid a X value of 0xffffxx when the interrupt is still reading after power off
         if (!cd->irq_disabled) {
             //disable_irq(cd->irq);
 			disable_irq_wake(cd->irq);
             cd->irq_disabled = 1;
         }
-		cd->r_x = 0;
-		cd->l_x = 0;
+		cyttsp5_core_sleep(cd);
+
 		if (rst_gpio)
 		gpio_set_value(rst_gpio, 0); //tanlq 230425
+		slider_left_down = 0;
+		slider_right_down = 0;
 		ratta_mt_clean(3);
 		ratta_slide_clean_keys(3);
+		cd->r_x_l = 0;
+		cd->l_x_l = 0;
+		cd->r_x_h = 0;
+		cd->l_x_h = 0;
+		cd->r_x = 0;
+		cd->l_x = 0;
     //} else if (EINK_NOTIFY_TP_POWERON == event) {
     } else if (EINK_NOTIFY_EVENT_SCREEN_ON == event) {
 		//printk("cyttsp5_fb_notifier_callback :event=EINK_NOTIFY_TP_POWERON\n");
@@ -6412,6 +6427,12 @@ static int cyttsp5_fb_notifier_callback(struct notifier_block *self,
 			msleep(200);// add msleep when wakeup
 		}
 		cyttsp5_core_wake(cd);
+        cd->r_x_l = 0;
+		cd->l_x_l = 0;
+		cd->r_x_h = 0;
+		cd->l_x_h = 0;
+		cd->r_x = 0;
+		cd->l_x = 0;
 	}
 
 exit:
@@ -6645,6 +6666,10 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
     enable_irq_wake(cd->irq);
     cd->irq_wake = 1;
 	cd->ft_mode = 0;
+	cd->r_x_l = 0;
+	cd->l_x_l = 0;
+	cd->r_x_h = 0;
+	cd->l_x_h = 0;
 	cd->l_x = 0;
 	cd->r_x = 0;
 
