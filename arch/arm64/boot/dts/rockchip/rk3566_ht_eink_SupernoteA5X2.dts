@@ -119,8 +119,8 @@
     blepower: ble-power {
         status = "okay";
         compatible = "ble-power";
-        //pinctrl-names = "default";
-        //pinctrl-0 = <&ble_det_gpio>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&ble_det_gpio>;
         irq-gpio = <&gpio0 RK_PB7 IRQ_TYPE_EDGE_BOTH>;
         power-gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
     };
@@ -1300,13 +1300,13 @@
 
     };
 
-    //blepower {
-    //  ble_det_gpio: ble-det-gpio {
-    //      rockchip,pins =
-    //          <0 RK_PB7 RK_FUNC_GPIO  &pcfg_pull_none>,
-    //          <0 RK_PC0 RK_FUNC_GPIO  &pcfg_pull_none>;
-    //    };
-    //};
+    blepower {
+      ble_det_gpio: ble-det-gpio {
+          rockchip,pins =
+              <0 RK_PB7 RK_FUNC_GPIO  &pcfg_pull_up>,
+              <0 RK_PC0 RK_FUNC_GPIO  &pcfg_pull_down>;
+        };
+    };
 
     typec {
         et7303_int: et7303-int {
