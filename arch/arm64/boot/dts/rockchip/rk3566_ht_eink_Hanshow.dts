@@ -253,7 +253,7 @@
     panel,height-mm = <157>;
     panel,dpi = <220>;
     panel,vcom-mv = <1300>;	//for OED 10.3 LANDSCAPE EPD.
-    panel,wsync = <1>;	// 20240520,add one buffer for win-sync
+    //panel,wsync = <1>;	// 20240520,add one buffer for win-sync
     status = "okay";
 };
 
