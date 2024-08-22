@@ -815,6 +815,32 @@
             47 50 07 7C 05 0A 05 00 01 0F 28 05 5F 46 03 05 00 00 00 00 00 00 08 00 00 00 00 8E 2E AB 65 67 D9 0B 00 00 01 B9 02 1C 00 00 00 00 00 03 00 00 00 00 00 46 78 94 C0 02 07 00 00 04 91 49 00 89 52 00 84 5B 00 7F 66 00 7D 71 00 7D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 04 05 06 07 08 09 0C 0D 0E 0F 10 11 14 15 16 17 18 19 1A FF FF FF FF FF FF FF FF FF 00 02 04 06 07 08 0A 0C 0D 0F 10 11 12 13 19 1B 1C 1E 1F 20 21 22 23 24 25 26 27 28 FF FF FF FF FF FF FF FF FF FF FF FF FF FF 7E 01
         ];
     };
+	
+	focaltech@38 {
+        status = "okay";
+        compatible = "focaltech,fts";
+        reg = <0x38>;
+        //interrupt-parent = <&msm_gpio>;
+        //interrupts = <13 0x02>;
+        vdd-supply = <&vcc_tp>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&tp_gpio>;
+        focaltech,wpen_det-gpio = <&gpio0 RK_PC2 GPIO_ACTIVE_LOW>;// wacom of emr detect pin;
+        focaltech,reset-gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+        focaltech,irq-gpio = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
+        focaltech,max-touch-number = <10>;
+        focaltech,display-coords =  <0 0 1872 1404>;
+        exchange_x_y_flag = <1>;
+        revert_x_flag = <1>;
+        revert_y_flag = <0>;
+        /*
+        focaltech,have-key;
+        focaltech,key-number = <3>;
+        focaltech,keys = <139 102 158>;
+        focaltech,key-x-coords = <200 600 800>;
+        focaltech,key-y-coords = <2000 2000 2000>;
+        */
+    };
 };
 
 &i2c3 {
