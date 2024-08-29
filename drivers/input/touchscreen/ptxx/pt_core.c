@@ -3957,7 +3957,7 @@ static void pt_si_put_log_data(struct pt_core_data *cd)
 		__func__, ttdata->fw_ver_minor, ttdata->fw_ver_minor);
 	pt_debug(cd->dev, DL_DEBUG, "%s: revctrl = 0x%08X (%d)\n",
 		__func__, ttdata->revctrl, ttdata->revctrl);
-	pt_debug(cd->dev, DL_DEBUG, "%s: fw_ver_conf = 0x%04X (%d)\n",
+	pt_debug(cd->dev, DL_ERROR, "%s: fw_ver_conf = 0x%04X (%d)\n",
 		__func__, ttdata->fw_ver_conf, ttdata->fw_ver_conf);
 	pt_debug(cd->dev, DL_DEBUG, "%s: bl_ver_major = 0x%02X (%d)\n",
 		__func__, ttdata->bl_ver_major, ttdata->bl_ver_major);

@@ -1590,6 +1590,7 @@ static char *generate_firmware_filename(struct device *dev)
 
 	panel_id = pt_get_panel_id(dev);
 	if (panel_id == PANEL_ID_NOT_ENABLED){
+		printk("%s: PANEL_ID_NOT_ENABLED Filename: %s\n",__func__, filename);
 		if(pdata->core_pdata->fw_name)
 			snprintf(filename, FILENAME_LEN_MAX, "%s", pdata->core_pdata->fw_name);
 		else
@@ -1627,6 +1628,7 @@ static char *generate_silicon_id_firmware_filename(struct device *dev)
 	char *filename;
 	char si_id[5] = "DEAD";
 	u8 panel_id;
+	struct pt_platform_data *pdata = dev_get_platdata(dev);
 
 	filename = kzalloc(FILENAME_LEN_MAX, GFP_KERNEL);
 	if (!filename)
@@ -1636,13 +1638,18 @@ static char *generate_silicon_id_firmware_filename(struct device *dev)
 	memcpy(si_id, cd->hw_version, 4);
 
 	if (panel_id == PANEL_ID_NOT_ENABLED)
-		snprintf(filename, FILENAME_LEN_MAX, "%s_%s", si_id,
-			PT_FW_FILE_NAME);
+	{
+		if(pdata->core_pdata->fw_name)
+			snprintf(filename, FILENAME_LEN_MAX, "%s_%s", si_id, pdata->core_pdata->fw_name);
+		else
+			snprintf(filename, FILENAME_LEN_MAX, "%s_%s", si_id, PT_FW_FILE_NAME);
+	}
 	else
 		snprintf(filename, FILENAME_LEN_MAX, "%s_%s_pid%02X%s",
 			si_id, PT_FW_FILE_PREFIX, panel_id, PT_FW_FILE_SUFFIX);
 
 	pt_debug(dev, DL_INFO, "%s: Filename: %s\n", __func__, filename);
+	printk("%s: Filename: %s\n", __func__, filename);
 
 	return filename;
 }
@@ -2584,6 +2591,8 @@ static void pt_fw_and_config_upgrade(struct work_struct *work)
 
 #ifdef CONFIG_TOUCHSCREEN_PARADE_BINARY_FW_UPGRADE
 	if (dut_gen == DUT_PIP2_CAPABLE) {
+		pt_debug(dev, DL_WARN, "%s: Builtin FW upgrade \n",
+			__func__);
 		if (!pt_pip2_upgrade_firmware_from_builtin(dev))
 			return;
 		pt_debug(dev, DL_WARN, "%s: Builtin FW upgrade failed\n",
@@ -3912,6 +3921,7 @@ static int _pt_pip2_update_fw_from_builtin(struct device *dev)
 	int index = 0;
 	int file_count = 0;
 	char *filename[PIP2_MAX_FILE_NAMES];
+	struct pt_platform_data *pdata = dev_get_platdata(dev);
 
 	/*
 	 * 1. Generate FW Name for builtin kernel
@@ -3923,11 +3933,14 @@ static int _pt_pip2_update_fw_from_builtin(struct device *dev)
 	filename[file_count++] = generate_firmware_filename(dev);
 	filename[file_count++] = generate_silicon_id_firmware_filename(dev);
 	if (pt_get_panel_id(dev) != PANEL_ID_NOT_ENABLED) {
+		printk("%s: PANEL_ID_NOT_ENABLED Request FW class file: %s\n",
+			 __func__, filename[index]);
 		filename[file_count] =
-		    kzalloc(sizeof(PT_FW_FILE_NAME), GFP_KERNEL);
-		memcpy(filename[file_count++], PT_FW_FILE_NAME,
-		       sizeof(PT_FW_FILE_NAME));
+		    kzalloc(sizeof(pdata->core_pdata->fw_name), GFP_KERNEL);
+		memcpy(filename[file_count++], pdata->core_pdata->fw_name,
+		       sizeof(pdata->core_pdata->fw_name));
 	}
+
 
 	for (index = 0; index < file_count; index++) {
 		if (!filename[index])
@@ -5987,7 +6000,7 @@ static int pt_loader_probe(struct device *dev, void **data)
 
 	pt_debug(dev, DL_INFO, "%s: Schedule FW upgrade work\n", __func__);
 	INIT_DELAYED_WORK(&ld->fw_and_config_upgrade, pt_fw_and_config_upgrade);
-	//schedule_delayed_work(&ld->fw_and_config_upgrade, msecs_to_jiffies(2 * 1000));
+	schedule_delayed_work(&ld->fw_and_config_upgrade, msecs_to_jiffies(2 * 1000));
 
 	pt_debug(dev, DL_INFO, "%s: Successful probe %s\n",
 		__func__, dev_name(dev));
