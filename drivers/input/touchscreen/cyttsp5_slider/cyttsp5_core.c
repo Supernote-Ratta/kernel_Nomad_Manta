@@ -42,8 +42,9 @@ static struct cyttsp5_core_data *priv_data;
 //        2.slider x change to unsigned int.Avoid shifting to the right and adding 1 to the high position
 // 240717:1.disable irq before poweroff.Sometimes report 0xffffxx when poweroff
 // 240723:1.lite sleep V-logic high 
+// 240903:1.cyttsp5_down_right_work,clean r_x
 
-#define CYTTSP5_SLIDER_DRV_VER "240723"
+#define CYTTSP5_SLIDER_DRV_VER "240903"
 
 MODULE_FIRMWARE(CY_FW_FILE_NAME);
 

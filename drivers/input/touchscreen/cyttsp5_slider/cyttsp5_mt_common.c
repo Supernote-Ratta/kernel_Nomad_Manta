@@ -127,18 +127,18 @@ static void cyttsp5_down_left_work(struct work_struct *work)
 }
 static void cyttsp5_down_right_work(struct work_struct *work)
 {
-	//struct cyttsp5_mt_data *md = container_of(work,
-	//		struct cyttsp5_mt_data, down_right_delay_work.work);
-	//struct device *dev = md->dev;
-	//struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
+	struct cyttsp5_mt_data *md = container_of(work,
+			struct cyttsp5_mt_data, down_right_delay_work.work);
+	struct device *dev = md->dev;
+	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 
 	printk("%s: slider_right_down=%d\n", __func__, slider_right_down);
 	slider_right_down = 0;
 	ratta_mt_clean_attime(2);
-	//cd->r_x_l = 0;
-	//cd->r_x_h = 0;
-	//cd->r_x = 0;
-	//slider_right = cd->r_x;
+	cd->r_x_l = 0;
+	cd->r_x_h = 0;
+	cd->r_x = 0;
+	slider_right = cd->r_x;
 }
 
 static void cyttsp5_mt_lift_all(struct cyttsp5_mt_data *md)
