@@ -164,7 +164,7 @@ struct cyttsp5_loader_platform_data _cyttsp5_loader_platform_data = {
 	.ttconfig = &cyttsp5_ttconfig,
 	.fws = cyttsp5_firmwares,
 	.ttconfigs = cyttsp5_ttconfigs,
-	.flags = CY_LOADER_FLAG_NONE,
+	.flags = CY_LOADER_FLAG_CALIBRATE_AFTER_FW_UPGRADE,
 };
 
 int cyttsp5_xres(struct cyttsp5_core_platform_data *pdata, struct device *dev)
