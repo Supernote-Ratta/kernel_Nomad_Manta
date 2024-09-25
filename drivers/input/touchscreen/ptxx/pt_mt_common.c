@@ -37,6 +37,8 @@
 #define MT_PARAM_FLAT(md, sig_ost) PARAM_FLAT(md->pdata->frmwrk, sig_ost)
 #define MAX_SLIDER_LEFT             30
 #define MIN_SLIDER_RIGHT            1374//1404
+#define MIN_SLIDER_RIGHT_A5X2       2530//2560
+
 extern int slider_left;
 extern int slider_right;
 
@@ -866,7 +868,7 @@ static int pt_setup_input_attention(struct device *dev)
 
 	return rc;
 }
-static bool pt_filter_by_fix_slider_area(int pt_t, int pt_x, int pt_y)
+static bool pt_filter_by_fix_slider_area(int pt_t, int pt_x, int pt_y, bool is_A5X)
 {
 	//printk("%s: x=%d,y=%d,slider_left=%d,slider_right=%d \n",
 	//	    __func__, pt_x, pt_y, slider_left, slider_right);
@@ -875,11 +877,23 @@ static bool pt_filter_by_fix_slider_area(int pt_t, int pt_x, int pt_y)
 	if(pt_y > 1500)
 		return 0;
 
-	if(slider_left!=0 && pt_x < MAX_SLIDER_LEFT)
+	if(slider_left!=0 && pt_x < MAX_SLIDER_LEFT){
+		printk("%s: left slider x=%d,y=%d,slider_left=%d,slider_right=%d \n",
+		    __func__, pt_x, pt_y, slider_left, slider_right);
 		return 1;
-
-	if(slider_right!=0 && pt_x > MIN_SLIDER_RIGHT)
+		}
+	
+	if(is_A5X){
+		if(slider_right!=0 && pt_x > MIN_SLIDER_RIGHT_A5X2){	
+			printk("%s: A5X right slider x=%d,y=%d,slider_left=%d,slider_right=%d \n",
+				__func__, pt_x, pt_y, slider_left, slider_right);
+			return 1;
+		}
+	}else if(slider_right!=0 && pt_x > MIN_SLIDER_RIGHT){
+		printk("%s: right slider x=%d,y=%d,slider_left=%d,slider_right=%d \n",
+		    __func__, pt_x, pt_y, slider_left, slider_right);
 		return 1;
+	}
 
     return 0;
 }
@@ -889,16 +903,23 @@ static int pt_filter_by_slider(struct pt_mt_data *md,
     struct pt_touch *tch, int num_cur_tch)
 {
 	struct device *dev = md->dev;
+	struct pt_platform_data *pdata = dev_get_platdata(dev);
 
     int     pt_t = tch->abs[PT_TCH_T] - md->t_min;
     int     x = tch->abs[PT_TCH_X];
     int     y = tch->abs[PT_TCH_Y];
     int     tip = tch->abs[PT_TCH_TIP];
+	bool    is_A5X = false;
 
 	pt_debug(dev, DL_INFO,"%s: x=%d,y=%d,slider_left=%d,slider_right=%d \n",
 		    __func__, x, y, slider_left, slider_right);
-
-    if(pt_filter_by_fix_slider_area(pt_t, x, y) == 0) {
+	if(strcmp(pdata->core_pdata->fw_name,PT_FW_FILE_NAME)==0){
+		is_A5X = false;
+	}else{
+		is_A5X = true;
+	}
+	
+    if(pt_filter_by_fix_slider_area(pt_t, x, y,is_A5X) == 0) {
 		pt_debug(dev, DL_INFO,"%s: report tp x=%d,y=%d \n", __func__, x, y);
         return 0;
     }
