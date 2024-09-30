@@ -4659,6 +4659,92 @@ static const struct file_operations tthe_get_panel_data_fops = {
 	.write = tthe_get_panel_data_debugfs_write,
 };
 #endif
+static ssize_t cyttsp5_calibrate_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct cyttsp5_device_access_data *dad
+		= cyttsp5_get_device_access_data(dev);
+	int i;
+	ssize_t num_read;
+	//struct cyttsp5_device_access_debugfs_data *data = filp->private_data;
+
+	int status = STATUS_FAIL;
+	int length = 0;
+	int length1 = 0;
+	int rc,ret;
+	char ret_buf[CY_MAX_PRBUF_SIZE];
+
+	printk("cyttsp5_calibrate_show \n");
+
+	mutex_lock(&dad->sysfs_lock);
+
+	pm_runtime_get_sync(dev);
+
+	rc = cmd->request_exclusive(dev, CY_REQUEST_EXCLUSIVE_TIMEOUT);
+	if (rc < 0) {
+		dev_err(dev, "%s: Error on request exclusive r=%d\n",
+				__func__, rc);
+		goto put_pm_runtime;
+	}
+
+	rc = cyttsp5_suspend_scan_cmd_(dev);
+	if (rc < 0) {
+		dev_err(dev, "%s: Error on suspend scan r=%d\n",
+				__func__, rc);
+		goto release_exclusive;
+	}
+
+	rc = _cyttsp5_calibrate_idacs_cmd(dev, dad->calibrate_sensing_mode,
+			&dad->ic_buf[0]);
+	if (rc < 0) {
+		dev_err(dev, "%s: Error on calibrate idacs r=%d\n",
+				__func__, rc);
+		goto resume_scan;
+	}
+
+	length = 1;
+
+	/* Check if baseline initialization is requested */
+	if (dad->calibrate_initialize_baselines) {
+		/* Perform baseline initialization for all modes */
+		rc = _cyttsp5_initialize_baselines_cmd(dev, CY_IB_SM_MUTCAP |
+				CY_IB_SM_SELFCAP | CY_IB_SM_BUTTON,
+				&dad->ic_buf[length]);
+		if (rc < 0) {
+			dev_err(dev, "%s: Error on initialize baselines r=%d\n",
+					__func__, rc);
+			goto resume_scan;
+		}
+
+		length++;
+	}
+
+	status = STATUS_SUCCESS;
+
+resume_scan:
+	cyttsp5_resume_scan_cmd_(dev);
+
+release_exclusive:
+	cmd->release_exclusive(dev);
+
+put_pm_runtime:
+	pm_runtime_put(dev);
+
+	if (status == STATUS_FAIL)
+		length = 0;
+
+	length1 = prepare_print_buffer(status, dad->ic_buf, length,
+			ret_buf, CY_MAX_PRBUF_SIZE);
+
+	mutex_unlock(&dad->sysfs_lock);
+	ret = snprintf(buf, CY_MAX_PRBUF_SIZE, "%d %s\n", status,ret_buf);
+	printk("cyttsp5_calibrate_show %s \n", ret_buf);
+
+exit:
+	return ret;
+}
+
+static DEVICE_ATTR(calibrate, S_IRUSR, cyttsp5_calibrate_show, NULL);
 
 static int cyttsp5_setup_sysfs(struct device *dev)
 {
@@ -4685,6 +4771,13 @@ static int cyttsp5_setup_sysfs(struct device *dev)
 		dev_err(dev, "%s: Error, could not create response\n",
 				__func__);
 		goto unregister_status;
+	}
+
+	rc = device_create_file(dev, &dev_attr_calibrate);
+	if (rc) {
+		dev_err(dev, "%s: Error, could not create calibrate\n",
+				__func__);
+		//goto unregister_response;
 	}
 
 	dad->base_dentry = debugfs_create_dir("cyttsp5", NULL);
