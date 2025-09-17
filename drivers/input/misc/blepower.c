@@ -47,17 +47,86 @@ struct blepower_para {
     bool irq_disabled;
     int power_pin;
     int last_gpio_value;
+	bool enable;
 	struct wake_lock wake_lock; //tanlq add 221028
 };
 
 #define BLE_DBG          1
 
 static struct blepower_para *ble = NULL;
+static struct class *ble_class;
+
 static struct input_dev *sinput_dev;
 
 // 20220723: 只判断 POWER 的 IRQ会有问题。deep-sleep 的情况下，WIFI/BT的唤醒
 // 也会导致系统闪屏。此处需要修改。
 #define BLE_FG_IRQ         59
+static ssize_t ble_enable_show(struct class *cls,
+		struct class_attribute *attr, char *buf)
+{
+	//struct blepower_para *ble = dev_get_drvdata(dev);
+	ssize_t ret;
+	int retval;
+	//mutex_lock(&cd->system_lock);
+	retval = ble->enable;
+	ret = snprintf(buf, 10,
+		" %x\n", retval);
+
+	//mutex_unlock(&cd->system_lock);
+
+	return ret;
+}
+		
+static ssize_t ble_enable_store(struct class *cls,
+		struct class_attribute *attr, const char *buf, size_t size)
+{
+	//struct blepower_para *ble = dev_get_drvdata(dev);
+	unsigned long value;
+	int retval = 0;
+    int gpio_value = 0;
+    int out_value = 0;
+
+	retval = kstrtoul(buf, 10, &value);
+	if (retval < 0) {
+		printk("%s: Invalid value\n", __func__);
+		return size;
+	}
+
+	//mutex_lock(&(ble->wake_lock);
+	switch (value) {
+	case 0:
+		ble->enable = false;
+		printk("%s: enable now %d\n",__func__,ble->enable);
+
+		break;
+
+	case 1:
+		ble->enable = true;
+		printk("%s: enable now %d\n",__func__,ble->enable);
+		break;
+		
+	default:
+		ble->enable = false;
+		printk("%s: Invalid value\n", __func__);
+	}
+	//mutex_unlock(&(ble->wake_lock));
+	if(ble->enable == false){
+		gpio_set_value(ble->power_pin,0);
+	}else{
+		gpio_value = gpio_get_value(ble->det_pin);
+		if(BLE_DBG) printk("%s gpio_value=0x%x,last value=%d\n", __func__, 
+			gpio_value, ble->last_gpio_value);
+			ble->last_gpio_value = gpio_value;
+			if(gpio_value==1)
+				gpio_set_value(ble->power_pin,0);
+			else
+				gpio_set_value(ble->power_pin,1);
+			out_value = gpio_get_value(ble->power_pin);
+			if(BLE_DBG)
+				printk("%s out_value=0x%x\n", __func__, out_value);
+	}
+	return size;
+}
 
 #if 1
 static int ble_fb_notifier_callback(struct notifier_block *self, unsigned long action, void *data)
@@ -67,7 +136,10 @@ static int ble_fb_notifier_callback(struct notifier_block *self, unsigned long a
     int gpio_value = 0;
     int out_value = 0;
     blepower = container_of(self, struct blepower_para, fb_notif);
+	if(blepower->enable == false)
+		return 0 ;
     mutex_lock(&blepower->ops_lock);
+
     gpio_value = gpio_get_value(blepower->det_pin);
     if (action == EINK_NOTIFY_EVENT_SCREEN_OFF) {
         if (!blepower->irq_disabled) {
@@ -109,6 +181,11 @@ static irqreturn_t blepower_interrupt(int irq, void *dev_id)
     struct blepower_para *blepower = (struct blepower_para *)dev_id;
     int gpio_value = 0;
     int out_value = 0;
+
+	if(blepower->enable == false){
+		gpio_set_value(blepower->power_pin,0);
+		return IRQ_HANDLED;
+	}
     gpio_value = gpio_get_value(blepower->det_pin);
     if(BLE_DBG) printk("%s gpio_value=0x%x,last value=%d\n", __func__, 
         gpio_value, blepower->last_gpio_value);
@@ -163,6 +240,13 @@ static int blepower_resume(struct platform_device *dev)
     return 0;
 }
 
+//static DEVICE_ATTR(enable, S_IRUSR | S_IWUSR, ble_enable_show, ble_enable_store);
+//static CLASS_ATTR_RW(ble_enable);
+static struct class_attribute class_attr_ble_enable={
+		.attr={.name="ble_enable",.mode=0666},
+		.show=ble_enable_show,
+		.store=ble_enable_store,
+};
 static int blepower_probe(struct platform_device *pdev)
 {
     struct device_node *np = pdev->dev.of_node;
@@ -225,6 +309,11 @@ static int blepower_probe(struct platform_device *pdev)
     ble = blepower;
 
     platform_set_drvdata(pdev, blepower);
+	//device_create_file(&pdev->dev, &dev_attr_enable);
+	ble_class = class_create(THIS_MODULE, "ble_power");
+	ret =  class_create_file(ble_class, &class_attr_ble_enable);
+	if (ret)
+		printk("Fail to create class ble_enable.\n");
 	//wake_lock_init(&blepower->wake_lock, WAKE_LOCK_SUSPEND,
 	//		   "blepower_lock"); //tanlq add 221028
     printk("blepower_probe success.\n");

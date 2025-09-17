@@ -1,0 +1,2977 @@
+pt_core.c:222:	if (debug_level <= cd->debug_level && buf_len > 0) {
+pt_core.c:274:	if (cd->show_timestamp) {
+pt_core.c:288:	spin_lock_irqsave(&cd->tuner_list_lock, flags);
+pt_core.c:289:	list_for_each_entry(list, &cd->tuner_list, node) {
+pt_core.c:294:			switch (cd->tthe_data_format) {
+pt_core.c:327:	spin_unlock_irqrestore(&cd->tuner_list_lock, flags);
+pt_core.c:328:	wake_up_interruptible(&cd->tuner_wait);
+pt_core.c:400:	spin_lock(&cd->spinlock);
+pt_core.c:401:	list_for_each_entry(param, &cd->param_list, node) {
+pt_core.c:405:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:411:	spin_unlock(&cd->spinlock);
+pt_core.c:421:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:425:	spin_lock(&cd->spinlock);
+pt_core.c:426:	list_add(&param_new->node, &cd->param_list);
+pt_core.c:428:	spin_unlock(&cd->spinlock);
+pt_core.c:452:	spin_lock(&cd->spinlock);
+pt_core.c:453:	list_for_each_entry_safe(pos, temp, &cd->param_list, node) {
+pt_core.c:454:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:460:	spin_unlock(&cd->spinlock);
+pt_core.c:482:	spin_lock(&cd->spinlock);
+pt_core.c:483:	list_for_each_entry_safe(pos, temp, &cd->param_list, node)
+pt_core.c:485:	spin_unlock(&cd->spinlock);
+pt_core.c:511:	pt_debug(cd->dev, DL_INFO, "%s: Attempt to Request EXCLUSIVE t=%d\n",
+pt_core.c:514:	mutex_lock(&cd->system_lock);
+pt_core.c:515:	if (!cd->exclusive_dev && cd->exclusive_waits == 0) {
+pt_core.c:516:		cd->exclusive_dev = ownptr;
+pt_core.c:520:	cd->exclusive_waits++;
+pt_core.c:522:	mutex_unlock(&cd->system_lock);
+pt_core.c:524:		t = wait_event_timeout(cd->wait_q, !cd->exclusive_dev, t);
+pt_core.c:526:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:531:		wait_event(cd->wait_q, !cd->exclusive_dev);
+pt_core.c:533:	mutex_lock(&cd->system_lock);
+pt_core.c:534:	if (cd->exclusive_dev)
+pt_core.c:536:	cd->exclusive_dev = ownptr;
+pt_core.c:537:	cd->exclusive_waits--;
+pt_core.c:539:	mutex_unlock(&cd->system_lock);
+pt_core.c:540:	pt_debug(cd->dev, DL_DEBUG, "%s: request exclusive ok=%p\n",
+pt_core.c:560:	pt_debug(cd->dev, DL_INFO, "%s: Attempt to Release EXCLUSIVE\n",
+pt_core.c:562:	if (cd->exclusive_dev != ownptr)
+pt_core.c:565:	pt_debug(cd->dev, DL_DEBUG, "%s: exclusive_dev %p freed\n",
+pt_core.c:566:		__func__, cd->exclusive_dev);
+pt_core.c:567:	cd->exclusive_dev = NULL;
+pt_core.c:568:	wake_up(&cd->wait_q);
+pt_core.c:589:	mutex_lock(&cd->system_lock);
+pt_core.c:591:	mutex_unlock(&cd->system_lock);
+pt_core.c:639:	memcpy(&cmd[cmd_offset], &cd->hid_desc.command_register,
+pt_core.c:640:			sizeof(cd->hid_desc.command_register));
+pt_core.c:641:	cmd_offset += sizeof(cd->hid_desc.command_register);
+pt_core.c:662:		memcpy(&cmd[cmd_offset], &cd->hid_desc.data_register,
+pt_core.c:663:				sizeof(cd->hid_desc.data_register));
+pt_core.c:664:		cmd_offset += sizeof(cd->hid_desc.data_register);
+pt_core.c:677:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:682:	pt_pr_buf(cd->dev, DL_DEBUG, cmd, cmd_length, ">>> ATM - HID CMD");
+pt_core.c:687:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:707:	pt_debug(cd->dev, DL_DEBUG, "%s called with type = %d\n",
+pt_core.c:709:	if (cd->err_gpio && type == cd->err_gpio_type) {
+pt_core.c:710:		pt_debug(cd->dev, DL_WARN, "%s: Toggle ERR GPIO\n", __func__);
+pt_core.c:711:		gpio_direction_output(cd->err_gpio,
+pt_core.c:712:			!gpio_get_value(cd->err_gpio));
+pt_core.c:759:		cmd_state = &cd->hid_reset_cmd_state;
+pt_core.c:761:		cmd_state = &cd->hid_cmd_state;
+pt_core.c:763:	mutex_lock(&cd->system_lock);
+pt_core.c:765:	mutex_unlock(&cd->system_lock);
+pt_core.c:774:		timeout_ms = cd->pip_cmd_timeout_default;
+pt_core.c:776:	t = wait_event_timeout(cd->wait_q, (*cmd_state == 0),
+pt_core.c:779:		if ((cd->pt_hid_buf_op.last_remain_packet != 0) &&
+pt_core.c:782:			timeout_ms = cd->hid_multi_rsp_timeout;
+pt_core.c:786:		cd->bus_transmit_error_count++;
+pt_core.c:789:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:799:	mutex_lock(&cd->system_lock);
+pt_core.c:801:	mutex_unlock(&cd->system_lock);
+pt_core.c:833:		hid_cmd->read_buf = cd->response_buf;
+pt_core.c:856:	if (cd->protocol_mode != PT_PROTOCOL_MODE_PIP &&
+pt_core.c:857:		!cd->dual_mcu_available)
+pt_core.c:885:	mutex_lock(&cd->system_lock);
+pt_core.c:891:	cd->hid_cmd_state = cmd_id + 1;
+pt_core.c:892:	mutex_unlock(&cd->system_lock);
+pt_core.c:894:	timeout_ms = cd->pip_cmd_timeout_default;
+pt_core.c:900:		&& cd->dual_mcu_available) {
+pt_core.c:901:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:908:	if (cd->bridge_mode && cd->pip_no_wait)
+pt_core.c:912:	t = wait_event_timeout(cd->wait_q, (cd->hid_cmd_state == 0),
+pt_core.c:915:		if ((cd->pt_hid_buf_op.last_remain_packet != 0) &&
+pt_core.c:918:			timeout_ms = cd->hid_multi_rsp_timeout;
+pt_core.c:922:		cd->bus_transmit_error_count++;
+pt_core.c:925:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:935:	mutex_lock(&cd->system_lock);
+pt_core.c:936:	cd->hid_cmd_state = 0;
+pt_core.c:937:	mutex_unlock(&cd->system_lock);
+pt_core.c:969:	if (pl_buf_len > cd->pip3_output_rpt_cnt + 1) {
+pt_core.c:983:		hid_cmd.write_length = 3 + cd->pip3_output_rpt_cnt;
+pt_core.c:1027:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:1029:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1031:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:1037:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:1038:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1084:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:1086:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1088:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:1092:	pt_debug(cd->dev, DL_INFO, "%s: Send HID Reset command\n", __func__);
+pt_core.c:1095:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:1096:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1149:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:1151:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1153:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:1159:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:1160:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1194:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1198:			cd->fw_sys_mode_in_standby_state = true;
+pt_core.c:1201:	cd->fw_sys_mode_in_standby_state = false;
+pt_core.c:1205:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1212:	if (cd->protocol_mode != PT_PROTOCOL_MODE_PIP)
+pt_core.c:1216:	if ((cd->response_buf[2] != HID_RESPONSE_REPORT_ID)
+pt_core.c:1217:			|| ((cd->response_buf[3] & 0x3) != power_state)
+pt_core.c:1218:			|| ((cd->response_buf[4] & 0xF) != HID_CMD_SET_POWER))
+pt_core.c:1243:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:1245:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1247:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:1253:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:1254:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1376:	if (cd->force_pip2_seq <= 0x07) {
+pt_core.c:1377:		cd->pip2_cmd_tag_seq++;
+pt_core.c:1378:		if (cd->pip2_cmd_tag_seq > 0x0F)
+pt_core.c:1379:			cd->pip2_cmd_tag_seq = 0x08;
+pt_core.c:1381:		cd->pip2_cmd_tag_seq = cd->force_pip2_seq;
+pt_core.c:1384:	cd->pip2_cmd_tag_seq++;
+pt_core.c:1385:	if (cd->pip2_cmd_tag_seq > 0x0F)
+pt_core.c:1386:		cd->pip2_cmd_tag_seq = 0x08;
+pt_core.c:1388:	return cd->pip2_cmd_tag_seq;
+pt_core.c:1740:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1754:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1758:		cd->pip2_crc_error_count++;
+pt_core.c:1767:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1777:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1787:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1798:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:1804:		pt_pr_buf(cd->dev, DL_WARN, cd->input_buf,
+pt_core.c:1831:	size = get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:1836:	if (cd->response_buf[PIP1_RESP_REPORT_ID_OFFSET]
+pt_core.c:1838:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1843:	if (cd->response_buf[4] != PIP1_BL_SOP) {
+pt_core.c:1844:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1849:	if (cd->response_buf[size - 1] != PIP1_BL_EOP) {
+pt_core.c:1850:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1855:	crc = _pt_compute_crc(&cd->response_buf[4], size - 7);
+pt_core.c:1856:	if (cd->response_buf[size - 3] != LOW_BYTE(crc)
+pt_core.c:1857:			|| cd->response_buf[size - 2] != HI_BYTE(crc)) {
+pt_core.c:1858:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1864:	status = cd->response_buf[5];
+pt_core.c:1866:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1895:	size = get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:1906:	if (cd->response_buf[PIP1_RESP_REPORT_ID_OFFSET]
+pt_core.c:1908:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1913:	command_code = cd->response_buf[PIP1_RESP_COMMAND_ID_OFFSET]
+pt_core.c:1916:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1947:	if (!(cd->cpdata->flags & PT_CORE_FLAG_RESTORE_PARAMETERS))
+pt_core.c:1963:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:1972:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:1973:		read_param_id = cd->response_buf[6];
+pt_core.c:1974:		read_size = cd->response_buf[7];
+pt_core.c:1976:		read_param_id = cd->response_buf[5];
+pt_core.c:1977:		read_size = cd->response_buf[6];
+pt_core.c:1981:	if (cd->response_buf[2] != PT_PIP_NON_HID_RESPONSE_ID
+pt_core.c:1982:			|| (cd->response_buf[4] &
+pt_core.c:1987:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2018:	if (!(cd->cpdata->flags & PT_CORE_FLAG_RESTORE_PARAMETERS))
+pt_core.c:2024:					&cd->hid_desc.output_register,
+pt_core.c:2025:					sizeof(cd->hid_desc.output_register))
+pt_core.c:2038:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2047:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:2048:		read_param_id = cd->response_buf[6];
+pt_core.c:2049:		read_size = cd->response_buf[7];
+pt_core.c:2051:		read_param_id = cd->response_buf[5];
+pt_core.c:2052:		read_size = cd->response_buf[6];
+pt_core.c:2056:	if (cd->response_buf[2] != PT_PIP_NON_HID_RESPONSE_ID
+pt_core.c:2057:			|| (cd->response_buf[4] &
+pt_core.c:2062:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2116:	if (cd->pip2_prot_active) {
+pt_core.c:2122:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:2125:	pt_pr_buf(cd->dev, DL_DEBUG, raw_cmd->write_buf,
+pt_core.c:2131:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2156:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:2158:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2160:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:2166:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:2167:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2193:	mutex_lock(&cd->system_lock);
+pt_core.c:2194:	cd->hid_cmd_state = PIP1_CMD_ID_USER_CMD + 1;
+pt_core.c:2195:	mutex_unlock(&cd->system_lock);
+pt_core.c:2201:	t = wait_event_timeout(cd->wait_q, (cd->hid_cmd_state == 0),
+pt_core.c:2202:		msecs_to_jiffies(cd->pip_cmd_timeout));
+pt_core.c:2205:		cd->bus_transmit_error_count++;
+pt_core.c:2208:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2216:	size = get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:2227:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2237:		memcpy(raw_cmd->read_buf, cd->response_buf, size);
+pt_core.c:2245:	mutex_lock(&cd->system_lock);
+pt_core.c:2246:	cd->hid_cmd_state = 0;
+pt_core.c:2247:	mutex_unlock(&cd->system_lock);
+pt_core.c:2274:	if (cd->hid_cmd_state == PIP1_BL_CMD_ID_LAUNCH_APP + 1
+pt_core.c:2275:		&& cd->cpdata->irq_stat) {
+pt_core.c:2285:	if (cd->cpdata->irq_stat) {
+pt_core.c:2286:		if (cd->cpdata->irq_stat(cd->cpdata, cd->dev)
+pt_core.c:2291:		if (cd->cpdata->irq_stat(cd->cpdata, cd->dev)
+pt_core.c:2337:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:2342:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:2345:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2355:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:2366:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:2377:		pt_pr_buf(cd->dev, DL_WARN, buf, bytes_read, "WD-flush_bus");
+pt_core.c:2409:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:2415:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2419:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:2473:		cmd = cd->cmd_buf;
+pt_core.c:2477:	memcpy(&cmd[cmd_offset], &cd->hid_desc.output_register,
+pt_core.c:2478:			sizeof(cd->hid_desc.output_register));
+pt_core.c:2479:	cmd_offset += sizeof(cd->hid_desc.output_register);
+pt_core.c:2508:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:2511:	pt_pr_buf(cd->dev, DL_DEBUG, cmd, length + 2, ">>> CMD");
+pt_core.c:2515:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2578:	hid_cmd.write_length = 3 + cd->pip3_output_rpt_cnt;
+pt_core.c:2646:	if ((cd->protocol_mode == PT_PROTOCOL_MODE_HID) &&
+pt_core.c:2647:		(cd->mode != PT_MODE_BOOTLOADER))
+pt_core.c:2678:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:2681:	pt_pr_buf(cd->dev, DL_DEBUG, host_mode_cmd,
+pt_core.c:2718:	mutex_lock(&cd->system_lock);
+pt_core.c:2719:	cd->hid_cmd_state = pip1_cmd->command_code + 1;
+pt_core.c:2720:	cd->report_type = PIP1_CMD_REPORT;
+pt_core.c:2721:	mutex_unlock(&cd->system_lock);
+pt_core.c:2726:		timeout_ms = cd->pip_cmd_timeout_default;
+pt_core.c:2739:	    cd->active_dut_generation != DUT_PIP1_ONLY) {
+pt_core.c:2744:		cd->dual_mcu_available) {
+pt_core.c:2745:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:2755:		cd->hid_reset_cmd_state = 0;
+pt_core.c:2760:	t = wait_event_timeout(cd->wait_q, (cd->hid_cmd_state == 0),
+pt_core.c:2763:		if ((cd->protocol_mode == PT_PROTOCOL_MODE_HID) &&
+pt_core.c:2764:		    (cd->pt_hid_buf_op.last_remain_packet != 0) &&
+pt_core.c:2767:			timeout_ms = cd->hid_multi_rsp_timeout;
+pt_core.c:2771:		cd->bus_transmit_error_count++;
+pt_core.c:2774:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2782:		cd->protocol_mode != PT_PROTOCOL_MODE_HID)
+pt_core.c:2788:	mutex_lock(&cd->system_lock);
+pt_core.c:2789:	cd->hid_cmd_state = 0;
+pt_core.c:2790:	cd->report_type = UNKNOWN_REPORT;
+pt_core.c:2791:	mutex_unlock(&cd->system_lock);
+pt_core.c:2859:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:2862:	pt_pr_buf(cd->dev, DL_DEBUG, write_buf, write_len, ">>> CMD");
+pt_core.c:2865:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:2923:	hid_cmd.write_length = 3 + cd->pip3_output_rpt_cnt;
+pt_core.c:2992:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:2993:	    (cd->mode != PT_MODE_BOOTLOADER))
+pt_core.c:3024:		pt_debug(cd->dev, DL_WARN, "%s: Invalid PIP2 CMD ID 0x%02X\n",
+pt_core.c:3031:		cd->hid_core.pip_minor_ver);
+pt_core.c:3034:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:3038:	mutex_lock(&cd->system_lock);
+pt_core.c:3039:	cd->pip2_prot_active = true;
+pt_core.c:3040:	cd->hid_cmd_state = pip2_cmd->cmd_id + 1;
+pt_core.c:3041:	cd->report_type = PIP2_CMD_REPORT;
+pt_core.c:3042:	mutex_unlock(&cd->system_lock);
+pt_core.c:3047:		timeout_ms = cd->pip_cmd_timeout_default;
+pt_core.c:3053:	t = wait_event_timeout(cd->wait_q, (cd->hid_cmd_state == 0),
+pt_core.c:3056:		if ((cd->protocol_mode == PT_PROTOCOL_MODE_HID) &&
+pt_core.c:3057:		    (cd->pt_hid_buf_op.last_remain_packet != 0) &&
+pt_core.c:3060:			timeout_ms = cd->hid_multi_rsp_timeout;
+pt_core.c:3064:		cd->bus_transmit_error_count++;
+pt_core.c:3067:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3074:	size = get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:3085:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3095:		memcpy(pip2_cmd->read_buf, cd->response_buf, size);
+pt_core.c:3102:	mutex_lock(&cd->system_lock);
+pt_core.c:3103:	cd->pip2_prot_active = false;
+pt_core.c:3104:	cd->hid_cmd_state = 0;
+pt_core.c:3105:	cd->report_type = UNKNOWN_REPORT;
+pt_core.c:3106:	mutex_unlock(&cd->system_lock);
+pt_core.c:3142:	if (!cd->pip2_send_user_cmd) {
+pt_core.c:3195:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:3197:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3199:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:3206:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:3207:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3246:		rc = request_exclusive(cd, cd->dev,
+pt_core.c:3249:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3251:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:3265:		if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:3266:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3317:			cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:3319:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3321:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:3327:		cd->hid_core.pip_minor_ver);
+pt_core.c:3400:		if (!gpio_get_value(cd->cpdata->irq_gpio)) {
+pt_core.c:3409:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3437:	pt_pr_buf(cd->dev, DL_DEBUG, read_buf, *actual_read_len,
+pt_core.c:3442:		if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:3443:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3487:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:3489:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3491:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:3497:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:3498:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3530:	if (cd->watchdog_enabled) {
+pt_core.c:3531:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:3538:	cd->enum_status = ENUM_STATUS_START;
+pt_core.c:3539:	pt_debug(cd->dev, DL_DEBUG, "%s: Startup Status Reset\n", __func__);
+pt_core.c:3542:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3567:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:3569:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3571:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:3577:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:3578:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:3622:	struct pt_ttdata *ttdata = &cd->sysinfo.ttdata;
+pt_core.c:3637:		if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:3638:			cd->hid_core.pip_minor_ver >= 3) {
+pt_core.c:3640:				&cd->response_buf[PIP2_RESP_STATUS_OFFSET];
+pt_core.c:3657:			pt_pr_buf(cd->dev, DL_INFO, (u8 *)full_ver3,
+pt_core.c:3662:				&cd->response_buf[PIP2_RESP_STATUS_OFFSET];
+pt_core.c:3688:			pt_pr_buf(cd->dev, DL_INFO, (u8 *)full_ver,
+pt_core.c:3694:			&cd->response_buf[PIP2_RESP_STATUS_OFFSET];
+pt_core.c:3705:		pt_pr_buf(cd->dev, DL_INFO, (u8 *)ver,
+pt_core.c:3723:	struct pt_ttdata *ttdata = &cd->sysinfo.ttdata;
+pt_core.c:3726:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID)
+pt_core.c:3729:		&cd->response_buf[HID_SYSINFO_TTDATA_OFFSET];
+pt_core.c:3733:		&cd->response_buf[PIP1_SYSINFO_TTDATA_OFFSET];
+pt_core.c:3751:	pt_pr_buf(cd->dev, DL_INFO, (u8 *)ttdata_dev,
+pt_core.c:3768:	struct pt_sensing_conf_data *scd = &cd->sysinfo.sensing_conf_data;
+pt_core.c:3771:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID)
+pt_core.c:3774:		&cd->response_buf[HID_SYSINFO_SENSING_OFFSET];
+pt_core.c:3778:		&cd->response_buf[PIP1_SYSINFO_SENSING_OFFSET];
+pt_core.c:3780:	scd->electrodes_x = scd_dev->electrodes_x;
+pt_core.c:3781:	scd->electrodes_y = scd_dev->electrodes_y;
+pt_core.c:3782:	scd->origin_x = scd_dev->origin_x;
+pt_core.c:3783:	scd->origin_y = scd_dev->origin_y;
+pt_core.c:3786:	if (scd->origin_x & 0x02) {
+pt_core.c:3787:		scd->tx_num = scd->electrodes_x;
+pt_core.c:3788:		scd->rx_num = scd->electrodes_y;
+pt_core.c:3790:		scd->tx_num = scd->electrodes_y;
+pt_core.c:3791:		scd->rx_num = scd->electrodes_x;
+pt_core.c:3797:	 * other DUTs as the loader will use cd->pid_for_loader to generate
+pt_core.c:3801:	if (cd->panel_id_support &
+pt_core.c:3803:		mutex_lock(&cd->system_lock);
+pt_core.c:3804:		cd->pid_for_loader = scd_dev->panel_id;
+pt_core.c:3805:		mutex_unlock(&cd->system_lock);
+pt_core.c:3808:	scd->panel_id = scd_dev->panel_id;
+pt_core.c:3809:	scd->btn = scd_dev->btn;
+pt_core.c:3810:	scd->scan_mode = scd_dev->scan_mode;
+pt_core.c:3811:	scd->max_tch = scd_dev->max_num_of_tch_per_refresh_cycle;
+pt_core.c:3813:	scd->res_x = get_unaligned_le16(&scd_dev->res_x);
+pt_core.c:3814:	scd->res_y = get_unaligned_le16(&scd_dev->res_y);
+pt_core.c:3815:	scd->max_z = get_unaligned_le16(&scd_dev->max_z);
+pt_core.c:3816:	scd->len_x = get_unaligned_le16(&scd_dev->len_x);
+pt_core.c:3817:	scd->len_y = get_unaligned_le16(&scd_dev->len_y);
+pt_core.c:3819:	pt_pr_buf(cd->dev, DL_INFO, (u8 *)scd_dev,
+pt_core.c:3838:	struct pt_sysinfo *si = &cd->sysinfo;
+pt_core.c:3872:	struct pt_sysinfo *si = &cd->sysinfo;
+pt_core.c:3882:	pt_debug(cd->dev, DL_INFO, "%s: get btn data\n", __func__);
+pt_core.c:3884:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID)
+pt_core.c:3885:		btns = cd->response_buf[HID_SYSINFO_BTN_OFFSET]
+pt_core.c:3888:		btns = cd->response_buf[PIP1_SYSINFO_BTN_OFFSET]
+pt_core.c:3904:		if (cd->cpdata->sett[PT_IC_GRPNUM_BTN_KEYS] == NULL)
+pt_core.c:3906:		else if (cd->cpdata->sett[PT_IC_GRPNUM_BTN_KEYS]->data == NULL)
+pt_core.c:3909:			num_defined_keys = cd->cpdata->sett
+pt_core.c:3913:			key_table = (u16 *)cd->cpdata->sett
+pt_core.c:3943:	struct pt_sysinfo *si = &cd->sysinfo;
+pt_core.c:3948:	pt_debug(cd->dev, DL_DEBUG, "%s: pip_ver_major = 0x%02X (%d)\n",
+pt_core.c:3950:	pt_debug(cd->dev, DL_DEBUG, "%s: pip_ver_minor = 0x%02X (%d)\n",
+pt_core.c:3952:	pt_debug(cd->dev, DL_DEBUG, "%s: fw_pid = 0x%04X (%d)\n",
+pt_core.c:3954:	pt_debug(cd->dev, DL_DEBUG, "%s: fw_ver_major = 0x%02X (%d)\n",
+pt_core.c:3956:	pt_debug(cd->dev, DL_DEBUG, "%s: fw_ver_minor = 0x%02X (%d)\n",
+pt_core.c:3958:	pt_debug(cd->dev, DL_DEBUG, "%s: revctrl = 0x%08X (%d)\n",
+pt_core.c:3960:	pt_debug(cd->dev, DL_DEBUG, "%s: fw_ver_conf = 0x%04X (%d)\n",
+pt_core.c:3962:	pt_debug(cd->dev, DL_DEBUG, "%s: bl_ver_major = 0x%02X (%d)\n",
+pt_core.c:3964:	pt_debug(cd->dev, DL_DEBUG, "%s: bl_ver_minor = 0x%02X (%d)\n",
+pt_core.c:3966:	pt_debug(cd->dev, DL_DEBUG, "%s: jtag_id_h = 0x%04X (%d)\n",
+pt_core.c:3968:	pt_debug(cd->dev, DL_DEBUG, "%s: jtag_id_l = 0x%04X (%d)\n",
+pt_core.c:3972:		pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:3977:	pt_debug(cd->dev, DL_DEBUG, "%s: post_code = 0x%04X (%d)\n",
+pt_core.c:3979:	pt_debug(cd->dev, DL_DEBUG, "%s: electrodes_x = 0x%02X (%d)\n",
+pt_core.c:3980:		__func__, scd->electrodes_x, scd->electrodes_x);
+pt_core.c:3981:	pt_debug(cd->dev, DL_DEBUG, "%s: electrodes_y = 0x%02X (%d)\n",
+pt_core.c:3982:		__func__, scd->electrodes_y, scd->electrodes_y);
+pt_core.c:3983:	pt_debug(cd->dev, DL_DEBUG, "%s: len_x = 0x%04X (%d)\n",
+pt_core.c:3984:		__func__, scd->len_x, scd->len_x);
+pt_core.c:3985:	pt_debug(cd->dev, DL_DEBUG, "%s: len_y = 0x%04X (%d)\n",
+pt_core.c:3986:		__func__, scd->len_y, scd->len_y);
+pt_core.c:3987:	pt_debug(cd->dev, DL_DEBUG, "%s: res_x = 0x%04X (%d)\n",
+pt_core.c:3988:		__func__, scd->res_x, scd->res_x);
+pt_core.c:3989:	pt_debug(cd->dev, DL_DEBUG, "%s: res_y = 0x%04X (%d)\n",
+pt_core.c:3990:		__func__, scd->res_y, scd->res_y);
+pt_core.c:3991:	pt_debug(cd->dev, DL_DEBUG, "%s: max_z = 0x%04X (%d)\n",
+pt_core.c:3992:		__func__, scd->max_z, scd->max_z);
+pt_core.c:3993:	pt_debug(cd->dev, DL_DEBUG, "%s: origin_x = 0x%02X (%d)\n",
+pt_core.c:3994:		__func__, scd->origin_x, scd->origin_x);
+pt_core.c:3995:	pt_debug(cd->dev, DL_DEBUG, "%s: origin_y = 0x%02X (%d)\n",
+pt_core.c:3996:		__func__, scd->origin_y, scd->origin_y);
+pt_core.c:3997:	pt_debug(cd->dev, DL_DEBUG, "%s: panel_id = 0x%02X (%d)\n",
+pt_core.c:3998:		__func__, scd->panel_id, scd->panel_id);
+pt_core.c:3999:	pt_debug(cd->dev, DL_DEBUG, "%s: btn =0x%02X (%d)\n",
+pt_core.c:4000:		__func__, scd->btn, scd->btn);
+pt_core.c:4001:	pt_debug(cd->dev, DL_DEBUG, "%s: scan_mode = 0x%02X (%d)\n",
+pt_core.c:4002:		__func__, scd->scan_mode, scd->scan_mode);
+pt_core.c:4003:	pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:4005:		__func__, scd->max_tch, scd->max_tch);
+pt_core.c:4006:	pt_debug(cd->dev, DL_DEBUG, "%s: xy_mode = %p\n",
+pt_core.c:4008:	pt_debug(cd->dev, DL_DEBUG, "%s: xy_data = %p\n",
+pt_core.c:4027:	struct pt_sysinfo *si = &cd->sysinfo;
+pt_core.c:4059:	struct pt_sysinfo *si = &cd->sysinfo;
+pt_core.c:4115:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:4117:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4119:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:4125:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:4126:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4153:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4176:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:4178:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4180:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:4186:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:4187:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4240:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4263:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:4265:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4267:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:4273:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:4274:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4341:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:4342:		read_param_id = cd->response_buf[6];
+pt_core.c:4343:		param_size = cd->response_buf[7];
+pt_core.c:4344:		ptr = &cd->response_buf[8];
+pt_core.c:4346:		read_param_id = cd->response_buf[5];
+pt_core.c:4347:		param_size = cd->response_buf[6];
+pt_core.c:4348:		ptr = &cd->response_buf[7];
+pt_core.c:4379:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:4381:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4383:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:4389:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:4390:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4466:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:4467:		read_param_id = cd->response_buf[6];
+pt_core.c:4468:		read_size = cd->response_buf[7];
+pt_core.c:4470:		read_param_id = cd->response_buf[5];
+pt_core.c:4471:		read_size = cd->response_buf[6];
+pt_core.c:4500:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:4502:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4504:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:4510:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:4511:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4575:	*return_data = cd->response_buf[5];
+pt_core.c:4613:	ptr = &cd->response_buf[5];
+pt_core.c:4643:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:4645:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4647:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:4654:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:4655:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4720:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID)
+pt_core.c:4721:		*row_size = get_unaligned_le16(&cd->response_buf[6]);
+pt_core.c:4723:		*row_size = get_unaligned_le16(&cd->response_buf[5]);
+pt_core.c:4747:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:4749:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4751:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:4757:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:4758:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4838:	status = cd->response_buf[5];
+pt_core.c:4844:	read_ebid = cd->response_buf[6];
+pt_core.c:4845:	if ((read_ebid != ebid) || (cd->response_buf[9] != 0)) {
+pt_core.c:4850:	*actual_read_len = get_unaligned_le16(&cd->response_buf[7]);
+pt_core.c:4851:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:4858:		memcpy(read_buf, &cd->response_buf[10], *actual_read_len);
+pt_core.c:4864:	*crc = get_unaligned_le16(&cd->response_buf[*actual_read_len + 10]);
+pt_core.c:4871:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:4942:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID)
+pt_core.c:4989:	pt_debug(cd->dev, DL_INFO, "%s: panel_id:%02X\n", __func__, *panel_id);
+pt_core.c:5054:	status = cd->response_buf[5];
+pt_core.c:5060:	read_ebid = cd->response_buf[6];
+pt_core.c:5066:	*actual_write_len = get_unaligned_le16(&cd->response_buf[7]);
+pt_core.c:5152:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:5153:		cd->force_pip3_report_type = true;
+pt_core.c:5160:	if (cd->response_buf[5 - pip3_exofs] != PT_CMD_STATUS_SUCCESS)
+pt_core.c:5163:	read_data_id = cd->response_buf[6 - pip3_exofs];
+pt_core.c:5169:	rsp_len  = get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:5170:	read_len = get_unaligned_le16(&cd->response_buf[7]);
+pt_core.c:5171:	data_elem_size = cd->response_buf[9] & 0x07;
+pt_core.c:5174:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:5182:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:5188:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:5196:			&cd->response_buf[10], read_len);
+pt_core.c:5201:			cd->protocol_mode != PT_PROTOCOL_MODE_HID) {
+pt_core.c:5210:		*data_format = cd->response_buf[9];
+pt_core.c:5215:		*status = cd->response_buf[5 - pip3_exofs];
+pt_core.c:5218:	cd->force_pip3_report_type = false;
+pt_core.c:5249:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:5251:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:5253:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:5261:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:5262:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:5334:	struct pt_ttdata *ttdata = &cd->sysinfo.ttdata;
+pt_core.c:5367:		if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:5372:			if (cd->hid_core.pip_minor_ver > 0)
+pt_core.c:5433:			if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:5438:				if (cd->hid_core.pip_minor_ver > 0)
+pt_core.c:5504:			if (cd->protocol_mode == PT_PROTOCOL_MODE_HID)
+pt_core.c:5596:	if (cd->active_dut_generation == DUT_PIP2_CAPABLE)
+pt_core.c:5604:		*status = cd->response_buf[5];
+pt_core.c:5606:	if (cd->protocol_mode != PT_PROTOCOL_MODE_HID) {
+pt_core.c:5608:			*summary_result = cd->response_buf[6];
+pt_core.c:5610:		if (cd->sysinfo.ready && !IS_PIP_VER_GE(&cd->sysinfo, 1, 3)) {
+pt_core.c:5612:				*results_available = cd->response_buf[7];
+pt_core.c:5644:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:5646:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:5648:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:5656:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:5657:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:5740:	repeat = (IS_PIP_VER_GE(&cd->sysinfo, 1, 3)
+pt_core.c:5742:			&& cd->protocol_mode != PT_PROTOCOL_MODE_HID;
+pt_core.c:5751:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:5752:		cd->force_pip3_report_type = true;
+pt_core.c:5759:	if (cd->response_buf[5 - pip3_exofs] != PT_CMD_STATUS_SUCCESS)
+pt_core.c:5762:	read_test_id = cd->response_buf[6 - pip3_exofs];
+pt_core.c:5768:	rsp_len  = get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:5769:	read_len = get_unaligned_le16(&cd->response_buf[7]);
+pt_core.c:5770:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:5775:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:5781:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:5789:			&cd->response_buf[10 - pip3_exofs], read_len);
+pt_core.c:5805:		*status = cd->response_buf[5 - pip3_exofs];
+pt_core.c:5808:	cd->force_pip3_report_type = false;
+pt_core.c:5837:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:5839:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:5841:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:5848:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:5849:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:5938:		*status = cd->response_buf[5];
+pt_core.c:5940:		*ret_test_id = cd->response_buf[6];
+pt_core.c:5942:		*act_load_len = get_unaligned_le16(&cd->response_buf[7]);
+pt_core.c:5973:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:5975:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:5977:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:5984:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:5985:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6071:		*status = cd->response_buf[5];
+pt_core.c:6077:	if (*status == 0 && cd->cal_cache_in_host) {
+pt_core.c:6078:		pt_debug(cd->dev, DL_INFO, "%s: Retrieve and Save CAL\n",
+pt_core.c:6080:		rc = _pt_manage_local_cal_data(cd->dev, PT_CAL_DATA_SAVE,
+pt_core.c:6083:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6086:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:6114:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:6116:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6118:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:6124:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:6125:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6187:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:6188:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6199:	*status = cd->response_buf[5];
+pt_core.c:6226:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:6228:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6230:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:6236:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:6237:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6305:	*status = cd->response_buf[5];
+pt_core.c:6332:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:6334:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6336:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:6342:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:6343:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6417:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:6419:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6421:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:6427:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:6428:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6455:	pt_debug(cd->dev, DL_DEBUG, "%s: PIP2 Execute Scan %d\n",
+pt_core.c:6458:	rc = _pt_request_pip2_send_cmd(cd->dev,
+pt_core.c:6462:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6488:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:6490:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6492:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:6498:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:6499:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6526:	if (cd->sysinfo.ready && IS_PIP_VER_GE(&cd->sysinfo, 1, 12)) {
+pt_core.c:6588:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:6589:		cd->force_pip3_report_type = true;
+pt_core.c:6596:	status = cd->response_buf[5 - pip3_exofs];
+pt_core.c:6602:	read_data_id = cd->response_buf[6 - pip3_exofs];
+pt_core.c:6608:	size = get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:6609:	*actual_read_len = get_unaligned_le16(&cd->response_buf[7]);
+pt_core.c:6610:	*config = cd->response_buf[9];
+pt_core.c:6614:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:6622:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:6628:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6635:		memcpy(read_buf, &cd->response_buf[10], data_size);
+pt_core.c:6638:		if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:6641:			cd->response_buf[0] = LOW_BYTE(size);
+pt_core.c:6642:			cd->response_buf[1] = HI_BYTE(size);
+pt_core.c:6643:			cd->response_buf[2] = PT_PIP_NON_HID_RESPONSE_ID;
+pt_core.c:6645:			cd->response_buf[3] = 0x00;
+pt_core.c:6647:			cd->response_buf[4] = 0x2B;
+pt_core.c:6649:			cd->response_buf[5] = 0;
+pt_core.c:6651:			cd->response_buf[6] = read_data_id;
+pt_core.c:6653:		memcpy(response, cd->response_buf, size);
+pt_core.c:6657:	cd->force_pip3_report_type = false;
+pt_core.c:6688:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:6690:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6692:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:6700:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:6701:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6806:	data_len = get_unaligned_le16(&cd->input_buf[6]);
+pt_core.c:6810:	memcpy(return_data, &cd->response_buf[8], data_len);
+pt_core.c:6834:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:6836:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6838:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:6844:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:6845:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6950:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:6952:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:6954:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:6961:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:6962:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7049:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:7051:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7053:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:7059:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:7060:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7125:	*result = cd->response_buf[8];
+pt_core.c:7148:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:7150:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7152:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:7158:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:7159:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7231:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:7233:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7235:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:7241:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:7242:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7296:	if (rc == -EPROTO && cd->response_buf[5] == ERROR_COMMAND) {
+pt_core.c:7297:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7303:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7308:	*panel_id = cd->response_buf[8];
+pt_core.c:7331:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:7333:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7335:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:7341:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:7342:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7394:	rc = _pt_request_pip2_send_cmd(cd->dev, PT_CORE_CMD_UNPROTECTED,
+pt_core.c:7397:		pt_debug(cd->dev, DL_ERROR, "%s: PIP2 STATUS command rc = %d\n",
+pt_core.c:7402:	pt_pr_buf(cd->dev, DL_DEBUG, read_buf, actual_read_len,
+pt_core.c:7411:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:7412:		if (cd->hid_core.pip_minor_ver >= 3) {
+pt_core.c:7416:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7426:					pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7440:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7446:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:7447:		cd->hid_core.pip_minor_ver >= 3)
+pt_core.c:7448:		cd->active_proc = (read_buf[PIP2_RESP_BODY_OFFSET] & 0x06) >> 1;
+pt_core.c:7451:		cd->dut_status.mode = PT_MODE_BOOTLOADER;
+pt_core.c:7454:		cd->dut_status.protocol_mode =
+pt_core.c:7456:		cd->dut_status.fw_system_mode =
+pt_core.c:7458:		if (cd->dut_status.fw_system_mode ==
+pt_core.c:7460:			cd->dut_status.mode = PT_MODE_SECONDARY_IMAGE;
+pt_core.c:7461:		else if (cd->dut_status.fw_system_mode ==
+pt_core.c:7463:			cd->dut_status.mode = PT_MODE_UTILITY_IMAGE;
+pt_core.c:7465:			cd->dut_status.mode = PT_MODE_OPERATIONAL;
+pt_core.c:7467:		cd->dut_status.mode = PT_MODE_UNKNOWN;
+pt_core.c:7470:	if (cd->protocol_mode != PT_PROTOCOL_MODE_HID)
+pt_core.c:7473:	if (cd->set_protocol_mode) {
+pt_core.c:7474:		if (cd->dut_status.protocol_mode != cd->protocol_mode)
+pt_core.c:7475:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:7476:				"%s: ATM - protocol mode mismatch! dut_status.protocol_mode=%d cd->protocol_mode=%d\n",
+pt_core.c:7477:				__func__, cd->dut_status.protocol_mode,
+pt_core.c:7478:				cd->protocol_mode);
+pt_core.c:7480:		cd->protocol_mode = cd->dut_status.protocol_mode;
+pt_core.c:7483:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:7485:		cd->dut_status.fw_system_mode = FW_SYS_MODE_BOOT;
+pt_core.c:7486:		cd->dut_status.mode = PT_MODE_OPERATIONAL;
+pt_core.c:7514:			*sys_mode = cd->dut_status.fw_system_mode;
+pt_core.c:7516:			*mode = cd->dut_status.mode;
+pt_core.c:7522:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:7550:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:7552:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7554:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:7560:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:7561:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7610: *	- This function will update cd->fw_system_mode
+pt_core.c:7626:	u8 sys_mode = cd->fw_system_mode;
+pt_core.c:7631:	if (cd->sysinfo.ready && !IS_PIP_VER_GE(&cd->sysinfo, 1, 11)) {
+pt_core.c:7638:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7641:			cd->sysinfo.ttdata.pip_ver_major,
+pt_core.c:7642:			cd->sysinfo.ttdata.pip_ver_minor, *actual_wait);
+pt_core.c:7653:			pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:7658:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:7669:	mutex_lock(&cd->system_lock);
+pt_core.c:7670:	cd->fw_system_mode = sys_mode;
+pt_core.c:7671:	mutex_unlock(&cd->system_lock);
+pt_core.c:7696:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:7698:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7700:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:7706:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:7707:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7752:	if (IS_PIP_VER_GE(&cd->sysinfo, 1, 11)) {
+pt_core.c:7754:		pt_debug(cd->dev, DL_DEBUG, "%s: tmp_sys_mode=%d tmp_mode=%d\n",
+pt_core.c:7766:	if (cd->mode != PT_MODE_OPERATIONAL) {
+pt_core.c:7767:		tmp_mode = cd->mode;
+pt_core.c:7775:	report_length = (cd->response_buf[1] << 8) | (cd->response_buf[0]);
+pt_core.c:7777:	    ((cd->response_buf[4] & PIP1_RESP_COMMAND_ID_MASK) == 0x00) &&
+pt_core.c:7778:	    (cd->response_buf[5] == PIP1_CMD_ID_VERIFY_CONFIG_BLOCK_CRC)) {
+pt_core.c:7782:		   ((cd->response_buf[4] & PIP1_RESP_COMMAND_ID_MASK) ==
+pt_core.c:7793:	pt_debug(cd->dev, DL_INFO, "%s: Return Mode=%d sys_mode=%d\n",
+pt_core.c:7817:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:7819:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7821:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:7827:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:7828:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:7912:	struct device *dev = cd->dev;
+pt_core.c:7914:		.descriptor = cd->hid_core.hid_desc_register,
+pt_core.c:7935:	hid_len = get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:7936:	pt_pr_buf(cd->dev, DL_DEBUG, cd->response_buf, hid_len, "<<< HIDDesc");
+pt_core.c:7942:	if (cd->protocol_mode != PT_PROTOCOL_MODE_PIP) {
+pt_core.c:7950:		memcpy((u8 *)desc, &cd->response_buf[0], 2);
+pt_core.c:7954:		memcpy((u8 *)desc + 4, &cd->response_buf[2], hid_len - 2);
+pt_core.c:7964:		memcpy((u8 *)desc, cd->response_buf, hid_len);
+pt_core.c:7972:	cd->hid_core.hid_report_desc_len =
+pt_core.c:7975:	cd->hid_core.hid_max_input_len =
+pt_core.c:7978:	cd->hid_core.hid_max_output_len =
+pt_core.c:7981:	cd->hid_core.hid_protocol_ver =
+pt_core.c:7984:	cd->hid_core.pip_minor_ver =
+pt_core.c:7990:		 cd->hid_core.hid_report_desc_len,
+pt_core.c:7991:		 cd->hid_core.hid_max_input_len,
+pt_core.c:7992:		 cd->hid_core.hid_max_output_len);
+pt_core.c:8002:	tthe_print(cd, cd->response_buf, hid_len, "HIDDesc=");
+pt_core.c:8027:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:8029:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:8031:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:8037:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:8038:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:8048: *	cd-ttdata
+pt_core.c:8064:	rc = _pt_request_pip2_send_cmd(cd->dev,
+pt_core.c:8068:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:8079:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:8105:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:8107:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:8109:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:8115:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:8116:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:8144:	struct pt_ttdata *ttdata = &cd->sysinfo.ttdata;
+pt_core.c:8154:	if (cd->active_dut_generation == DUT_PIP1_ONLY)
+pt_core.c:8181:			   cd->response_buf[PIP1_SYSINFO_TTDATA_OFFSET + 1];
+pt_core.c:8183:			   cd->response_buf[PIP1_SYSINFO_TTDATA_OFFSET];
+pt_core.c:8270:	mutex_lock(&cd->system_lock);
+pt_core.c:8279:	mutex_unlock(&cd->system_lock);
+pt_core.c:8390:	mutex_lock(&cd->system_lock);
+pt_core.c:8399:	mutex_unlock(&cd->system_lock);
+pt_core.c:8457:	cd->pt_hid_buf_op.report_type = PIP3_CMD_REPORT;
+pt_core.c:8464:		actual_read_len = get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:8475:		memcpy(read_buf, cd->response_buf, actual_read_len);
+pt_core.c:8506:	mutex_lock(&cd->system_lock);
+pt_core.c:8515:	cd->pt_hid_buf_op.report_type = UNKNOWN_REPORT;
+pt_core.c:8516:	mutex_unlock(&cd->system_lock);
+pt_core.c:8561:	if (cd->set_protocol_mode &&
+pt_core.c:8562:	    cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:8576:	if (cd->set_protocol_mode &&
+pt_core.c:8577:	    (cd->protocol_mode == PT_PROTOCOL_MODE_PIP ||
+pt_core.c:8578:	     cd->protocol_mode == PT_PROTOCOL_MODE_HYBRID_HID)) {
+pt_core.c:8647:	return cd->active_dut_generation;
+pt_core.c:8669:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:8670:	    cd->mode != PT_MODE_BOOTLOADER) {
+pt_core.c:8675:	} else if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:8709:	struct pt_ttdata *ttdata = &cd->sysinfo.ttdata;
+pt_core.c:8711:	if (cd->sysinfo.ready) {
+pt_core.c:8713:			 ttdata->jtag_id_h, cd->pid_for_loader);
+pt_core.c:8715:	} else if (cd->bl_info.ready) {
+pt_core.c:8717:			 cd->bl_info.chip_id, cd->pid_for_loader);
+pt_core.c:8721:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:8743:	struct pt_ttdata *ttdata = &cd->sysinfo.ttdata;
+pt_core.c:8745:	if (cd->app_pip_ver_ready || cd->bl_pip_ver_ready) {
+pt_core.c:8747:			 ttdata->chip_id, ttdata->chip_rev, cd->pid_for_loader);
+pt_core.c:8751:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:8781:	struct pt_ttdata *ttdata = &cd->sysinfo.ttdata;
+pt_core.c:8788:	if (!cd->hw_detected) {
+pt_core.c:8797:	if (cd->active_dut_generation == DUT_PIP2_CAPABLE) {
+pt_core.c:8835:	} else if (cd->active_dut_generation == DUT_PIP1_ONLY) {
+pt_core.c:8840:		if (cd->mode == PT_MODE_OPERATIONAL) {
+pt_core.c:8844:					cd->sysinfo.sensing_conf_data.panel_id;
+pt_core.c:8859:			if (cd->panel_id_support & PT_PANEL_ID_BY_BL) {
+pt_core.c:8867:				panel_id = cd->pid_for_loader;
+pt_core.c:8901:	if (cd->watchdog_interval < 100) {
+pt_core.c:8902:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:8904:			__func__, cd->watchdog_interval);
+pt_core.c:8908:	if (cd->watchdog_force_stop) {
+pt_core.c:8909:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:8914:	mod_timer(&cd->watchdog_timer, jiffies +
+pt_core.c:8915:		msecs_to_jiffies(cd->watchdog_interval));
+pt_core.c:8916:	cd->watchdog_enabled = 1;
+pt_core.c:8917:	pt_debug(cd->dev, DL_INFO, "%s: TTDL WD Started\n", __func__);
+pt_core.c:8932:	if (!cd->watchdog_interval)
+pt_core.c:8939:	del_timer_sync(&cd->watchdog_timer);
+pt_core.c:8940:	cancel_work_sync(&cd->watchdog_work);
+pt_core.c:8941:	del_timer_sync(&cd->watchdog_timer);
+pt_core.c:8942:	cd->watchdog_enabled = 0;
+pt_core.c:8943:	pt_debug(cd->dev, DL_INFO, "%s: TTDL WD Stopped\n", __func__);
+pt_core.c:8971:	mutex_lock(&cd->system_lock);
+pt_core.c:8972:	cd->enum_status = ENUM_STATUS_START;
+pt_core.c:8973:	pt_debug(cd->dev, DL_DEBUG, "%s: Startup Status Reset\n", __func__);
+pt_core.c:8974:	mutex_unlock(&cd->system_lock);
+pt_core.c:8975:	if (cd->mode == PT_MODE_OPERATIONAL ||
+pt_core.c:8976:	    cd->active_dut_generation == DUT_PIP1_ONLY) {
+pt_core.c:8982:		rc = _pt_request_pip2_send_cmd(cd->dev, protect,
+pt_core.c:8988:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:8992:	pt_debug(cd->dev, DL_INFO, "%s: SOFT reset successful\n",
+pt_core.c:9019:	if (cd->cpdata->xres) {
+pt_core.c:9020:		cd->enum_status = ENUM_STATUS_START;
+pt_core.c:9021:		pt_debug(cd->dev, DL_DEBUG, "%s: Startup Status Reset\n",
+pt_core.c:9023:		cd->cpdata->xres(cd->cpdata, cd->dev);
+pt_core.c:9024:		pt_debug(cd->dev, DL_WARN, "%s: executed HARD reset\n",
+pt_core.c:9028:	pt_debug(cd->dev, DL_ERROR,
+pt_core.c:9056:	pt_debug(cd->dev, DL_INFO, "%s: reset hw...\n", __func__);
+pt_core.c:9058:	if (cd->util_rst_state == UTIL_RST_FAIL) {
+pt_core.c:9059:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:9064:	mutex_lock(&cd->system_lock);
+pt_core.c:9065:	cd->hid_reset_cmd_state = 1;
+pt_core.c:9067:	mutex_unlock(&cd->system_lock);
+pt_core.c:9070:		mutex_lock(&cd->system_lock);
+pt_core.c:9071:		cd->hid_reset_cmd_state = 0;
+pt_core.c:9072:		cd->util_rst_state = UTIL_RST_FAIL;
+pt_core.c:9073:		mutex_unlock(&cd->system_lock);
+pt_core.c:9074:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:9081:		pt_debug(cd->dev, DL_ERROR, "%s: %s dev='%s' r=%d\n",
+pt_core.c:9082:			__func__, "Fail hw reset", dev_name(cd->dev), rc);
+pt_core.c:9108:	if (cd->dual_mcu_available) {
+pt_core.c:9109:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:9113:		cd->hid_reset_cmd_state = 0;
+pt_core.c:9117:	t = wait_event_timeout(cd->wait_q,
+pt_core.c:9118:		(cd->hid_reset_cmd_state == 0),
+pt_core.c:9122:		cd->bus_transmit_error_count++;
+pt_core.c:9125:		pt_debug(cd->dev, DL_ERROR, "%s: reset timed out\n",
+pt_core.c:9176:	struct pt_sysinfo *si = &cd->sysinfo;
+pt_core.c:9188:	cd->features.easywake = 1;
+pt_core.c:9189:	cd->features.noise_metric = 1;
+pt_core.c:9190:	cd->features.tracking_heatmap = 1;
+pt_core.c:9191:	cd->features.sensor_data = 1;
+pt_core.c:9197: * SUMMARY: Get or create report. Must be called with cd->hid_report_lock
+pt_core.c:9220:	for (i = 0; i < cd->num_hid_reports; i++) {
+pt_core.c:9221:		if (cd->hid_reports[i]->type == report_type &&
+pt_core.c:9222:		    cd->hid_reports[i]->id == report_id) {
+pt_core.c:9228:	if (create && cd->num_hid_reports >= PT_HID_MAX_REPORTS) {
+pt_core.c:9229:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:9231:			cd->num_hid_reports, PT_HID_MAX_REPORTS);
+pt_core.c:9233:	} else if (create && cd->num_hid_reports < PT_HID_MAX_REPORTS) {
+pt_core.c:9242:			*index = cd->num_hid_reports;
+pt_core.c:9243:			cd->hid_reports[cd->num_hid_reports++] = report;
+pt_core.c:9254: * SUMMARY: Free HID report. Must be called with cd->hid_report_lock acquired.
+pt_core.c:9264:	for (i = 0; i < cd->num_hid_reports; i++) {
+pt_core.c:9265:		report = cd->hid_reports[i];
+pt_core.c:9269:		cd->hid_reports[i] = NULL;
+pt_core.c:9272:	cd->num_hid_reports = 0;
+pt_core.c:9285:	mutex_lock(&cd->hid_report_lock);
+pt_core.c:9287:	mutex_unlock(&cd->hid_report_lock);
+pt_core.c:9293: * SUMMARY: Create field for HID report.Must be called with cd->hid_report_lock
+pt_core.c:9394:	pt_debug(cd->dev, DL_DEBUG, "%s: Report descriptor length: %u\n",
+pt_core.c:9397:	mutex_lock(&cd->hid_report_lock);
+pt_core.c:9445:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:9450:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:9455:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:9460:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:9490:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:9495:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:9500:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:9536:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:9594:					pt_debug(cd->dev, DL_WARN,
+pt_core.c:9608:					pt_debug(cd->dev, DL_WARN,
+pt_core.c:9614:					report = cd->hid_reports[report_index];
+pt_core.c:9628:					pt_debug(cd->dev, DL_WARN,
+pt_core.c:9661:						pt_debug(cd->dev, DL_WARN,
+pt_core.c:9711:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:9723:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:9731:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:9741:	mutex_unlock(&cd->hid_report_lock);
+pt_core.c:9771:	for (i = 0; i < cd->num_hid_reports; i++) {
+pt_core.c:9772:		report = cd->hid_reports[i];
+pt_core.c:9830:	for (i = 0; i < cd->num_hid_reports; i++) {
+pt_core.c:9831:		if (cd->hid_reports[i]->usage_page == usage_page &&
+pt_core.c:9832:			cd->hid_reports[i]->id == id) {
+pt_core.c:9833:			report = cd->hid_reports[i];
+pt_core.c:9852:	struct pt_sysinfo *si = &cd->sysinfo;
+pt_core.c:9869:			pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:9877:			pt_debug(cd->dev, DL_DEBUG, "%s: ofs:%u size:%u min:%u max:%u bofs:%u report:%d\n",
+pt_core.c:9888:			pt_debug(cd->dev, DL_DEBUG, "%s: report:%d\n",
+pt_core.c:9911:	struct pt_sysinfo *si = &cd->sysinfo;
+pt_core.c:9928:			pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:9936:			pt_debug(cd->dev, DL_DEBUG, "%s: ofs:%u size:%u min:%u max:%u bofs:%u report:%d\n",
+pt_core.c:9960:			pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:9968:			pt_debug(cd->dev, DL_DEBUG, "%s: ofs:%u size:%u min:%u max:%u bofs:%u report:%d\n",
+pt_core.c:10002:	pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:10027:	tthe_print(cd, cd->response_buf, size,
+pt_core.c:10032:		pt_pr_buf(cd->dev, DL_DEBUG,
+pt_core.c:10033:			cd->response_buf + pr_bytes,
+pt_core.c:10039:		pt_pr_buf(cd->dev, DL_DEBUG,
+pt_core.c:10040:			cd->response_buf + pr_bytes,
+pt_core.c:10062:	for (i = 0; i < cd->num_hid_reports; i++) {
+pt_core.c:10063:		report = cd->hid_reports[i];
+pt_core.c:10072:			cd->pt_hid_pen_async_ftr_rpt_id[id_num++] = report->id;
+pt_core.c:10073:			pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:10078:			cd->num_hid_pen_async_ftr_rpt_id = id_num;
+pt_core.c:10082:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:10084:		__func__, cd->num_hid_pen_async_ftr_rpt_id);
+pt_core.c:10101:	struct device *dev = cd->dev;
+pt_core.c:10103:		.descriptor = cd->hid_desc.report_desc_register,
+pt_core.c:10104:		.read_length = cd->hid_core.hid_report_desc_len,
+pt_core.c:10119:	desc = cd->response_buf;
+pt_core.c:10120:	desc_len = cd->hid_core.hid_report_desc_len;
+pt_core.c:10123:	if (cd->protocol_mode == PT_PROTOCOL_MODE_PIP) {
+pt_core.c:10124:		desc = cd->response_buf + 3;
+pt_core.c:10128:	publish_report_desc(cd, cd->hid_core.hid_report_desc_len);
+pt_core.c:10132:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:10137:	pt_debug(cd->dev, DL_INFO, "%s: %d reports found in descriptor\n",
+pt_core.c:10138:		__func__, cd->num_hid_reports);
+pt_core.c:10140:	for (t = 0; t < cd->num_hid_reports; t++) {
+pt_core.c:10141:		struct pt_hid_report *report = cd->hid_reports[t];
+pt_core.c:10144:		pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:10152:			pt_debug(cd->dev, DL_INFO, "%s: logical collection number: %d\n",
+pt_core.c:10160:				cd->pip3_output_rpt_cnt = field->report_count;
+pt_core.c:10161:				pt_debug(cd->dev, DL_INFO, "%s: PIP3 output report count: %d\n",
+pt_core.c:10162:					__func__, cd->pip3_output_rpt_cnt);
+pt_core.c:10165:			pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:10172:			pt_debug(cd->dev, DL_DEBUG, "  Collections Phys:%08X App:%08X Log:%08X\n",
+pt_core.c:10189:	pt_debug(cd->dev, DL_INFO, "%s: %d reports found in descriptor\n",
+pt_core.c:10190:		__func__, cd->num_hid_reports);
+pt_core.c:10212:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:10214:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:10216:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:10222:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:10223:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:10301:	if (cd->startup_state == STARTUP_NONE ||
+pt_core.c:10302:		cd->startup_state == STARTUP_DONE) {
+pt_core.c:10303:		cd->startup_state = STARTUP_QUEUED;
+pt_core.c:10306:		if (!cd->bridge_mode)
+pt_core.c:10307:			schedule_work(&cd->enum_work);
+pt_core.c:10309:			cd->startup_state = STARTUP_NONE;
+pt_core.c:10311:		schedule_work(&cd->enum_work);
+pt_core.c:10313:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:10316:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:10318:			__func__, cd->startup_state);
+pt_core.c:10334:	mutex_lock(&cd->system_lock);
+pt_core.c:10336:	mutex_unlock(&cd->system_lock);
+pt_core.c:10354:	mutex_lock(&cd->system_lock);
+pt_core.c:10355:	if (cd->startup_state == STARTUP_NONE ||
+pt_core.c:10356:		cd->startup_state == STARTUP_DONE) {
+pt_core.c:10357:		cd->startup_state = STARTUP_QUEUED;
+pt_core.c:10359:		schedule_work(&cd->ttdl_restart_work);
+pt_core.c:10360:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:10363:		pt_debug(cd->dev, DL_INFO, "%s: startup_state = %d\n",
+pt_core.c:10364:			__func__, cd->startup_state);
+pt_core.c:10366:	mutex_unlock(&cd->system_lock);
+pt_core.c:10386:	pt_debug(cd->dev, DL_DEBUG, "%s: check list type=%d mode=%d\n",
+pt_core.c:10388:	spin_lock(&cd->spinlock);
+pt_core.c:10390:			&cd->atten_list[type], node) {
+pt_core.c:10392:			spin_unlock(&cd->spinlock);
+pt_core.c:10393:			pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:10397:			spin_lock(&cd->spinlock);
+pt_core.c:10400:	spin_unlock(&cd->spinlock);
+pt_core.c:10442:	mutex_lock(&cd->system_lock);
+pt_core.c:10443:	cd->wait_until_wake = 0;
+pt_core.c:10444:	mutex_unlock(&cd->system_lock);
+pt_core.c:10447:		cd->easy_wakeup_gesture, &status);
+pt_core.c:10514:	if (cd->irq_enabled) {
+pt_core.c:10515:		cd->irq_enabled = false;
+pt_core.c:10516:		disable_irq_nosync(cd->irq);
+pt_core.c:10519:	rc = cd->cpdata->power(cd->cpdata, 0, cd->dev, 0);
+pt_core.c:10521:		pt_debug(cd->dev, DL_ERROR, "%s: HW Power down fails r=%d\n",
+pt_core.c:10547:	if (cd->sleep_state == SS_SLEEP_ON || cd->sleep_state == SS_SLEEPING)
+pt_core.c:10550:	mutex_lock(&cd->system_lock);
+pt_core.c:10551:	cd->sleep_state = SS_SLEEPING;
+pt_core.c:10552:	mutex_unlock(&cd->system_lock);
+pt_core.c:10556:	cancel_work_sync(&cd->enum_work);
+pt_core.c:10559:	if (IS_EASY_WAKE_CONFIGURED(cd->easy_wakeup_gesture))
+pt_core.c:10561:	else if (cd->cpdata->flags & PT_CORE_FLAG_POWEROFF_ON_SLEEP)
+pt_core.c:10563:	else if (cd->cpdata->flags & PT_CORE_FLAG_DEEP_STANDBY)
+pt_core.c:10568:	mutex_lock(&cd->system_lock);
+pt_core.c:10570:		cd->sleep_state = SS_SLEEP_ON;
+pt_core.c:10572:		cd->sleep_state = SS_SLEEP_OFF;
+pt_core.c:10575:	mutex_unlock(&cd->system_lock);
+pt_core.c:10597:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:10599:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:10601:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:10607:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:10608:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:10611:		pt_debug(cd->dev, DL_DEBUG, "%s: pass release exclusive\n",
+pt_core.c:10637:	int size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:10640:	if (size != 4 || cd->input_buf[2] != 4)
+pt_core.c:10643:	event_id = cd->input_buf[3];
+pt_core.c:10645:	pt_debug(cd->dev, DL_INFO, "%s: e=%d, rc=%d\n",
+pt_core.c:10664:	if (cd->input_buf[2] != PT_PIP_WAKEUP_REPORT_ID) {
+pt_core.c:10671:	cd->gesture_id = cd->input_buf[3];
+pt_core.c:10672:	report_length = (cd->input_buf[1] << 8) | (cd->input_buf[0]);
+pt_core.c:10673:	cd->gesture_data_length = report_length - 4;
+pt_core.c:10675:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:10677:		__func__, cd->gesture_id, cd->gesture_data_length);
+pt_core.c:10679:	for (i = 0; i < cd->gesture_data_length; i++)
+pt_core.c:10680:		cd->gesture_data[i] = cd->input_buf[4 + i];
+pt_core.c:10750:	int size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:10753:		tthe_print(cd, cd->input_buf, size, "THM=");
+pt_core.c:10755:	memcpy(si->xy_mode, cd->input_buf, SENSOR_HEADER_SIZE);
+pt_core.c:10779:	int size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:10782:		tthe_print(cd, cd->input_buf, size, "sensor_monitor=");
+pt_core.c:10784:	memcpy(si->xy_mode, cd->input_buf, SENSOR_HEADER_SIZE);
+pt_core.c:10808:	int size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:10815:		cd->tthe_data_format =
+pt_core.c:10816:			cd->input_buf[PIP1_FW_DBG_DATA_FORMAT_ID_OFFSET];
+pt_core.c:10817:		tthe_print(cd, &cd->input_buf[SENSOR_HEADER_SIZE],
+pt_core.c:10819:		cd->tthe_data_format = PT_DATA_BINARY;
+pt_core.c:10822:	memcpy(si->xy_mode, cd->input_buf, SENSOR_HEADER_SIZE);
+pt_core.c:10847:		&cd->pt_async_rpt.buf[HID_RESP_PAYLOAD_LEN_OFFSET]);
+pt_core.c:10850:		&cd->pt_async_rpt.buf[HID_RESP_PAYLOAD_LEN_OFFSET],
+pt_core.c:10853:	resp_crc = cd->pt_async_rpt.buf[hid_pl_len + hdr_sz - 2] << 8;
+pt_core.c:10854:	resp_crc |= cd->pt_async_rpt.buf[hid_pl_len + hdr_sz - 1];
+pt_core.c:10857:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:10890:	int pkt_sz = cd->hid_core.hid_max_input_len;
+pt_core.c:10892:	u8 frpt = cd->pt_async_rpt.frpt;
+pt_core.c:10895:	int size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:10899:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:10905:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:10912:		memset(cd->pt_async_rpt.buf, 0, sizeof(cd->pt_async_rpt.buf));
+pt_core.c:10913:		memcpy(cd->pt_async_rpt.buf, cd->input_buf, pkt_sz);
+pt_core.c:10915:			&cd->pt_async_rpt.buf[HID_RESP_PAYLOAD_LEN_OFFSET]);
+pt_core.c:10919:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:10927:			pt_debug(cd->dev, DL_ERROR, "%s: error data length (%d)\n",
+pt_core.c:10932:		memcpy(&cd->pt_async_rpt.buf[input_sz], &cd->input_buf[hdr_sz],
+pt_core.c:10937:	if (cd->pt_async_rpt.mrpt &&
+pt_core.c:10939:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:10946:	if (cd->pt_async_rpt.mrpt == 0) {
+pt_core.c:10947:		cd->pt_async_rpt.buf[0] = LOW_BYTE(input_sz);
+pt_core.c:10948:		cd->pt_async_rpt.buf[1] = HI_BYTE(input_sz);
+pt_core.c:10950:		pt_pr_buf(cd->dev, DL_DEBUG, cd->pt_async_rpt.buf,
+pt_core.c:10958:			pt_debug(cd->dev, DL_ERROR, "%s: CRC error\n",
+pt_core.c:10966:		memset(cd->pt_async_rpt.buf, 0, sizeof(cd->pt_async_rpt.buf));
+pt_core.c:10995:		&cd->pt_async_rpt.buf[HID_RESP_PAYLOAD_LEN_OFFSET]);
+pt_core.c:10996:	cmd_id = cd->pt_async_rpt.buf[HID_RESP_CMD_ID_OFFSET] & 0x7F;
+pt_core.c:10998:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:11015:	pt_debug(cd->dev, DL_INFO, "%s: dp_count=%d\n",
+pt_core.c:11018:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:11027:	cd->pt_async_rpt.buf[0] = LOW_BYTE(pip1_pl_len);
+pt_core.c:11028:	cd->pt_async_rpt.buf[1] = HI_BYTE(pip1_pl_len);
+pt_core.c:11030:	cd->pt_async_rpt.buf[2] = PT_PIP_SENSOR_DATA_REPORT_ID;
+pt_core.c:11032:	cd->pt_async_rpt.buf[3] = 0x00;
+pt_core.c:11037:			&cd->pt_async_rpt.buf[10 + dp_count * 2 * i],
+pt_core.c:11040:	memcpy(&cd->pt_async_rpt.buf[SENSOR_HEADER_SIZE], data_buf,
+pt_core.c:11065:	u8 cmd_id = cd->pt_async_rpt.cmd_id;
+pt_core.c:11068:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:11075:	length = cd->hid_core.hid_max_input_len;
+pt_core.c:11081:	if (cd->tthe_hid_usb_format == PT_TTHE_TUNER_FORMAT_HID_USB)
+pt_core.c:11082:		tthe_print(cd, &(cd->input_buf[2]), length - 2,
+pt_core.c:11084:	else if (cd->tthe_hid_usb_format ==
+pt_core.c:11086:		tthe_print(cd, cd->input_buf, length,
+pt_core.c:11088:	else if (cd->tthe_hid_usb_format ==
+pt_core.c:11090:		cd->tthe_hid_usb_format ==
+pt_core.c:11092:		mrpt = cd->input_buf[HID_RESP_MRPT_OFFSET] & 0x01;
+pt_core.c:11093:		pt_debug(cd->dev, DL_DEBUG, "%s: mrpt=%d\n",
+pt_core.c:11104:			get_unaligned_le16(&cd->pt_async_rpt.buf[0]);
+pt_core.c:11105:		tthe_print(cd, cd->pt_async_rpt.buf,
+pt_core.c:11131:	u8 cmd_id = cd->pt_async_rpt.cmd_id;
+pt_core.c:11135:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:11142:	length = cd->hid_core.hid_max_input_len;
+pt_core.c:11148:	if (cd->tthe_hid_usb_format == PT_TTHE_TUNER_FORMAT_HID_USB)
+pt_core.c:11149:		tthe_print(cd, &(cd->input_buf[2]), length - 2,
+pt_core.c:11151:	else if (cd->tthe_hid_usb_format ==
+pt_core.c:11153:		tthe_print(cd, cd->input_buf, length,
+pt_core.c:11155:	else if (cd->tthe_hid_usb_format ==
+pt_core.c:11157:		cd->tthe_hid_usb_format ==
+pt_core.c:11159:		mrpt = cd->input_buf[HID_RESP_MRPT_OFFSET] & 0x01;
+pt_core.c:11160:		pt_debug(cd->dev, DL_DEBUG, "%s: mrpt=%d\n",
+pt_core.c:11175:			&cd->pt_async_rpt.buf[HID_RESP_PAYLOAD_LEN_OFFSET])
+pt_core.c:11178:			&cd->pt_async_rpt.buf[HID_RESP_SENSOR_DATA_OFFSET],
+pt_core.c:11181:		memset(cd->pt_async_rpt.buf, 0, sizeof(cd->pt_async_rpt.buf));
+pt_core.c:11184:		cd->pt_async_rpt.buf[0] = LOW_BYTE(PIP1_TRACKING_HEATMAP_SIZE);
+pt_core.c:11185:		cd->pt_async_rpt.buf[1] = HI_BYTE(PIP1_TRACKING_HEATMAP_SIZE);
+pt_core.c:11187:		cd->pt_async_rpt.buf[2] = PT_PIP_TRACKING_HEATMAP_REPORT_ID;
+pt_core.c:11189:		cd->pt_async_rpt.buf[3] = 0x00;
+pt_core.c:11190:		memcpy(&cd->pt_async_rpt.buf[SENSOR_HEADER_SIZE], data_buf,
+pt_core.c:11192:		tthe_print(cd, cd->pt_async_rpt.buf,
+pt_core.c:11217:	u8 cmd_id = cd->pt_async_rpt.cmd_id;
+pt_core.c:11220:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:11227:	length = cd->hid_core.hid_max_input_len;
+pt_core.c:11233:	if (cd->tthe_hid_usb_format == PT_TTHE_TUNER_FORMAT_HID_USB)
+pt_core.c:11234:		tthe_print(cd, &(cd->input_buf[2]), length - 2,
+pt_core.c:11236:	else if (cd->tthe_hid_usb_format ==
+pt_core.c:11238:		tthe_print(cd, cd->input_buf, length,
+pt_core.c:11240:	else if (cd->tthe_hid_usb_format ==
+pt_core.c:11242:		cd->tthe_hid_usb_format ==
+pt_core.c:11244:		mrpt = cd->input_buf[HID_RESP_MRPT_OFFSET] & 0x01;
+pt_core.c:11245:		pt_debug(cd->dev, DL_DEBUG, "%s: mrpt=%d\n",
+pt_core.c:11252:		length = get_unaligned_le16(&cd->pt_async_rpt.buf[0]);
+pt_core.c:11253:		tthe_print(cd, cd->pt_async_rpt.buf, length, "RTSD=");
+pt_core.c:11277:	u8 cmd_id = cd->pt_async_rpt.cmd_id;
+pt_core.c:11280:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:11287:	mrpt = cd->input_buf[HID_RESP_MRPT_OFFSET] & 0x01;
+pt_core.c:11288:	pt_debug(cd->dev, DL_DEBUG, "%s: mrpt=%d\n",
+pt_core.c:11301:			&cd->pt_async_rpt.buf[HID_RESP_PAYLOAD_LEN_OFFSET])
+pt_core.c:11303:	cd->tthe_data_format =
+pt_core.c:11304:		cd->pt_async_rpt.buf[HID_FW_DBG_DATA_FORMAT_ID_OFFSET];
+pt_core.c:11305:	tthe_print(cd, &cd->pt_async_rpt.buf[HID_FW_DBG_DATA_TIMESTAMP_OFFSET],
+pt_core.c:11307:	cd->tthe_data_format = PT_DATA_BINARY;
+pt_core.c:11334:	mrpt = cd->input_buf[HID_RESP_MRPT_OFFSET] & 0x01;
+pt_core.c:11335:	frpt = (cd->input_buf[HID_RESP_MRPT_OFFSET] & 0x02) >> 1;
+pt_core.c:11336:	cd->pt_async_rpt.mrpt = mrpt;
+pt_core.c:11337:	cd->pt_async_rpt.frpt = frpt;
+pt_core.c:11339:		cmd_id = cd->input_buf[HID_RESP_CMD_ID_OFFSET] & 0x7F;
+pt_core.c:11340:		cd->pt_async_rpt.cmd_id = cmd_id;
+pt_core.c:11342:		cmd_id = cd->pt_async_rpt.cmd_id;
+pt_core.c:11344:	pt_debug(cd->dev, DL_INFO, "%s: Cmd[0x%02X], frpt=%d, mrpt=%d\n",
+pt_core.c:11357:		pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:11383:	int size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:11386:		tthe_print(cd, cd->input_buf, size, "HID-ASYNC-FTR-RPT=");
+pt_core.c:11411:	int size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:11414:		tthe_print(cd, cd->input_buf, size, "OpModeData=");
+pt_core.c:11416:	memcpy(si->xy_mode, cd->input_buf, BTN_INPUT_HEADER_SIZE);
+pt_core.c:11417:	pt_pr_buf(cd->dev, DL_INFO, (u8 *)si->xy_mode, BTN_INPUT_HEADER_SIZE,
+pt_core.c:11420:	memcpy(si->xy_data, &cd->input_buf[BTN_INPUT_HEADER_SIZE],
+pt_core.c:11422:	pt_pr_buf(cd->dev, DL_INFO, (u8 *)si->xy_data, BTN_REPORT_SIZE,
+pt_core.c:11451:	int size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:11454:		tthe_print(cd, cd->input_buf, size, "OpModeData=");
+pt_core.c:11457:	memcpy(si->xy_mode, cd->input_buf, si->desc.tch_header_size);
+pt_core.c:11458:	pt_pr_buf(cd->dev, DL_INFO, (u8 *)si->xy_mode,
+pt_core.c:11461:	pt_get_touch_field(cd->dev, &num_cur_tch, tch->size,
+pt_core.c:11470:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:11478:	memcpy(si->xy_data, &cd->input_buf[si->desc.tch_header_size], length);
+pt_core.c:11479:	pt_pr_buf(cd->dev, DL_INFO, (u8 *)si->xy_data, length, "xy_data");
+pt_core.c:11514:	int size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:11522:	pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:11530:	if (cd->tthe_hid_usb_format == PT_TTHE_TUNER_FORMAT_HID_USB)
+pt_core.c:11531:		tthe_print(cd, &(cd->input_buf[2]), length - 2,
+pt_core.c:11533:	else if (cd->tthe_hid_usb_format ==
+pt_core.c:11535:		tthe_print(cd, &(cd->input_buf[0]), length,
+pt_core.c:11547:	pt_get_touch_field(cd->dev, &num_cur_tch, tch->size,
+pt_core.c:11548:			tch->max, cd->input_buf + 3 + tch->ofs, tch->bofs);
+pt_core.c:11561:	pt_debug(cd->dev, DL_INFO, "%s: max_tch=%d, packet_no=%d, num_cur_tch=%d\n",
+pt_core.c:11566:		memset(cd->touch_buf, 0, sizeof(cd->touch_buf));
+pt_core.c:11567:		memcpy(cd->touch_buf, cd->input_buf, input_sz);
+pt_core.c:11576:			memcpy(&cd->touch_buf[hdr_sz +
+pt_core.c:11578:				&(cd->input_buf[hdr_sz]),
+pt_core.c:11584:			memcpy(&cd->touch_buf[hdr_sz +
+pt_core.c:11586:				&(cd->input_buf[hdr_sz]),
+pt_core.c:11597:	cd->touch_buf[0] = input_sz & 0xff;
+pt_core.c:11598:	cd->touch_buf[1] = (input_sz & 0xff00) >> 8;
+pt_core.c:11605:	if (cd->tthe_hid_usb_format ==
+pt_core.c:11607:		cd->tthe_hid_usb_format ==
+pt_core.c:11609:		tthe_print(cd, cd->touch_buf, input_sz,
+pt_core.c:11612:	memcpy(si->xy_mode, cd->touch_buf, hdr_sz);
+pt_core.c:11613:	pt_pr_buf(cd->dev, DL_INFO, (u8 *)si->xy_mode,
+pt_core.c:11616:	memcpy(si->xy_data, &cd->touch_buf[hdr_sz], input_sz - hdr_sz);
+pt_core.c:11617:	pt_pr_buf(cd->dev, DL_INFO,
+pt_core.c:11645:	int size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:11663:		if (cd->tthe_hid_usb_format == PT_TTHE_TUNER_FORMAT_HID_USB)
+pt_core.c:11664:			tthe_print(cd, &(cd->input_buf[2]), size - 2,
+pt_core.c:11666:		else if (cd->tthe_hid_usb_format ==
+pt_core.c:11668:			cd->tthe_hid_usb_format ==
+pt_core.c:11670:			tthe_print(cd, &(cd->input_buf[0]), size,
+pt_core.c:11672:		else if (cd->tthe_hid_usb_format ==
+pt_core.c:11674:			memset(cd->touch_buf, 0, sizeof(cd->touch_buf));
+pt_core.c:11679:				pt_get_touch_field(cd->dev, &pen.abs[abs],
+pt_core.c:11682:					cd->input_buf + 3 +
+pt_core.c:11685:				pt_debug(cd->dev, DL_DEBUG, "%s: get %s=%04X(%d)\n",
+pt_core.c:11690:			cd->touch_buf[i++] = packet_len & 0xff;
+pt_core.c:11691:			cd->touch_buf[i++] = (packet_len & 0xff00) >> 8;
+pt_core.c:11693:			cd->touch_buf[i++] = report_id;
+pt_core.c:11695:			cd->touch_buf[i++] = 0;
+pt_core.c:11696:			cd->touch_buf[i++] = 0;
+pt_core.c:11698:			cd->touch_buf[i++] = 1;
+pt_core.c:11700:			cd->touch_buf[i++] = (report_counter & 0x03) << 6;
+pt_core.c:11702:			cd->touch_buf[i++] = PT_OBJ_STYLUS;
+pt_core.c:11704:			cd->touch_buf[i++] =
+pt_core.c:11709:			cd->touch_buf[i++] = pen.abs[PT_PEN_X] & 0xff;
+pt_core.c:11710:			cd->touch_buf[i++] = (pen.abs[PT_PEN_X] & 0xff00) >> 8;
+pt_core.c:11712:			cd->touch_buf[i++] = pen.abs[PT_PEN_Y] & 0xff;
+pt_core.c:11713:			cd->touch_buf[i++] = (pen.abs[PT_PEN_Y] & 0xff00) >> 8;
+pt_core.c:11715:			cd->touch_buf[i++] = (pen.abs[PT_PEN_P] & 0xff0) >> 4;
+pt_core.c:11717:			cd->touch_buf[i++] = pen.abs[PT_PEN_X_TILT] & 0xff;
+pt_core.c:11719:			cd->touch_buf[i++] = pen.abs[PT_PEN_Y_TILT] & 0xff;
+pt_core.c:11721:			cd->touch_buf[i++] =
+pt_core.c:11728:			tthe_print(cd, cd->touch_buf, packet_len,
+pt_core.c:11733:	memcpy(si->xy_mode, cd->input_buf, HID_PEN_INPUT_HEADER_SIZE);
+pt_core.c:11734:	memcpy(si->xy_data, cd->input_buf, size);
+pt_core.c:11735:	pt_pr_buf(cd->dev, DL_INFO, (u8 *)&(cd->input_buf[0]), size, "HID Pen");
+pt_core.c:11758:	if (cd->protocol_mode != PT_PROTOCOL_MODE_HID)
+pt_core.c:11761:	for (i = 0; i < cd->num_hid_pen_async_ftr_rpt_id; i++) {
+pt_core.c:11762:		if (id == cd->pt_hid_pen_async_ftr_rpt_id[i])
+pt_core.c:11785:	struct pt_sysinfo *si = &cd->sysinfo;
+pt_core.c:11786:	int report_id = cd->input_buf[2];
+pt_core.c:11789:	pt_debug(cd->dev, DL_DEBUG, "%s: Received touch report,protocol_mode=%d,report_id=%d\n",
+pt_core.c:11790:		__func__, cd->protocol_mode, report_id);
+pt_core.c:11792:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:11801:	if (cd->protocol_mode == PT_PROTOCOL_MODE_PIP) {
+pt_core.c:11817:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:11835:	call_atten_cb(cd, PT_ATTEN_IRQ, cd->mode);
+pt_core.c:11855:	pt_debug(cd->dev, DL_DEBUG, "%s: Received cmd interrupt\n",
+pt_core.c:11858:	memcpy(cd->response_buf, cd->input_buf, size);
+pt_core.c:11860:	if (size && cd->show_tt_data &&
+pt_core.c:11861:		cd->protocol_mode != PT_PROTOCOL_MODE_HID) {
+pt_core.c:11862:		if (cd->pip2_prot_active)
+pt_core.c:11863:			tthe_print(cd, cd->input_buf, size, "TT_DATA_PIP2=");
+pt_core.c:11865:			tthe_print(cd, cd->input_buf, size, "TT_DATA=");
+pt_core.c:11869:	mutex_lock(&cd->system_lock);
+pt_core.c:11870:	cd->hid_cmd_state = 0;
+pt_core.c:11871:	mutex_unlock(&cd->system_lock);
+pt_core.c:11872:	wake_up(&cd->wait_q);
+pt_core.c:11892:	if ((cd->panel_id_support & PT_PANEL_ID_BY_SYS_INFO) &&
+pt_core.c:11893:		(!cd->hid_reset_cmd_state) &&
+pt_core.c:11894:	    (cd->core_probe_complete) &&
+pt_core.c:11895:	    (cd->hid_cmd_state != PIP1_CMD_ID_START_BOOTLOADER + 1) &&
+pt_core.c:11896:	    (cd->hid_cmd_state != PIP1_BL_CMD_ID_LAUNCH_APP + 1) &&
+pt_core.c:11897:	    (cd->hid_cmd_state != PIP3_CMD_ID_SWITCH_IMAGE + 1) &&
+pt_core.c:11898:	    (cd->hid_cmd_state != PIP3_CMD_ID_START_BOOTLOADER + 1) &&
+pt_core.c:11899:	    (cd->mode == PT_MODE_OPERATIONAL)) {
+pt_core.c:11903:	if ((!cd->hid_reset_cmd_state) &&
+pt_core.c:11904:	    (cd->core_probe_complete) &&
+pt_core.c:11905:	    (cd->hid_cmd_state != PIP1_CMD_ID_START_BOOTLOADER + 1) &&
+pt_core.c:11906:	    (cd->hid_cmd_state != PIP1_BL_CMD_ID_LAUNCH_APP + 1) &&
+pt_core.c:11907:	    (cd->hid_cmd_state != PIP3_CMD_ID_SWITCH_IMAGE + 1) &&
+pt_core.c:11908:	    (cd->hid_cmd_state != PIP3_CMD_ID_START_BOOTLOADER + 1) &&
+pt_core.c:11909:	    (cd->active_dut_generation != DUT_PIP1_ONLY)) {
+pt_core.c:11913:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:11916:		"hid_reset_cmd_state(0)", cd->hid_reset_cmd_state,
+pt_core.c:11917:		"core_probe_complete(1)", cd->core_probe_complete,
+pt_core.c:11918:		"hid_cmd_state(Not 0x02 or 0x39)", cd->hid_cmd_state,
+pt_core.c:11919:		"active_dut_gen(0,2)", cd->active_dut_generation);
+pt_core.c:11957: *  PIP1/PIP2 response and overwrite it to cd->input_buf.
+pt_core.c:11973:	u16 size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:11990:	if (!cd->pt_hid_buf_op.buf) {
+pt_core.c:11995:	mrpt = cd->input_buf[HID_RESP_MRPT_OFFSET] & 0x01;
+pt_core.c:11996:	frpt = (cd->input_buf[HID_RESP_MRPT_OFFSET] & 0x02) >> 1;
+pt_core.c:12000:		if (cd->pt_hid_buf_op.offset) {
+pt_core.c:12001:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:12005:			memset(&cd->pt_hid_buf_op, 0,
+pt_core.c:12010:		    &cd->input_buf[HID_RESP_PAYLOAD_LEN_OFFSET]);
+pt_core.c:12012:		cmd_id = cd->input_buf[HID_RESP_CMD_ID_OFFSET] & 0x7F;
+pt_core.c:12014:		if (cd->pt_hid_buf_op.report_type != UNKNOWN_REPORT)
+pt_core.c:12015:			cur_report_type = cd->pt_hid_buf_op.report_type;
+pt_core.c:12017:			if (cd->force_pip3_report_type ||
+pt_core.c:12018:				cd->report_type == UNKNOWN_REPORT)
+pt_core.c:12021:				cur_report_type = cd->report_type;
+pt_core.c:12024:		if (cd->pt_hid_buf_op.offset == 0) {
+pt_core.c:12025:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:12033:		cur_report_type = cd->pt_hid_buf_op.report_type;
+pt_core.c:12036:	pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:12041:	if ((size + cd->pt_hid_buf_op.offset) <= HID_BUF_OP_BUFFER_SIZE) {
+pt_core.c:12042:		memcpy(cd->pt_hid_buf_op.buf + cd->pt_hid_buf_op.offset,
+pt_core.c:12043:		       &cd->input_buf[0], size);
+pt_core.c:12044:		cd->pt_hid_buf_op.offset += size;
+pt_core.c:12046:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:12048:			__func__, size, cd->pt_hid_buf_op.offset,
+pt_core.c:12053:	pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:12055:		__func__, size, cd->pt_hid_buf_op.offset,
+pt_core.c:12062:		    &cd->pt_hid_buf_op.buf[HID_RESP_PAYLOAD_LEN_OFFSET]);
+pt_core.c:12064:		memset(cd->input_buf, 0, sizeof(cd->input_buf));
+pt_core.c:12098:			    &cd->pt_hid_buf_op.buf[hid_buf_index]);
+pt_core.c:12100:			     cd->pt_hid_buf_op.offset) ||
+pt_core.c:12118:			memcpy(&cd->input_buf[pip_index],
+pt_core.c:12119:			       &cd->pt_hid_buf_op.buf[hid_buf_index +
+pt_core.c:12125:		} while (hid_buf_index < cd->pt_hid_buf_op.offset);
+pt_core.c:12128:		calc_crc = crc_ccitt_calculate(&cd->input_buf[calc_crc_ofs],
+pt_core.c:12130:		resp_crc = cd->input_buf[pip_index - 2] << 8;
+pt_core.c:12131:		resp_crc |= cd->input_buf[pip_index - 1];
+pt_core.c:12133:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:12140:		pt_pr_buf(cd->dev, DL_DEBUG, cd->pt_hid_buf_op.buf,
+pt_core.c:12141:			  cd->pt_hid_buf_op.offset, "<<< ATM - HID buf");
+pt_core.c:12143:		status = cd->pt_hid_buf_op.buf[HID_RESP_STATUS_OFFSET];
+pt_core.c:12145:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:12152:			cd->input_buf[0] = LOW_BYTE(pip_index);
+pt_core.c:12153:			cd->input_buf[1] = HI_BYTE(pip_index);
+pt_core.c:12155:			cd->input_buf[2] = PT_PIP_NON_HID_RESPONSE_ID;
+pt_core.c:12157:			cd->input_buf[3] = 0x00;
+pt_core.c:12159:			cmd_id = cd->input_buf[4] & 0x7f;
+pt_core.c:12160:			cd->input_buf[4] = pt_get_pip_cmd_id_from_hid(
+pt_core.c:12162:			pt_pr_buf(cd->dev, DL_DEBUG, cd->input_buf, pip_index,
+pt_core.c:12166:			cmd_id = cd->input_buf[3] & 0x7f;
+pt_core.c:12167:			rsp_bit = cd->input_buf[3] & 0x80;
+pt_core.c:12168:			cd->input_buf[3] = pt_get_pip_cmd_id_from_hid(
+pt_core.c:12170:			cd->input_buf[3] |= rsp_bit;
+pt_core.c:12173:			    crc_ccitt_calculate(cd->input_buf, pip_index - 2);
+pt_core.c:12174:			cd->input_buf[pip_index - 2] = HI_BYTE(calc_crc);
+pt_core.c:12175:			cd->input_buf[pip_index - 1] = LOW_BYTE(calc_crc);
+pt_core.c:12176:			pt_pr_buf(cd->dev, DL_DEBUG, cd->input_buf, pip_index,
+pt_core.c:12179:			pt_pr_buf(cd->dev, DL_DEBUG, cd->input_buf, pip_index,
+pt_core.c:12183:		cd->pt_hid_buf_op.report_type = UNKNOWN_REPORT;
+pt_core.c:12185:		cd->pt_hid_buf_op.report_type = cur_report_type;
+pt_core.c:12186:		cd->pt_hid_buf_op.last_remain_packet += 1;
+pt_core.c:12187:		pkt_num = cd->pt_hid_buf_op.last_remain_packet;
+pt_core.c:12188:		if ((cd->pt_hid_buf_op.offset - pkt_num * HID_RESP_HEADER_SIZE)
+pt_core.c:12190:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:12201:		memset(&cd->pt_hid_buf_op, 0,
+pt_core.c:12247:	cd->fw_sys_mode_in_standby_state = false;
+pt_core.c:12248:	size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:12249:	pt_debug(cd->dev, DL_DEBUG, "<<< %s: IRQ Triggered, read len [%d]\n",
+pt_core.c:12252:		pt_pr_buf(cd->dev, DL_DEBUG, cd->input_buf, size,
+pt_core.c:12257:		cd->hw_detected = true;
+pt_core.c:12258:		cd->bl_pip_ver_ready = false;
+pt_core.c:12259:		cd->app_pip_ver_ready = false;
+pt_core.c:12261:			mutex_lock(&cd->system_lock);
+pt_core.c:12262:			cd->pip2_prot_active = false;
+pt_core.c:12263:			if (cd->active_dut_generation == DUT_PIP1_ONLY) {
+pt_core.c:12269:				if (cd->hid_cmd_state ==
+pt_core.c:12271:					cd->mode = PT_MODE_OPERATIONAL;
+pt_core.c:12272:					cd->enum_status =
+pt_core.c:12274:				} else if (cd->hid_cmd_state ==
+pt_core.c:12276:					cd->hid_reset_cmd_state) {
+pt_core.c:12277:					cd->mode = PT_MODE_BOOTLOADER;
+pt_core.c:12278:					cd->enum_status =
+pt_core.c:12281:					cd->mode = PT_MODE_UNKNOWN;
+pt_core.c:12282:					cd->enum_status =
+pt_core.c:12285:				cd->fw_system_mode = FW_SYS_MODE_UNDEFINED;
+pt_core.c:12287:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:12290:					(cd->mode == PT_MODE_OPERATIONAL ?
+pt_core.c:12292:					(cd->mode == PT_MODE_BOOTLOADER ?
+pt_core.c:12295:				cd->mode = PT_MODE_OPERATIONAL;
+pt_core.c:12296:				cd->fw_system_mode = FW_SYS_MODE_BOOT;
+pt_core.c:12297:				cd->enum_status =
+pt_core.c:12299:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:12303:			mutex_unlock(&cd->system_lock);
+pt_core.c:12306:				if (cd->active_dut_generation == DUT_UNKNOWN) {
+pt_core.c:12307:					pt_debug(cd->dev, DL_INFO,
+pt_core.c:12311:					pt_debug(cd->dev, DL_INFO,
+pt_core.c:12316:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:12325:				if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:12326:					cd->hid_cmd_state ==
+pt_core.c:12328:					if (cd->img_id == 1) {
+pt_core.c:12329:						mutex_lock(&cd->system_lock);
+pt_core.c:12330:						cd->mode =
+pt_core.c:12332:						mutex_unlock(&cd->system_lock);
+pt_core.c:12339:			mutex_lock(&cd->system_lock);
+pt_core.c:12340:			cd->pip2_prot_active = true;
+pt_core.c:12341:			cd->enum_status = ENUM_STATUS_BL_RESET_SENTINEL;
+pt_core.c:12342:			cd->mode = PT_MODE_BOOTLOADER;
+pt_core.c:12343:			cd->sysinfo.ready = false;
+pt_core.c:12344:			mutex_unlock(&cd->system_lock);
+pt_core.c:12345:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:12347:			if (cd->flashless_dut &&
+pt_core.c:12348:			    cd->flashless_auto_bl == PT_ALLOW_AUTO_BL) {
+pt_core.c:12349:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:12355:		mutex_lock(&cd->system_lock);
+pt_core.c:12356:		memcpy(cd->response_buf, cd->input_buf, 2);
+pt_core.c:12357:		if (!cd->hid_reset_cmd_state && !cd->hid_cmd_state) {
+pt_core.c:12358:			mutex_unlock(&cd->system_lock);
+pt_core.c:12359:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:12361:			wake_up(&cd->wait_q);
+pt_core.c:12365:		cd->hid_reset_cmd_state = 0;
+pt_core.c:12366:		if (cd->hid_cmd_state == PIP1_CMD_ID_START_BOOTLOADER + 1 ||
+pt_core.c:12367:		    cd->hid_cmd_state == PIP1_BL_CMD_ID_LAUNCH_APP + 1 ||
+pt_core.c:12368:		    cd->hid_cmd_state == PIP1_CMD_ID_USER_CMD + 1 ||
+pt_core.c:12369:		    (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:12370:		    (cd->hid_cmd_state == PIP3_CMD_ID_SWITCH_IMAGE + 1 ||
+pt_core.c:12371:		    cd->hid_cmd_state == PIP3_CMD_ID_START_BOOTLOADER + 1)))
+pt_core.c:12372:			cd->hid_cmd_state = 0;
+pt_core.c:12373:		wake_up(&cd->wait_q);
+pt_core.c:12374:		mutex_unlock(&cd->system_lock);
+pt_core.c:12382:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:12386:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:12393:	report_id = cd->input_buf[HID_RESP_REPORT_ID_OFFSET];
+pt_core.c:12398:		if (cd->tthe_hid_usb_format == PT_TTHE_TUNER_FORMAT_HID_USB)
+pt_core.c:12399:			tthe_print(cd, &(cd->input_buf[2]), size - 2,
+pt_core.c:12402:			tthe_print(cd, &(cd->input_buf[0]), size,
+pt_core.c:12408:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:12420:			report_id = cd->input_buf[PIP1_RESP_REPORT_ID_OFFSET];
+pt_core.c:12421:		size = get_unaligned_le16(&cd->input_buf[0]);
+pt_core.c:12424:	if (cd->pip2_prot_active) {
+pt_core.c:12433:		tag_seq   = cd->input_buf[PIP2_RESP_SEQUENCE_OFFSET] & 0x0F;
+pt_core.c:12434:		calc_crc  = crc_ccitt_calculate(cd->input_buf, size - 2);
+pt_core.c:12435:		resp_crc  = cd->input_buf[size - 2] << 8;
+pt_core.c:12436:		resp_crc |= cd->input_buf[size - 1];
+pt_core.c:12438:		if ((cd->pip2_cmd_tag_seq != tag_seq) &&
+pt_core.c:12441:			pt_debug(cd->dev, DL_INFO, "%s: %s 0x%02X %s\n",
+pt_core.c:12450:			cmd_id = cd->input_buf[PIP2_RESP_COMMAND_ID_OFFSET];
+pt_core.c:12453:		cmd_id = cd->input_buf[PIP1_RESP_COMMAND_ID_OFFSET];
+pt_core.c:12459:		tthe_print(cd, cd->input_buf, size, "TT_WAKEUP=");
+pt_core.c:12464:	mod_timer_pending(&cd->watchdog_timer, jiffies +
+pt_core.c:12465:			msecs_to_jiffies(cd->watchdog_interval));
+pt_core.c:12477:		pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:12479:			__func__, cd->pip2_prot_active, report_id,
+pt_core.c:12505:	struct device *dev = cd->dev;
+pt_core.c:12514:	mutex_lock(&cd->system_lock);
+pt_core.c:12515:	if (IS_EASY_WAKE_CONFIGURED(cd->easy_wakeup_gesture)) {
+pt_core.c:12516:		if (cd->sleep_state == SS_SLEEP_ON) {
+pt_core.c:12517:			mutex_unlock(&cd->system_lock);
+pt_core.c:12520:			t = wait_event_timeout(cd->wait_q,
+pt_core.c:12521:				(cd->wait_until_wake == 1),
+pt_core.c:12525:				cd->bus_transmit_error_count++;
+pt_core.c:12530:					cd->bus_transmit_error_count);
+pt_core.c:12539:	mutex_unlock(&cd->system_lock);
+pt_core.c:12542:	memset(cd->input_buf, 0, sizeof(cd->input_buf));
+pt_core.c:12545:		rc = pt_adap_read_default_nosize(cd, cd->input_buf,
+pt_core.c:12584:	cd->irq_count++;
+pt_core.c:12587:	if (cd->t_refresh_active) {
+pt_core.c:12588:		if (cd->t_refresh_count == 0) {
+pt_core.c:12589:			cd->t_refresh_time = jiffies;
+pt_core.c:12590:			cd->t_refresh_count++;
+pt_core.c:12591:		} else if (cd->t_refresh_count < cd->t_refresh_total) {
+pt_core.c:12592:			cd->t_refresh_count++;
+pt_core.c:12594:			cd->t_refresh_active = 0;
+pt_core.c:12595:			cd->t_refresh_time =
+pt_core.c:12596:			jiffies_to_msecs(jiffies - cd->t_refresh_time);
+pt_core.c:12636:	pt_debug(cd->dev, DL_INFO, "%s from '%s'\n", __func__,
+pt_core.c:12637:		dev_name(cd->dev));
+pt_core.c:12639:	spin_lock(&cd->spinlock);
+pt_core.c:12640:	list_for_each_entry(atten, &cd->atten_list[type], node) {
+pt_core.c:12642:			spin_unlock(&cd->spinlock);
+pt_core.c:12644:			pt_debug(cd->dev, DL_INFO, "%s: %s=%p %s=%d\n",
+pt_core.c:12658:	list_add(&atten_new->node, &cd->atten_list[type]);
+pt_core.c:12659:	spin_unlock(&cd->spinlock);
+pt_core.c:12688:	spin_lock(&cd->spinlock);
+pt_core.c:12689:	list_for_each_entry_safe(atten, atten_n, &cd->atten_list[type], node) {
+pt_core.c:12692:			spin_unlock(&cd->spinlock);
+pt_core.c:12693:			pt_debug(cd->dev, DL_DEBUG, "%s: %s=%p %s=%d\n",
+pt_core.c:12701:	spin_unlock(&cd->spinlock);
+pt_core.c:12772:		pt_debug(cd->dev, DL_ERROR, "%s: Error on h/w reset r=%d\n",
+pt_core.c:12802:		wait_event_timeout(cd->wait_q,
+pt_core.c:12803:			cd->startup_state == STARTUP_DONE,
+pt_core.c:12828:	if ((cd->panel_id_support & PT_PANEL_ID_BY_SYS_INFO) &&
+pt_core.c:12829:			!cd->sysinfo.ready) {
+pt_core.c:12832:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:12838:	if (cd->sysinfo.ready)
+pt_core.c:12839:		return &cd->sysinfo;
+pt_core.c:12860:	return cd->pdata->loader_pdata;
+pt_core.c:12926:	u16 tmp_enum_status = cd->enum_status;
+pt_core.c:12932:	mutex_lock(&cd->system_lock);
+pt_core.c:12933:	cd->enum_status = ENUM_STATUS_START;
+pt_core.c:12935:	mutex_unlock(&cd->system_lock);
+pt_core.c:12969:	while ((cd->enum_status == ENUM_STATUS_START) && time < 240) {
+pt_core.c:12971:		pt_debug(cd->dev, DL_INFO, "%s: wait for %d for enum=0x%04X\n",
+pt_core.c:12972:			__func__, time, cd->enum_status);
+pt_core.c:12975:	if (cd->enum_status == ENUM_STATUS_START) {
+pt_core.c:12976:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:12982:	if (cd->enum_status == ENUM_STATUS_START) {
+pt_core.c:12984:		mutex_lock(&cd->system_lock);
+pt_core.c:12985:		cd->enum_status = tmp_enum_status;
+pt_core.c:12986:		mutex_unlock(&cd->system_lock);
+pt_core.c:13032:	t = wait_event_timeout(cd->wait_q,
+pt_core.c:13033:		(cd->enum_status & state) || (cd->enum_status & 0x0100),
+pt_core.c:13036:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13039:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:13041:			__func__, cd->enum_status);
+pt_core.c:13043:	} else if (cd->enum_status & state) {
+pt_core.c:13044:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:13046:			 __func__, cd->enum_status,
+pt_core.c:13051:			    cd->dev, DL_ERROR,
+pt_core.c:13057:			    cd->dev, DL_ERROR,
+pt_core.c:13062:		pt_debug(cd->dev, DL_INFO, "%s: enum state reached 0x%04X\n",
+pt_core.c:13063:			 __func__, cd->enum_status);
+pt_core.c:13111:	mutex_lock(&cd->system_lock);
+pt_core.c:13112:	cd->wait_until_wake = 1;
+pt_core.c:13113:	mutex_unlock(&cd->system_lock);
+pt_core.c:13114:	wake_up(&cd->wait_q);
+pt_core.c:13138:	if (!(cd->cpdata->flags & PT_CORE_FLAG_RESTORE_PARAMETERS))
+pt_core.c:13141:	spin_lock(&cd->spinlock);
+pt_core.c:13142:	list_for_each_entry(param, &cd->param_list, node) {
+pt_core.c:13143:		spin_unlock(&cd->spinlock);
+pt_core.c:13144:		pt_debug(cd->dev, DL_INFO, "%s: Parameter id:%d value:%d\n",
+pt_core.c:13150:		spin_lock(&cd->spinlock);
+pt_core.c:13152:	spin_unlock(&cd->spinlock);
+pt_core.c:13182:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:13183:		rc = _pt_detect_dut_mode(cd->dev, &mode);
+pt_core.c:13184:		if (!rc && cd->mode != mode) {
+pt_core.c:13185:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:13186:			    "%s: cd->mode(%d) doesn't match detected(%d)\n",
+pt_core.c:13187:			    __func__, cd->mode, mode);
+pt_core.c:13188:			cd->mode = mode;
+pt_core.c:13203:		if (cd->flashless_dut == 1)
+pt_core.c:13209:			if (cd->flashless_dut == 1) {
+pt_core.c:13215:			rc = _pt_request_wait_for_enum_state(cd->dev,
+pt_core.c:13217:			if (cd->flashless_dut == 1) {
+pt_core.c:13224:				if ((cd->enum_status &
+pt_core.c:13226:					!(cd->enum_status &
+pt_core.c:13230:						cd->dev, 2000,
+pt_core.c:13243:			rc = _pt_request_wait_for_enum_state(cd->dev, 4500,
+pt_core.c:13245:			if (!rc || cd->enum_status >=
+pt_core.c:13247:				mutex_lock(&cd->system_lock);
+pt_core.c:13248:				cd->mode = PT_MODE_OPERATIONAL;
+pt_core.c:13249:				mutex_unlock(&cd->system_lock);
+pt_core.c:13252:				pt_debug(cd->dev, DL_WARN, "%s: %s: 0x%04X\n",
+pt_core.c:13254:					cd->enum_status);
+pt_core.c:13255:				if (load_status_str && !(cd->enum_status &
+pt_core.c:13285:		mutex_lock(&cd->system_lock);
+pt_core.c:13286:		cd->mode = mode;
+pt_core.c:13287:		mutex_unlock(&cd->system_lock);
+pt_core.c:13298:		mutex_lock(&cd->system_lock);
+pt_core.c:13299:		cd->mode = mode;
+pt_core.c:13300:		mutex_unlock(&cd->system_lock);
+pt_core.c:13331:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:13333:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13335:			 cd->exclusive_dev, cd->dev);
+pt_core.c:13341:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:13342:		pt_debug(cd->dev, DL_ERROR, "%s: fail to release exclusive\n",
+pt_core.c:13372:		pt_debug(cd->dev, DL_INFO, "%s: Retry %d\n", __func__,
+pt_core.c:13375:	if (cd->active_dut_generation == DUT_PIP1_ONLY) {
+pt_core.c:13376:		pt_debug(cd->dev, DL_INFO, "%s: PIP1 Enumeration start\n",
+pt_core.c:13382:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13389:		cd->mode = pt_get_mode(cd, &hid_desc);
+pt_core.c:13391:		if (cd->mode == PT_MODE_BOOTLOADER) {
+pt_core.c:13392:			pt_debug(cd->dev, DL_INFO, "%s: Bootloader mode\n",
+pt_core.c:13396:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13405:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13412:			cd->mode = pt_get_mode(cd, &hid_desc);
+pt_core.c:13413:			if (cd->mode == PT_MODE_BOOTLOADER) {
+pt_core.c:13420:		cd->enum_status |= ENUM_STATUS_GET_DESC;
+pt_core.c:13421:		cd->enum_status |= ENUM_STATUS_FW_OUT_OF_BOOT;
+pt_core.c:13423:		pt_debug(cd->dev, DL_INFO, "%s: PIP2 Enumeration start\n",
+pt_core.c:13429:				cd->dev, 150,
+pt_core.c:13433:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13442:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13447:		cd->mode = mode;
+pt_core.c:13449:		if (cd->mode == PT_MODE_BOOTLOADER) {
+pt_core.c:13450:			pt_debug(cd->dev, DL_INFO, "%s: Bootloader mode\n",
+pt_core.c:13454:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13463:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:13468:			if (cd->mode != PT_MODE_OPERATIONAL) {
+pt_core.c:13469:				pt_debug(cd->dev, DL_WARN,
+pt_core.c:13471:					 __func__, cd->mode);
+pt_core.c:13477:		cd->enum_status |= ENUM_STATUS_GET_DESC;
+pt_core.c:13483:		cd->enum_status |= ENUM_STATUS_FW_OUT_OF_BOOT;
+pt_core.c:13484:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:13488:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:13494:	if (!cd->sysinfo.ready) {
+pt_core.c:13497:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13505:	cd->enum_status |= ENUM_STATUS_GET_SYS_INFO;
+pt_core.c:13509:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13513:		cd->enum_status |= ENUM_STATUS_RESTORE_PARM;
+pt_core.c:13516:	cd->enum_status |= ENUM_STATUS_COMPLETE;
+pt_core.c:13534:	struct device *dev = cd->dev;
+pt_core.c:13543:	mutex_lock(&cd->system_lock);
+pt_core.c:13544:	cd->enum_status = ENUM_STATUS_START;
+pt_core.c:13545:	cd->hid_reset_cmd_state = 1;
+pt_core.c:13546:	mutex_unlock(&cd->system_lock);
+pt_core.c:13548:	rc = cd->cpdata->power(cd->cpdata, 1, dev, 0);
+pt_core.c:13555:	if (!cd->irq_enabled) {
+pt_core.c:13556:		cd->irq_enabled = true;
+pt_core.c:13557:		enable_irq(cd->irq);
+pt_core.c:13584:		pt_debug(cd->dev, DL_ERROR, "%s: Error on h/w reset r=%d\n",
+pt_core.c:13615:	if (cd->sleep_state == SS_SLEEP_OFF || cd->sleep_state == SS_WAKING)
+pt_core.c:13618:	mutex_lock(&cd->system_lock);
+pt_core.c:13619:	cd->sleep_state = SS_WAKING;
+pt_core.c:13620:	mutex_unlock(&cd->system_lock);
+pt_core.c:13622:	if (!(cd->cpdata->flags & PT_CORE_FLAG_SKIP_RESUME)) {
+pt_core.c:13623:		if (IS_EASY_WAKE_CONFIGURED(cd->easy_wakeup_gesture))
+pt_core.c:13625:		else if (cd->cpdata->flags & PT_CORE_FLAG_POWEROFF_ON_SLEEP)
+pt_core.c:13627:		else if (cd->cpdata->flags & PT_CORE_FLAG_DEEP_STANDBY)
+pt_core.c:13633:	mutex_lock(&cd->system_lock);
+pt_core.c:13635:		cd->sleep_state = SS_SLEEP_OFF;
+pt_core.c:13637:		cd->sleep_state = SS_SLEEP_ON;
+pt_core.c:13638:	mutex_unlock(&cd->system_lock);
+pt_core.c:13662:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:13664:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13666:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:13672:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:13673:		pt_debug(cd->dev, DL_ERROR, "%s: fail to release exclusive\n",
+pt_core.c:13676:		pt_debug(cd->dev, DL_DEBUG, "%s: pass release exclusive\n",
+pt_core.c:13700:	struct pt_sysinfo *si = &cd->sysinfo;
+pt_core.c:13720:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:13731:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:13811:	rc = pt_pip2_read_gpio(cd->dev, &status, &gpio_value);
+pt_core.c:13816:			pt_debug(cd->dev, DL_INFO, "%s: %s=0x%02X %s=0x%08X\n",
+pt_core.c:13821:			pt_debug(cd->dev, DL_ERROR, "%s: %s=%d\n",
+pt_core.c:13826:		pt_debug(cd->dev, DL_ERROR, "%s: %s=%d\n",
+pt_core.c:13862:	pt_debug(cd->dev, DL_INFO, "%s: Start enum... 0x%04X, reset=%d\n",
+pt_core.c:13863:		__func__, cd->enum_status, reset);
+pt_core.c:13868:		pt_debug(cd->dev, DL_WARN, "%s: DUT Enum Attempt %d\n",
+pt_core.c:13872:		cd->enum_status &= (ENUM_STATUS_BL_RESET_SENTINEL |
+pt_core.c:13878:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:13891:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13904:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13913:	cd->mode = pt_get_mode(cd, &hid_desc);
+pt_core.c:13923:	if (cd->panel_id_support & PT_PANEL_ID_BY_BL) {
+pt_core.c:13924:		if (cd->mode == PT_MODE_OPERATIONAL) {
+pt_core.c:13927:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13934:			cd->mode = PT_MODE_BOOTLOADER;
+pt_core.c:13935:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:13941:			cd->bl_info.ready = true;
+pt_core.c:13942:			cd->bl_info.chip_id =
+pt_core.c:13944:			pt_debug(cd->dev, DL_INFO, "%s: chip ID %04X\n",
+pt_core.c:13945:				 __func__, cd->bl_info.chip_id);
+pt_core.c:13947:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13953:		mutex_lock(&cd->system_lock);
+pt_core.c:13955:			cd->pid_for_loader = pid;
+pt_core.c:13956:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:13958:				__func__, cd->pid_for_loader);
+pt_core.c:13960:			cd->pid_for_loader = PANEL_ID_NOT_ENABLED;
+pt_core.c:13961:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:13963:				__func__, cd->pid_for_loader);
+pt_core.c:13965:		mutex_unlock(&cd->system_lock);
+pt_core.c:13969:	if (cd->mode == PT_MODE_BOOTLOADER) {
+pt_core.c:13972:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13986:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:13994:		cd->mode = pt_get_mode(cd, &hid_desc);
+pt_core.c:13995:		if (cd->mode == PT_MODE_BOOTLOADER) {
+pt_core.c:13996:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:14005:	pt_debug(cd->dev, DL_INFO, "%s: Operational mode\n", __func__);
+pt_core.c:14006:	cd->mode = PT_MODE_OPERATIONAL;
+pt_core.c:14018:	if (!cd->features.easywake)
+pt_core.c:14019:		cd->easy_wakeup_gesture = PT_CORE_EWG_NONE;
+pt_core.c:14021:	pt_debug(cd->dev, DL_INFO, "%s: Reading sysinfo\n", __func__);
+pt_core.c:14024:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14031:	pt_debug(cd->dev, DL_INFO, "%s pt Prot Version: %d.%d\n",
+pt_core.c:14033:			cd->sysinfo.ttdata.pip_ver_major,
+pt_core.c:14034:			cd->sysinfo.ttdata.pip_ver_minor);
+pt_core.c:14038:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14045:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:14052:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14057:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:14062:	if (cd->panel_id_support & PT_PANEL_ID_BY_MFG_DATA) {
+pt_core.c:14064:		mutex_lock(&cd->system_lock);
+pt_core.c:14066:			cd->pid_for_loader = pid;
+pt_core.c:14067:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:14069:				__func__, cd->pid_for_loader);
+pt_core.c:14071:			cd->pid_for_loader = PANEL_ID_NOT_ENABLED;
+pt_core.c:14072:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:14074:				__func__, cd->pid_for_loader);
+pt_core.c:14076:		mutex_unlock(&cd->system_lock);
+pt_core.c:14080:	cd->startup_retry_count = 0;
+pt_core.c:14084:	_legacy_generate_hw_version(cd, cd->hw_version);
+pt_core.c:14085:	pt_debug(cd->dev, DL_WARN, "%s: HW Version: %s\n", __func__,
+pt_core.c:14086:		cd->hw_version);
+pt_core.c:14091:	pt_debug(cd->dev, DL_WARN,
+pt_core.c:14129:	pt_debug(cd->dev, DL_INFO, "%s: Start enum... 0x%04X, reset=%d\n",
+pt_core.c:14130:		__func__, cd->enum_status, reset);
+pt_core.c:14135:		pt_debug(cd->dev, DL_WARN, "%s: DUT Enum Attempt %d\n",
+pt_core.c:14139:		cd->enum_status &= (ENUM_STATUS_BL_RESET_SENTINEL |
+pt_core.c:14145:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:14148:	if (cd->protocol_mode != PT_PROTOCOL_MODE_PIP) {
+pt_core.c:14151:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14160:		mode = cd->dut_status.mode;
+pt_core.c:14163:		if (cd->dut_status.fw_system_mode ==
+pt_core.c:14165:			cd->dut_status.fw_system_mode ==
+pt_core.c:14167:			cd->mode = mode;
+pt_core.c:14168:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:14174:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14180:	cd->mode = mode;
+pt_core.c:14182:	switch (cd->mode) {
+pt_core.c:14184:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:14186:		protocol_mode = cd->protocol_mode;
+pt_core.c:14187:		if ((cd->app_pip_ver_ready == false) ||
+pt_core.c:14188:			(cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:14189:			cd->hid_core.pip_minor_ver >= 3)) {
+pt_core.c:14192:				cd->app_pip_ver_ready = true;
+pt_core.c:14193:				if (cd->sysinfo.ttdata.fw_category_id
+pt_core.c:14195:					cd->mode = PT_MODE_SECONDARY_IMAGE;
+pt_core.c:14196:					pt_debug(cd->dev, DL_INFO, "%s: Secondary Image mode\n",
+pt_core.c:14198:				} else if (cd->sysinfo.ttdata.fw_category_id
+pt_core.c:14200:					cd->mode = PT_MODE_UTILITY_IMAGE;
+pt_core.c:14201:					pt_debug(cd->dev, DL_INFO, "%s: Utility Image mode\n",
+pt_core.c:14212:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:14214:		if (cd->panel_id_support & PT_PANEL_ID_BY_BL) {
+pt_core.c:14216:			mutex_lock(&cd->system_lock);
+pt_core.c:14218:				cd->pid_for_loader = pid;
+pt_core.c:14219:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:14221:					 __func__, cd->pid_for_loader);
+pt_core.c:14223:				cd->pid_for_loader =
+pt_core.c:14225:				pt_debug(cd->dev, DL_WARN,
+pt_core.c:14227:					 __func__, cd->pid_for_loader);
+pt_core.c:14229:			mutex_unlock(&cd->system_lock);
+pt_core.c:14232:		if (cd->bl_pip_ver_ready == false) {
+pt_core.c:14235:				cd->bl_pip_ver_ready = true;
+pt_core.c:14248:		if (cd->flashless_dut)
+pt_core.c:14257:		rc = pt_pip2_launch_app(cd->dev,
+pt_core.c:14260:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14279:			mode = cd->dut_status.mode;
+pt_core.c:14281:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14286:		cd->mode = mode;
+pt_core.c:14287:		if (cd->mode == PT_MODE_OPERATIONAL) {
+pt_core.c:14288:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:14291:			protocol_mode = cd->protocol_mode;
+pt_core.c:14292:		} else if (cd->mode == PT_MODE_BOOTLOADER) {
+pt_core.c:14293:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14297:		} else if (cd->mode == PT_MODE_UNKNOWN) {
+pt_core.c:14298:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14306:		if ((cd->app_pip_ver_ready == false) ||
+pt_core.c:14307:			(cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:14308:			cd->hid_core.pip_minor_ver >= 3)) {
+pt_core.c:14311:				cd->app_pip_ver_ready = true;
+pt_core.c:14312:				if (cd->sysinfo.ttdata.fw_category_id
+pt_core.c:14314:					cd->mode = PT_MODE_SECONDARY_IMAGE;
+pt_core.c:14315:					pt_debug(cd->dev, DL_INFO, "%s: Secondary Image mode\n",
+pt_core.c:14317:				} else if (cd->sysinfo.ttdata.fw_category_id
+pt_core.c:14319:					cd->mode = PT_MODE_UTILITY_IMAGE;
+pt_core.c:14320:					pt_debug(cd->dev, DL_INFO, "%s: Utility Image mode\n",
+pt_core.c:14331:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14337:	if (cd->protocol_mode != PT_PROTOCOL_MODE_PIP &&
+pt_core.c:14350:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14361:	if (cd->mode == PT_MODE_SECONDARY_IMAGE ||
+pt_core.c:14362:		cd->mode == PT_MODE_UTILITY_IMAGE) {
+pt_core.c:14363:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:14369:	if (!cd->features.easywake)
+pt_core.c:14370:		cd->easy_wakeup_gesture = PT_CORE_EWG_NONE;
+pt_core.c:14372:	pt_debug(cd->dev, DL_INFO, "%s: Reading sysinfo\n", __func__);
+pt_core.c:14375:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14387:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:14391:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:14397:	pt_debug(cd->dev, DL_INFO, "%s pt Prot Version: %d.%d\n",
+pt_core.c:14399:			cd->sysinfo.ttdata.pip_ver_major,
+pt_core.c:14400:			cd->sysinfo.ttdata.pip_ver_minor);
+pt_core.c:14404:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14412:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14419:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:14427:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14432:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:14438:	cd->startup_retry_count = 0;
+pt_core.c:14442:	_pip2_generate_hw_version(cd, cd->hw_version);
+pt_core.c:14443:	pt_debug(cd->dev, DL_WARN, "%s: HW Version: %s\n", __func__,
+pt_core.c:14444:		cd->hw_version);
+pt_core.c:14449:	pt_debug(cd->dev, DL_WARN,
+pt_core.c:14478:	if (cd->detect_dut_generation) {
+pt_core.c:14479:		cd->detect_dut_generation = false;
+pt_core.c:14480:		rc = _pt_detect_dut_generation(cd->dev,
+pt_core.c:14481:			&cd->enum_status, &cd->active_dut_generation,
+pt_core.c:14482:			&cd->mode, &cd->protocol_mode);
+pt_core.c:14483:		if ((cd->active_dut_generation == DUT_UNKNOWN) || (rc)) {
+pt_core.c:14484:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14493:	cd->enum_status &= (ENUM_STATUS_BL_RESET_SENTINEL |
+pt_core.c:14496:	if (cd->active_dut_generation == DUT_PIP1_ONLY)
+pt_core.c:14529:	mutex_lock(&cd->system_lock);
+pt_core.c:14530:	cd->startup_state = STARTUP_RUNNING;
+pt_core.c:14531:	mutex_unlock(&cd->system_lock);
+pt_core.c:14533:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:14535:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14537:			__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:14543:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:14545:		pt_debug(cd->dev, DL_ERROR, "%s: fail to release exclusive\n",
+pt_core.c:14548:		pt_debug(cd->dev, DL_DEBUG, "%s: pass release exclusive\n",
+pt_core.c:14552:	mutex_lock(&cd->system_lock);
+pt_core.c:14554:	cd->startup_state = STARTUP_DONE;
+pt_core.c:14555:	mutex_unlock(&cd->system_lock);
+pt_core.c:14561:	wake_up(&cd->wait_q);
+pt_core.c:14601:	mutex_lock(&cd->ttdl_restart_lock);
+pt_core.c:14603:	remove_sysfs_and_modules(cd->dev);
+pt_core.c:14614:	if (cd->active_dut_generation == DUT_UNKNOWN) {
+pt_core.c:14615:		rc = _pt_detect_dut_generation(cd->dev,
+pt_core.c:14616:			&cd->enum_status, &cd->active_dut_generation,
+pt_core.c:14617:			&cd->mode, &cd->protocol_mode);
+pt_core.c:14618:		if ((cd->active_dut_generation == DUT_UNKNOWN) || (rc)) {
+pt_core.c:14623:			cd->hw_detected = true;
+pt_core.c:14626:	rc = add_sysfs_interfaces(cd->dev);
+pt_core.c:14628:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:14632:	if (!(cd->enum_status & ENUM_STATUS_BL_RESET_SENTINEL)
+pt_core.c:14633:		&& !cd->dual_mcu_available) {
+pt_core.c:14635:		rc = pt_enum_with_dut(cd, true, &cd->enum_status);
+pt_core.c:14661:	pt_debug(cd->dev, DL_WARN,
+pt_core.c:14663:		__func__, cd->enum_status);
+pt_core.c:14669:	mutex_unlock(&cd->ttdl_restart_lock);
+pt_core.c:14671:	mutex_lock(&cd->system_lock);
+pt_core.c:14672:	cd->startup_state = STARTUP_DONE;
+pt_core.c:14673:	mutex_unlock(&cd->system_lock);
+pt_core.c:14696:	rc = _pt_ttdl_restart(cd->dev);
+pt_core.c:14698:		pt_debug(cd->dev, DL_ERROR, "%s: Fail queued startup r=%d\n",
+pt_core.c:14719:	rc = pt_enum_with_dut(cd, false, &cd->enum_status);
+pt_core.c:14721:		pt_debug(cd->dev, DL_ERROR, "%s: Fail queued startup r=%d\n",
+pt_core.c:14749:	if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_RUNTIME)
+pt_core.c:14777:	if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_RUNTIME)
+pt_core.c:14809:    printk("%s mem_sleep_current:%d is_suspend:%d\n", __func__,mem_sleep_current,cd->is_suspend);
+pt_core.c:14810:    if (cd->is_suspend) {
+pt_core.c:14839:	if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_SYS_SLEEP)
+pt_core.c:14862:    printk("%s mem_sleep_current:%d is_suspend:%d\n", __func__,mem_sleep_current,cd->is_suspend);
+pt_core.c:14864:	    if (cd->is_suspend) {
+pt_core.c:14890:	if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_SYS_SLEEP)
+pt_core.c:14901:    if (!cd->irq_disabled) {
+pt_core.c:14902:        disable_irq(cd->irq);
+pt_core.c:14903:        cd->irq_disabled = 1;
+pt_core.c:14905:	if(cd->cpdata->rst_gpio){
+pt_core.c:14906:    	gpio_direction_output(cd->cpdata->rst_gpio, 0);
+pt_core.c:14908:    gpio_direction_output(cd->cpdata->irq_gpio, 0);
+pt_core.c:14909:    cd->is_suspend = 1;
+pt_core.c:14920:    gpio_direction_input(cd->cpdata->irq_gpio);
+pt_core.c:14922:    if (cd->irq_disabled) {
+pt_core.c:14923:        enable_irq(cd->irq);
+pt_core.c:14924:        cd->irq_disabled = 0;
+pt_core.c:14927:    cd->is_suspend = 0;
+pt_core.c:14957:		pt_debug(cd->dev, DL_INFO, "%s: Suspend prepare\n",
+pt_core.c:14964:		if (!pm_runtime_suspended(cd->dev))
+pt_core.c:14965:			pm_runtime_suspend(cd->dev);
+pt_core.c:14967:		(void) pt_core_suspend(cd->dev);
+pt_core.c:15023:	u8 saved_flashless_auto_bl_mode = cd->flashless_auto_bl;
+pt_core.c:15025:	if (cd->watchdog_enabled) {
+pt_core.c:15032:	cancel_work_sync(&cd->enum_work);
+pt_core.c:15033:	cancel_work_sync(&cd->watchdog_work);
+pt_core.c:15036:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:15038:		if (!rc && cd->mode != mode) {
+pt_core.c:15040:			    "%s: cd->mode(%d) doesn't match detected(%d)\n",
+pt_core.c:15041:			    __func__, cd->mode, mode);
+pt_core.c:15042:			cd->mode = mode;
+pt_core.c:15069:	cd->flashless_auto_bl = PT_SUPPRESS_AUTO_BL;
+pt_core.c:15123:	mutex_lock(&cd->system_lock);
+pt_core.c:15124:	cd->enum_status = ENUM_STATUS_START;
+pt_core.c:15126:	mutex_unlock(&cd->system_lock);
+pt_core.c:15127:	if (cd->enter_bl_method == PT_ENTER_BL_BY_RESET_PIN ||
+pt_core.c:15128:		(cd->enter_bl_method == PT_ENTER_BL_BY_RST_UTIL &&
+pt_core.c:15129:		(cd->util_rst_state != UTIL_RST_FAIL))) {
+pt_core.c:15135:		if (!cd->flashless_dut)
+pt_core.c:15150:	t = wait_event_timeout(cd->wait_q,
+pt_core.c:15151:		((cd->enum_status != ENUM_STATUS_START)
+pt_core.c:15152:		 && (cd->hid_reset_cmd_state == 0)),
+pt_core.c:15155:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:15162:		cd->enum_status);
+pt_core.c:15165:		mutex_lock(&cd->system_lock);
+pt_core.c:15166:		cd->pip2_prot_active = true;
+pt_core.c:15167:		cd->mode = PT_MODE_BOOTLOADER;
+pt_core.c:15168:		mutex_unlock(&cd->system_lock);
+pt_core.c:15180:		mutex_lock(&cd->system_lock);
+pt_core.c:15181:		cd->mode = mode;
+pt_core.c:15182:		mutex_unlock(&cd->system_lock);
+pt_core.c:15188:	if (!cd->flashless_dut && (tmp_result == PT_ENTER_BL_PASS)) {
+pt_core.c:15232:	cd->flashless_auto_bl = saved_flashless_auto_bl_mode;
+pt_core.c:15265:		cd->hid_core.pip_minor_ver);
+pt_core.c:15383:	mutex_lock(&cd->system_lock);
+pt_core.c:15384:	cd->pip_cmd_timeout = PT_PIP2_CMD_FILE_ERASE_TIMEOUT;
+pt_core.c:15385:	mutex_unlock(&cd->system_lock);
+pt_core.c:15395:			cd->file_erase_timeout_count++;
+pt_core.c:15403:	mutex_lock(&cd->system_lock);
+pt_core.c:15404:	cd->pip_cmd_timeout = cd->pip_cmd_timeout_default;
+pt_core.c:15405:	mutex_unlock(&cd->system_lock);
+pt_core.c:15463:	mutex_lock(&cd->system_lock);
+pt_core.c:15464:	cd->pip_cmd_timeout = PT_PIP2_CMD_FILE_SECTOR_ERASE_TIMEOUT;
+pt_core.c:15465:	mutex_unlock(&cd->system_lock);
+pt_core.c:15489:			cd->file_erase_timeout_count++;
+pt_core.c:15501:	mutex_lock(&cd->system_lock);
+pt_core.c:15502:	cd->pip_cmd_timeout = cd->pip_cmd_timeout_default;
+pt_core.c:15505:	mutex_unlock(&cd->system_lock);
+pt_core.c:15713:	if (cd->flashless_dut) {
+pt_core.c:15715:		rc = _pt_read_us_file(dev, cd->pip2_us_file_path,
+pt_core.c:15728:		if (cd->mode != PT_MODE_BOOTLOADER) {
+pt_core.c:16037:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID)
+pt_core.c:16313:	spin_lock_irqsave(&list->cd->tuner_list_lock, flags);
+pt_core.c:16314:	list_add_tail(&list->node, &list->cd->tuner_list);
+pt_core.c:16315:	spin_unlock_irqrestore(&list->cd->tuner_list_lock, flags);
+pt_core.c:16339:	poll_wait(filp, &list->cd->tuner_wait, wait);
+pt_core.c:16342:	if (list->cd->tthe_exit)
+pt_core.c:16365:	spin_lock_irqsave(&list->cd->tuner_list_lock, flags);
+pt_core.c:16367:	spin_unlock_irqrestore(&list->cd->tuner_list_lock, flags);
+pt_core.c:16405:	length = _pt_ic_parse_input(cd->dev, tmp_buf, count,
+pt_core.c:16409:		mutex_lock(&(cd->system_lock));
+pt_core.c:16410:		cd->tthe_hid_usb_format = input_data[0];
+pt_core.c:16412:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:16416:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:16421:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:16426:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:16431:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:16435:		mutex_unlock(&(cd->system_lock));
+pt_core.c:16438:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:16472:	if (!list->cd || list->cd->tthe_exit)
+pt_core.c:16476:		add_wait_queue(&list->cd->tuner_wait, &wait);
+pt_core.c:16496:			if (list->cd->tthe_exit) {
+pt_core.c:16499:				remove_wait_queue(&list->cd->tuner_wait, &wait);
+pt_core.c:16511:		remove_wait_queue(&list->cd->tuner_wait, &wait);
+pt_core.c:16519:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:16570:	size = get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:16577:	status = cd->response_buf[HID_PAYLOAD_RESP_STATUS_OFFSET];
+pt_core.c:16579:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:16587:	response_bit = cd->response_buf[HID_PAYLOAD_RESP_CMD_ID_OFFSET] & 0x80;
+pt_core.c:16589:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:16597:	cmd_id = cd->response_buf[HID_PAYLOAD_RESP_CMD_ID_OFFSET] & 0x7F;
+pt_core.c:16599:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:16607:	response_seq = cd->response_buf[HID_PAYLOAD_RESP_SEQ_OFFSET] & 0x0F;
+pt_core.c:16609:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:16618:	reserved_bits = cd->response_buf[HID_PAYLOAD_RESP_SEQ_OFFSET] & 0xE0;
+pt_core.c:16620:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:16626:		pt_pr_buf(cd->dev, DL_WARN, cd->response_buf,
+pt_core.c:16662:	hid_cmd.write_length = 3 + cd->pip3_output_rpt_cnt;
+pt_core.c:16735:		pt_debug(cd->dev, DL_WARN, "%s: Invalid PIP3 CMD ID 0x%02X\n",
+pt_core.c:16741:	mutex_lock(&cd->system_lock);
+pt_core.c:16742:	cd->hid_cmd_state = pip3_cmd->cmd_id + 1;
+pt_core.c:16743:	cd->report_type = PIP3_CMD_REPORT;
+pt_core.c:16744:	mutex_unlock(&cd->system_lock);
+pt_core.c:16749:		timeout_ms = cd->pip_cmd_timeout_default;
+pt_core.c:16755:	t = wait_event_timeout(cd->wait_q, (cd->hid_cmd_state == 0),
+pt_core.c:16758:		if ((cd->protocol_mode == PT_PROTOCOL_MODE_HID) &&
+pt_core.c:16759:		    (cd->pt_hid_buf_op.last_remain_packet != 0) &&
+pt_core.c:16762:			timeout_ms = cd->hid_multi_rsp_timeout;
+pt_core.c:16766:		cd->bus_transmit_error_count++;
+pt_core.c:16769:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:16779:	mutex_lock(&cd->system_lock);
+pt_core.c:16780:	cd->hid_cmd_state = 0;
+pt_core.c:16781:	cd->report_type = UNKNOWN_REPORT;
+pt_core.c:16782:	mutex_unlock(&cd->system_lock);
+pt_core.c:16823:	pt_debug(cd->dev, DL_DEBUG, "%s: Enumerated Block ID %d\n",
+pt_core.c:16844:	if (cd->hid_core.pip_minor_ver < 2) {
+pt_core.c:16846:		read_ebid = cd->response_buf[HID_PAYLOAD_RESP_EBID_OFFSET];
+pt_core.c:16859:	rsp_len  = get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:16860:	if (cd->hid_core.pip_minor_ver > 0 &&
+pt_core.c:16868:			&cd->response_buf[rsp_arl_offset + 2]);
+pt_core.c:16872:			&cd->response_buf[rsp_arl_offset]);
+pt_core.c:16873:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:16884:	if (cd->hid_core.pip_minor_ver >= 2)
+pt_core.c:16886:	else if (cd->hid_core.pip_minor_ver == 1)
+pt_core.c:16893:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:16900:		memcpy(read_buf, &cd->response_buf[rsp_data_offset],
+pt_core.c:16911:	if (cd->hid_core.pip_minor_ver == 0) {
+pt_core.c:16917:			&cd->response_buf[*actual_read_len + 8]);
+pt_core.c:16924:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:16970:	pt_debug(cd->dev, DL_DEBUG, "%s: Enumerated Block ID %d\n",
+pt_core.c:16989:	if (cd->hid_core.pip_minor_ver < 2) {
+pt_core.c:17002:	if (cd->hid_core.pip_minor_ver == 0) {
+pt_core.c:17017:	if (cd->hid_core.pip_minor_ver < 2) {
+pt_core.c:17018:		read_ebid = cd->response_buf[HID_PAYLOAD_RESP_EBID_OFFSET];
+pt_core.c:17025:			&cd->response_buf[HID_PAYLOAD_RESP_ARL_OFFSET]);
+pt_core.c:17054:	pt_debug(cd->dev, DL_DEBUG, "%s: image ID %d\n",
+pt_core.c:17064:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:17105:	mutex_lock(&cd->system_lock);
+pt_core.c:17109:		cd->img_id = input_data[0];
+pt_core.c:17114:	mutex_unlock(&(cd->system_lock));
+pt_core.c:17148:	if (cd->protocol_mode != PT_PROTOCOL_MODE_HID) {
+pt_core.c:17151:			__func__, cd->protocol_mode);
+pt_core.c:17158:	if (!status && cd->mode != mode) {
+pt_core.c:17160:		    "%s: cd->mode(%d) doesn't match detected(%d)\n",
+pt_core.c:17161:		    __func__, cd->mode, mode);
+pt_core.c:17162:		cd->mode = mode;
+pt_core.c:17166:		cd->mode);
+pt_core.c:17168:	switch (cd->img_id) {
+pt_core.c:17170:		if (cd->mode == PT_MODE_OPERATIONAL)
+pt_core.c:17172:		else if (cd->mode == PT_MODE_BOOTLOADER) {
+pt_core.c:17181:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:17190:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:17211:		} else if (cd->mode == PT_MODE_SECONDARY_IMAGE ||
+pt_core.c:17212:				cd->mode == PT_MODE_UTILITY_IMAGE) {
+pt_core.c:17213:			status = pt_pip3_switch_image_(cd, cd->img_id);
+pt_core.c:17229:		if (cd->mode == PT_MODE_SECONDARY_IMAGE)
+pt_core.c:17231:		else if (cd->mode == PT_MODE_BOOTLOADER) {
+pt_core.c:17240:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:17249:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:17260:						cd->img_id);
+pt_core.c:17281:		} else if (cd->mode == PT_MODE_OPERATIONAL ||
+pt_core.c:17282:			cd->mode == PT_MODE_UTILITY_IMAGE) {
+pt_core.c:17283:			status = pt_pip3_switch_image_(cd, cd->img_id);
+pt_core.c:17300:		if (cd->mode == PT_MODE_BOOTLOADER) {
+pt_core.c:17303:			status = pt_pip3_switch_image_(cd, cd->img_id);
+pt_core.c:17317:	if (!status && cd->img_id == PT_IMG_PRIMARY &&
+pt_core.c:17318:		(cd->enum_status & ENUM_STATUS_COMPLETE) == 0) {
+pt_core.c:17323:			__func__, cd->enum_status);
+pt_core.c:17440:	mutex_lock(&cd->module_list_lock);
+pt_core.c:17441:	list_add(&module_node->node, &cd->module_list);
+pt_core.c:17442:	mutex_unlock(&cd->module_list_lock);
+pt_core.c:17444:	rc = module->probe(cd->dev, &module_node->data);
+pt_core.c:17450:		mutex_lock(&cd->module_list_lock);
+pt_core.c:17452:		mutex_unlock(&cd->module_list_lock);
+pt_core.c:17476:	mutex_lock(&cd->module_list_lock);
+pt_core.c:17477:	list_for_each_entry_safe(m, m_n, &cd->module_list, node)
+pt_core.c:17479:			module->release(cd->dev, m->data);
+pt_core.c:17484:	mutex_unlock(&cd->module_list_lock);
+pt_core.c:17502:		pt_debug(cd->dev, DL_WARN, "%s: Probe module %s\n",
+pt_core.c:17506:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:17571:	list_add(&cd->node, &core_list);
+pt_core.c:17699:	mutex_lock(&cd->module_list_lock);
+pt_core.c:17700:	list_for_each_entry(m, &cd->module_list, node)
+pt_core.c:17705:	mutex_unlock(&cd->module_list_lock);
+pt_core.c:17756:	cd->es.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+pt_core.c:17757:	cd->es.suspend = pt_early_suspend;
+pt_core.c:17758:	cd->es.resume = pt_late_resume;
+pt_core.c:17760:	register_early_suspend(&cd->es);
+pt_core.c:17785:    int rst_gpio = cd->cpdata->rst_gpio;
+pt_core.c:17786:    int irq_gpio = cd->cpdata->irq_gpio;
+pt_core.c:17796:		pt_debug(cd->dev, DL_INFO, "%s: UNBLANK!\n", __func__);
+pt_core.c:17797:		if (cd->fb_state != FB_ON) {
+pt_core.c:17800:			if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_RUNTIME)
+pt_core.c:17801:				pt_core_resume_(cd->dev);
+pt_core.c:17803:			cd->fb_state = FB_ON;
+pt_core.c:17809:		//pt_debug(cd->dev, DL_INFO, "%s: POWERDOWN!\n", __func__);
+pt_core.c:17810:		//if (cd->fb_state != FB_OFF) {
+pt_core.c:17812://			if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_RUNTIME)
+pt_core.c:17813://				pt_core_suspend_(cd->dev);
+pt_core.c:17816://			cd->fb_state = FB_OFF;
+pt_core.c:17823:       //printk("cyttsp5_fb_notifier_callback :EINK_NOTIFY_TP_POWEROFF cd->irq_disabled:%d \n",cd->irq_disabled);
+pt_core.c:17825:		if (!cd->irq_disabled) {
+pt_core.c:17826:            //disable_irq(cd->irq);
+pt_core.c:17827:            disable_irq_wake(cd->irq);
+pt_core.c:17828:            cd->irq_disabled = 1;
+pt_core.c:17835:        if (cd->irq_disabled) {
+pt_core.c:17836:            //enable_irq(cd->irq);
+pt_core.c:17837:			enable_irq_wake(cd->irq);
+pt_core.c:17838:			cd->irq_disabled = false;
+pt_core.c:17861:	cd->fb_state = FB_ON;
+pt_core.c:17863:	cd->fb_notifier.notifier_call = pt_fb_notifier_callback;
+pt_core.c:17864:    htfy_ebc_register_notifier(&cd->fb_notifier);
+pt_core.c:17865:	rc = fb_register_client(&cd->fb_notifier);
+pt_core.c:17867:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:17903:	if (cd->sleep_state == SS_SLEEPING)
+pt_core.c:17907:	cd->watchdog_count++;
+pt_core.c:17915:	if (cd->watchdog_interval != PT_WATCHDOG_TIMEOUT) {
+pt_core.c:17916:		mod_timer_pending(&cd->watchdog_timer, jiffies +
+pt_core.c:17917:			msecs_to_jiffies(cd->watchdog_interval));
+pt_core.c:17922:		cd->watchdog_irq_stuck_count++;
+pt_core.c:17925:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:17931:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:17933:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:17935:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:17941:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:17942:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:17948:		cd->watchdog_failed_access_count++;
+pt_core.c:17951:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:17953:			__func__, cd->startup_retry_count);
+pt_core.c:17956:		if (cd->startup_retry_count > PT_WATCHDOG_RETRY_COUNT)
+pt_core.c:17959:		if (cd->startup_retry_count++ < PT_WATCHDOG_RETRY_COUNT) {
+pt_core.c:17964:			rc = request_exclusive(cd, cd->dev,
+pt_core.c:17967:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:17969:					__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:17973:			cd->hw_detected = false;
+pt_core.c:17974:			cd->enum_status = ENUM_STATUS_START;
+pt_core.c:17975:			pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:17978:			if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:17979:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:17983:				cd->hw_detected = true;
+pt_core.c:17984:				if (!cd->flashless_dut)
+pt_core.c:17988:			cd->wd_xres_count++;
+pt_core.c:17989:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:17991:				__func__, cd->wd_xres_count);
+pt_core.c:17998:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:18011:			pt_debug(cd->dev, DL_INFO,
+pt_core.c:18014:			cd->startup_retry_count = 0;
+pt_core.c:18020:			mutex_lock(&cd->system_lock);
+pt_core.c:18021:			cd->sysinfo.ready = false;
+pt_core.c:18022:			mutex_unlock(&cd->system_lock);
+pt_core.c:18024:			if (cd->active_dut_generation == DUT_UNKNOWN) {
+pt_core.c:18025:				pt_debug(cd->dev, DL_WARN,
+pt_core.c:18032:		cd->hw_detected = true;
+pt_core.c:18033:		if (cd->enum_status <= (ENUM_STATUS_FW_RESET_SENTINEL |
+pt_core.c:18035:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:18065:	pt_debug(cd->dev, DL_DEBUG, "%s: Watchdog timer triggered\n",
+pt_core.c:18068:	if (!work_pending(&cd->watchdog_work))
+pt_core.c:18069:		schedule_work(&cd->watchdog_work);
+pt_core.c:18090:	pt_debug(cd->dev, DL_DEBUG, "%s: Watchdog timer triggered\n",
+pt_core.c:18093:	if (!work_pending(&cd->watchdog_work))
+pt_core.c:18094:		schedule_work(&cd->watchdog_work);
+pt_core.c:18123:	_pt_request_hw_version(dev, cd->hw_version);
+pt_core.c:18124:	return snprintf(buf, PT_MAX_PRBUF_SIZE, "%s\n", cd->hw_version);
+pt_core.c:18172:	if (cd->mode == PT_MODE_OPERATIONAL)
+pt_core.c:18175:	pt_debug(cd->dev, DL_INFO, "%s: mode = %d sysinfo.ready = %d\n",
+pt_core.c:18176:		__func__, cd->mode, cd->sysinfo.ready);
+pt_core.c:18178:	if (cd->sysinfo.ready)
+pt_core.c:18179:		ttdata = &cd->sysinfo.ttdata;
+pt_core.c:18230:	if (cd->mode == PT_MODE_OPERATIONAL) {
+pt_core.c:18232:		if (cd->sysinfo.ready) {
+pt_core.c:18233:			si = &cd->sysinfo;
+pt_core.c:18241:	pt_debug(cd->dev, DL_INFO, "%s: mode = %d sysinfo.ready = %d\n",
+pt_core.c:18242:		__func__, cd->mode, cd->sysinfo.ready);
+pt_core.c:18301:			scd->electrodes_x,
+pt_core.c:18302:			scd->electrodes_y,
+pt_core.c:18303:			scd->len_x,
+pt_core.c:18304:			scd->len_y,
+pt_core.c:18305:			scd->res_x,
+pt_core.c:18306:			scd->res_y,
+pt_core.c:18307:			scd->max_z,
+pt_core.c:18308:			scd->origin_x,
+pt_core.c:18309:			scd->origin_y,
+pt_core.c:18310:			scd->panel_id,
+pt_core.c:18311:			scd->btn,
+pt_core.c:18312:			scd->scan_mode,
+pt_core.c:18313:			scd->max_tch);
+pt_core.c:18348:	mutex_lock(&cd->firmware_class_lock);
+pt_core.c:18350:	mutex_lock(&cd->system_lock);
+pt_core.c:18351:	cd->startup_state = STARTUP_NONE;
+pt_core.c:18352:	mutex_unlock(&(cd->system_lock));
+pt_core.c:18357:	release_exclusive(cd, cd->dev);
+pt_core.c:18361:		mutex_unlock(&cd->firmware_class_lock);
+pt_core.c:18362:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:18368:	if (cd->flashless_dut) {
+pt_core.c:18369:		mutex_unlock(&cd->firmware_class_lock);
+pt_core.c:18371:		t = wait_event_timeout(cd->wait_q, (cd->fw_updating == true),
+pt_core.c:18386:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:18399:			mutex_unlock(&cd->firmware_class_lock);
+pt_core.c:18400:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:18409:		if (cd->active_dut_generation == DUT_PIP1_ONLY) {
+pt_core.c:18412:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:18418:			cd->mode = pt_get_mode(cd, &hid_desc);
+pt_core.c:18419:			if (cd->mode == PT_MODE_BOOTLOADER)
+pt_core.c:18422:			if (cd->mode == PT_MODE_BOOTLOADER)
+pt_core.c:18428:			mutex_unlock(&cd->firmware_class_lock);
+pt_core.c:18429:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:18434:		mutex_unlock(&cd->firmware_class_lock);
+pt_core.c:18438:		if ((cd->active_dut_generation == DUT_UNKNOWN) ||
+pt_core.c:18439:			(cd->mode != PT_MODE_OPERATIONAL))
+pt_core.c:18445:	while ((cd->startup_state != STARTUP_DONE) && time < 2000) {
+pt_core.c:18447:		pt_debug(cd->dev, DL_INFO,
+pt_core.c:18449:			__func__, time, cd->enum_status);
+pt_core.c:18452:	if (!(cd->enum_status & ENUM_STATUS_COMPLETE)) {
+pt_core.c:18457:	pt_debug(cd->dev, DL_INFO, "%s: HW Reset complete. enum=0x%04X\n",
+pt_core.c:18458:		__func__, cd->enum_status);
+pt_core.c:18500:	mutex_lock(&cd->sysfs_lock);
+pt_core.c:18501:	cd->raw_cmd_status = 0;
+pt_core.c:18502:	cd->cmd_rsp_buf_len = 0;
+pt_core.c:18503:	memset(cd->cmd_rsp_buf, 0, sizeof(cd->cmd_rsp_buf));
+pt_core.c:18504:	mutex_unlock(&cd->sysfs_lock);
+pt_core.c:18523:		cd->raw_cmd_status = rc;
+pt_core.c:18530:			cd->cmd_rsp_buf_len = actual_read_len;
+pt_core.c:18531:			memcpy(cd->cmd_rsp_buf, read_buf, actual_read_len);
+pt_core.c:18568:	mutex_lock(&cd->sysfs_lock);
+pt_core.c:18570:		"Status: %d\n", cd->raw_cmd_status);
+pt_core.c:18571:	if (cd->raw_cmd_status)
+pt_core.c:18575:	data_len = cd->cmd_rsp_buf_len - 2;
+pt_core.c:18580:			"%02X ", cd->cmd_rsp_buf[i]);
+pt_core.c:18592:	mutex_unlock(&cd->sysfs_lock);
+pt_core.c:18629:	mutex_lock(&cd->sysfs_lock);
+pt_core.c:18630:	cd->cmd_rsp_buf_len = 0;
+pt_core.c:18631:	memset(cd->cmd_rsp_buf, 0, sizeof(cd->cmd_rsp_buf));
+pt_core.c:18632:	mutex_unlock(&cd->sysfs_lock);
+pt_core.c:18647:		rc = pt_get_hid_descriptor(cd, &cd->hid_desc);
+pt_core.c:18648:		mutex_lock(&cd->sysfs_lock);
+pt_core.c:18650:			cd->cmd_rsp_buf_len =
+pt_core.c:18651:			    get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:18652:			memcpy(cd->cmd_rsp_buf, cd->response_buf,
+pt_core.c:18653:			       cd->cmd_rsp_buf_len);
+pt_core.c:18655:		cd->raw_cmd_status = rc;
+pt_core.c:18656:		mutex_unlock(&cd->sysfs_lock);
+pt_core.c:18665:		mutex_lock(&cd->sysfs_lock);
+pt_core.c:18667:			cd->cmd_rsp_buf_len = cd->hid_core.hid_report_desc_len;
+pt_core.c:18668:			memcpy(cd->cmd_rsp_buf, cd->response_buf,
+pt_core.c:18669:			       cd->cmd_rsp_buf_len);
+pt_core.c:18671:		cd->raw_cmd_status = rc;
+pt_core.c:18672:		mutex_unlock(&cd->sysfs_lock);
+pt_core.c:18678:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID &&
+pt_core.c:18697:			mutex_lock(&cd->sysfs_lock);
+pt_core.c:18698:			cd->hid_reset_cmd_state = 1;
+pt_core.c:18699:			mutex_unlock(&cd->sysfs_lock);
+pt_core.c:18704:			mutex_lock(&cd->sysfs_lock);
+pt_core.c:18706:				cd->cmd_rsp_buf_len =
+pt_core.c:18707:				    get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:18708:				memcpy(cd->cmd_rsp_buf, cd->response_buf,
+pt_core.c:18709:				    cd->cmd_rsp_buf_len);
+pt_core.c:18713:					tthe_print(cd, &(cd->cmd_rsp_buf[0]),
+pt_core.c:18714:						cd->cmd_rsp_buf_len,
+pt_core.c:18718:			cd->raw_cmd_status = rc;
+pt_core.c:18719:			mutex_unlock(&cd->sysfs_lock);
+pt_core.c:18725:			mutex_lock(&cd->sysfs_lock);
+pt_core.c:18727:				if (cd->protocol_mode == PT_PROTOCOL_MODE_PIP) {
+pt_core.c:18728:					cd->cmd_rsp_buf_len =
+pt_core.c:18730:						&cd->response_buf[0]);
+pt_core.c:18731:					memcpy(cd->cmd_rsp_buf,
+pt_core.c:18732:						cd->response_buf,
+pt_core.c:18733:						cd->cmd_rsp_buf_len);
+pt_core.c:18735:					cd->cmd_rsp_buf_len = 0;
+pt_core.c:18738:			cd->raw_cmd_status = rc;
+pt_core.c:18739:			mutex_unlock(&cd->sysfs_lock);
+pt_core.c:18745:	if (cd->bridge_mode)
+pt_core.c:18748:	if (cd->protocol_mode == PT_PROTOCOL_MODE_HID
+pt_core.c:18749:		&& cd->mode != PT_MODE_BOOTLOADER
+pt_core.c:18765:		cd->pt_hid_buf_op.report_type = PIP3_CMD_REPORT;
+pt_core.c:18769:			cd->cmd_rsp_buf_len =
+pt_core.c:18770:			    get_unaligned_le16(&cd->response_buf[0]);
+pt_core.c:18771:			if (cd->cmd_rsp_buf_len == 0)
+pt_core.c:18772:				cd->cmd_rsp_buf_len = 2;
+pt_core.c:18773:			memcpy(cd->cmd_rsp_buf, cd->response_buf,
+pt_core.c:18774:			       cd->cmd_rsp_buf_len);
+pt_core.c:18778:			&& cd->dual_mcu_available) {
+pt_core.c:18780:				dev, NULL, NULL, &cd->mode, NULL);
+pt_core.c:18785:		cd->raw_cmd_status = rc;
+pt_core.c:18786:		cd->pt_hid_buf_op.report_type = UNKNOWN_REPORT;
+pt_core.c:18787:		mutex_unlock(&cd->sysfs_lock);
+pt_core.c:18794:		cd->pip2_prot_active = 1;
+pt_core.c:18802:			cd->detect_dut_generation = true;
+pt_core.c:18804:		cd->pip2_cmd_tag_seq = input_data[4] & 0x0F;
+pt_core.c:18824:	rc = pt_hid_output_user_cmd(cd, PT_MAX_INPUT, cd->cmd_rsp_buf,
+pt_core.c:18828:	mutex_lock(&cd->sysfs_lock);
+pt_core.c:18829:	cd->raw_cmd_status = rc;
+pt_core.c:18831:		cd->cmd_rsp_buf_len = 0;
+pt_core.c:18835:		cd->cmd_rsp_buf_len = actual_read_len;
+pt_core.c:18837:	cd->pip2_prot_active = 0;
+pt_core.c:18838:	mutex_unlock(&cd->sysfs_lock);
+pt_core.c:18841:	if (cd->bridge_mode && rc) {
+pt_core.c:18899:		mutex_lock(&cd->sysfs_lock);
+pt_core.c:18900:		if (cd->raw_cmd_status) {
+pt_core.c:18902:					  "Status: %d\n", cd->raw_cmd_status);
+pt_core.c:18903:			mutex_unlock(&cd->sysfs_lock);
+pt_core.c:18911:		if (cd->cmd_rsp_buf_len > PT_MAX_INPUT) {
+pt_core.c:18915:		print_len = cd->cmd_rsp_buf_len * 5 + 100;
+pt_core.c:18924:				cd->raw_cmd_status);
+pt_core.c:18925:		for (i = 0; i < cd->cmd_rsp_buf_len; i++)
+pt_core.c:18928:				cd->cmd_rsp_buf[i]);
+pt_core.c:18930:				   "(%zd bytes)\n", cd->cmd_rsp_buf_len);
+pt_core.c:18932:		mutex_unlock(&cd->sysfs_lock);
+pt_core.c:18949:	mutex_unlock(&cd->sysfs_lock);
+pt_core.c:19197:		cd->watchdog_force_stop = false;
+pt_core.c:19208:		cd->watchdog_force_stop = true;
+pt_core.c:19293:			cd->enum_status = ENUM_STATUS_BL_RESET_SENTINEL;
+pt_core.c:19294:			cd->mode = PT_MODE_BOOTLOADER;
+pt_core.c:19311:		mutex_lock(&cd->system_lock);
+pt_core.c:19312:		cd->tthe_exit = 1;
+pt_core.c:19313:		mutex_unlock(&cd->system_lock);
+pt_core.c:19314:		wake_up_interruptible(&cd->tuner_wait);
+pt_core.c:19318:		mutex_lock(&cd->system_lock);
+pt_core.c:19319:		cd->tthe_exit = 0;
+pt_core.c:19320:		mutex_unlock(&cd->system_lock);
+pt_core.c:19321:		wake_up_interruptible(&cd->tuner_wait);
+pt_core.c:19327:		pt_get_hid_descriptor(cd, &cd->hid_desc);
+pt_core.c:19354:			pt_debug(cd->dev, DL_ERROR,
+pt_core.c:19360:		mutex_lock(&cd->system_lock);
+pt_core.c:19362:			cd->debug_level = input_data[1];
+pt_core.c:19364:				__func__, cd->debug_level);
+pt_core.c:19370:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19374:		mutex_lock(&cd->system_lock);
+pt_core.c:19376:			cd->watchdog_interval = input_data[1];
+pt_core.c:19379:				__func__, cd->watchdog_interval);
+pt_core.c:19387:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19391:		mutex_lock(&cd->system_lock);
+pt_core.c:19393:			cd->show_timestamp = 0;
+pt_core.c:19397:			cd->show_timestamp = 1;
+pt_core.c:19406:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19410:			cd->cpdata->setup_power(cd->cpdata,
+pt_core.c:19411:				PT_MT_POWER_OFF, cd->dev);
+pt_core.c:19415:			cd->cpdata->setup_power(cd->cpdata,
+pt_core.c:19416:				PT_MT_POWER_ON, cd->dev);
+pt_core.c:19444:		mutex_lock(&cd->system_lock);
+pt_core.c:19446:			cd->show_tt_data = false;
+pt_core.c:19450:			cd->show_tt_data = true;
+pt_core.c:19459:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19462:		if (input_data[1] == cd->active_dut_generation) {
+pt_core.c:19463:			mutex_lock(&cd->system_lock);
+pt_core.c:19464:			cd->set_dut_generation = true;
+pt_core.c:19465:			mutex_unlock(&(cd->system_lock));
+pt_core.c:19467:			mutex_lock(&cd->system_lock);
+pt_core.c:19469:				cd->active_dut_generation = DUT_UNKNOWN;
+pt_core.c:19470:				cd->set_dut_generation = false;
+pt_core.c:19472:				cd->active_dut_generation = DUT_PIP1_ONLY;
+pt_core.c:19473:				cd->set_dut_generation = true;
+pt_core.c:19475:				cd->active_dut_generation = DUT_PIP2_CAPABLE;
+pt_core.c:19476:				cd->set_dut_generation = true;
+pt_core.c:19484:			cd->enum_status = ENUM_STATUS_START;
+pt_core.c:19485:			pt_debug(cd->dev, DL_DEBUG,
+pt_core.c:19487:			mutex_unlock(&(cd->system_lock));
+pt_core.c:19491:				__func__, cd->active_dut_generation);
+pt_core.c:19498:		mutex_lock(&cd->system_lock);
+pt_core.c:19500:			cd->bridge_mode = false;
+pt_core.c:19504:			cd->bridge_mode = true;
+pt_core.c:19512:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19515:		mutex_lock(&cd->system_lock);
+pt_core.c:19528:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19531:		mutex_lock(&cd->system_lock);
+pt_core.c:19533:			cd->flashless_dut = 0;
+pt_core.c:19534:			cd->flashless_auto_bl = PT_SUPPRESS_AUTO_BL;
+pt_core.c:19538:			cd->flashless_dut = 1;
+pt_core.c:19539:			cd->flashless_auto_bl = PT_ALLOW_AUTO_BL;
+pt_core.c:19543:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19546:		mutex_lock(&cd->system_lock);
+pt_core.c:19548:			cd->force_pip2_seq = input_data[1];
+pt_core.c:19549:			cd->pip2_cmd_tag_seq = input_data[1];
+pt_core.c:19554:			cd->force_pip2_seq = 0;
+pt_core.c:19558:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19561:		mutex_lock(&cd->system_lock);
+pt_core.c:19563:			cd->bl_with_no_int = 0;
+pt_core.c:19566:			cd->bl_with_no_int = 1;
+pt_core.c:19574:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19577:		mutex_lock(&cd->system_lock);
+pt_core.c:19579:			cd->cal_cache_in_host = PT_FEATURE_DISABLE;
+pt_core.c:19584:			cd->cal_cache_in_host = PT_FEATURE_ENABLE;
+pt_core.c:19593:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19596:		mutex_lock(&cd->system_lock);
+pt_core.c:19603:			cd->num_devices = input_data[1];
+pt_core.c:19604:			cd->ttdl_bist_select = 0x07;
+pt_core.c:19609:			cd->num_devices = input_data[1];
+pt_core.c:19610:			cd->ttdl_bist_select = 0x3F;
+pt_core.c:19613:				 __func__, cd->num_devices);
+pt_core.c:19619:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19622:		mutex_lock(&cd->system_lock);
+pt_core.c:19624:			cd->panel_id_support = input_data[1];
+pt_core.c:19627:				__func__, cd->panel_id_support);
+pt_core.c:19634:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19637:		mutex_lock(&cd->system_lock);
+pt_core.c:19644:			cd->pip_cmd_timeout_default = input_data[1];
+pt_core.c:19645:			cd->pip_cmd_timeout = input_data[1];
+pt_core.c:19648:				cd->pip_cmd_timeout_default);
+pt_core.c:19655:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19658:		mutex_lock(&cd->system_lock);
+pt_core.c:19659:		if (cd->cpdata) {
+pt_core.c:19660:			cd->cpdata->flags = input_data[1];
+pt_core.c:19669:		mutex_unlock(&cd->system_lock);
+pt_core.c:19673:			mutex_lock(&cd->system_lock);
+pt_core.c:19674:			cd->protocol_mode = input_data[1];
+pt_core.c:19675:			cd->set_protocol_mode = true;
+pt_core.c:19676:			mutex_unlock(&cd->system_lock);
+pt_core.c:19681:			mutex_lock(&cd->system_lock);
+pt_core.c:19682:			cd->set_protocol_mode = false;
+pt_core.c:19683:			cd->protocol_mode = PT_PROTOCOL_MODE_UNKNOWN;
+pt_core.c:19684:			mutex_unlock(&cd->system_lock);
+pt_core.c:19690:				cd->protocol_mode = PT_PROTOCOL_MODE_HID;
+pt_core.c:19693:					cd->protocol_mode =
+pt_core.c:19702:				__func__, cd->protocol_mode);
+pt_core.c:19731:			cd->enter_bl_method = PT_ENTER_BL_BY_RESET_PIN;
+pt_core.c:19736:			cd->enter_bl_method = PT_ENTER_BL_BY_COMMAND;
+pt_core.c:19740:			cd->enter_bl_method = PT_ENTER_BL_BY_RST_UTIL;
+pt_core.c:19751:			cd->dual_mcu_available = true;
+pt_core.c:19756:			cd->dual_mcu_available = false;
+pt_core.c:19767:		mutex_lock(&cd->system_lock);
+pt_core.c:19774:			cd->hid_multi_rsp_timeout = input_data[1];
+pt_core.c:19777:				__func__, cd->hid_multi_rsp_timeout);
+pt_core.c:19784:		mutex_unlock(&(cd->system_lock));
+pt_core.c:19788:			cd->pip_no_wait = true;
+pt_core.c:19793:			cd->pip_no_wait = false;
+pt_core.c:19842:	mutex_lock(&cd->system_lock);
+pt_core.c:19843:	if (cd->sleep_state == SS_SLEEP_ON)
+pt_core.c:19847:	mutex_unlock(&cd->system_lock);
+pt_core.c:19874:	rc = request_exclusive(cd, cd->dev, PT_REQUEST_EXCLUSIVE_TIMEOUT);
+pt_core.c:19876:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:19878:				__func__, cd->exclusive_dev, cd->dev);
+pt_core.c:19882:	if (cd->active_dut_generation == DUT_PIP1_ONLY) {
+pt_core.c:19889:		if (cd->mode == PT_MODE_BOOTLOADER) {
+pt_core.c:19894:			if (cd->panel_id_support & PT_PANEL_ID_BY_BL) {
+pt_core.c:19903:		} else if (cd->mode == PT_MODE_OPERATIONAL) {
+pt_core.c:19904:			if (cd->panel_id_support &
+pt_core.c:19910:					 cd->sysinfo.sensing_conf_data.panel_id;
+pt_core.c:19914:			} else if (cd->panel_id_support &
+pt_core.c:19926:	} else if (cd->active_dut_generation == DUT_PIP2_CAPABLE) {
+pt_core.c:19927:		if (cd->mode == PT_MODE_BOOTLOADER) {
+pt_core.c:19928:			if (cd->panel_id_support & PT_PANEL_ID_BY_BL) {
+pt_core.c:19936:		} else if (cd->mode == PT_MODE_OPERATIONAL) {
+pt_core.c:19937:			if (cd->panel_id_support &
+pt_core.c:19942:					 cd->sysinfo.sensing_conf_data.panel_id;
+pt_core.c:19958:	if (release_exclusive(cd, cd->dev) < 0)
+pt_core.c:19959:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:20004:	mutex_lock(&cd->system_lock);
+pt_core.c:20005:	cd->get_param_id = input_data[0];
+pt_core.c:20006:	mutex_unlock(&(cd->system_lock));
+pt_core.c:20046:	status = pt_pip_get_param(cd, cd->get_param_id, &value);
+pt_core.c:20055:			__func__, cd->get_param_id, value);
+pt_core.c:20084:	mutex_lock(&cd->system_lock);
+pt_core.c:20085:	cd->startup_state = STARTUP_NONE;
+pt_core.c:20086:	mutex_unlock(&(cd->system_lock));
+pt_core.c:20089:	release_exclusive(cd, cd->dev);
+pt_core.c:20093:	t = wait_event_timeout(cd->wait_q,
+pt_core.c:20094:		(cd->startup_state == STARTUP_DONE),
+pt_core.c:20097:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:20104:		"Enum Status: 0x%04X\n", rc, cd->enum_status);
+pt_core.c:20130:	if (cd->mode == PT_MODE_BOOTLOADER)
+pt_core.c:20171:	struct pt_ttdata *ttdata = &cd->sysinfo.ttdata;
+pt_core.c:20233:	if (cd->cal_cache_in_host)
+pt_core.c:20274:		"Startup Status            ", cd->enum_status,
+pt_core.c:20275:		"TTDL Debug Level          ", cd->debug_level,
+pt_core.c:20277:			cd->active_proc ? "AUX MCU" : "Primary",
+pt_core.c:20279:			cd->bus_ops->bustype == BUS_I2C ? "I2C" : "SPI",
+pt_core.c:20281:			cd->bus_ops->bustype == BUS_I2C ? client->addr : 0,
+pt_core.c:20282:		"Exclusive Access Lock     ", cd->exclusive_dev ? "Set":"Free",
+pt_core.c:20284:			cd->hw_detected ? "True" : "False",
+pt_core.c:20285:		"Number of Devices         ", cd->num_devices,
+pt_core.c:20287:			cd->active_dut_generation ?
+pt_core.c:20288:			(cd->active_dut_generation == DUT_PIP2_CAPABLE ?
+pt_core.c:20290:			cd->active_dut_generation ?
+pt_core.c:20291:			(cd->set_dut_generation == true ?
+pt_core.c:20294:			cd->protocol_mode == PT_PROTOCOL_MODE_UNKNOWN ?
+pt_core.c:20296:			((cd->protocol_mode == PT_PROTOCOL_MODE_HID ?
+pt_core.c:20297:			"HID" : (cd->protocol_mode == PT_PROTOCOL_MODE_PIP ?
+pt_core.c:20299:			cd->protocol_mode == PT_PROTOCOL_MODE_UNKNOWN ?
+pt_core.c:20300:			"" : (cd->set_protocol_mode ? "(Set)" : "(Detected)"),
+pt_core.c:20302:			cd->mode ? (cd->mode == PT_MODE_OPERATIONAL ?
+pt_core.c:20303:			"Operational" : (cd->mode == PT_MODE_BOOTLOADER ?
+pt_core.c:20304:			"BL-ROM" : (cd->mode == PT_MODE_SECONDARY_IMAGE ?
+pt_core.c:20307:			cd->flashless_dut == 1 ? "Yes" : "No",
+pt_core.c:20309:			cd->flashless_auto_bl == PT_SUPPRESS_AUTO_BL ?
+pt_core.c:20312:			cd->cpdata->irq_stat ?
+pt_core.c:20313:			(cd->cpdata->irq_stat(cd->cpdata, dev) ?
+pt_core.c:20319:		"Error GPIO trigger type   ", cd->err_gpio_type,
+pt_core.c:20321:			cd->watchdog_force_stop ? "True" : "False",
+pt_core.c:20323:			cd->watchdog_enabled ? "True" : "False",
+pt_core.c:20324:		"WD - Interval (ms)        ", cd->watchdog_interval
+pt_core.c:20327:		"WD - Triggered Count      ", cd->watchdog_count,
+pt_core.c:20328:		"WD - IRQ Stuck low count  ", cd->watchdog_irq_stuck_count,
+pt_core.c:20329:		"WD - Device Access Errors ", cd->watchdog_failed_access_count,
+pt_core.c:20330:		"WD - XRES Count           ", cd->wd_xres_count,
+pt_core.c:20331:		"Startup Retry Count       ", cd->startup_retry_count,
+pt_core.c:20332:		"IRQ Triggered Count       ", cd->irq_count,
+pt_core.c:20333:		"BL Packet Retry Count     ", cd->bl_retry_packet_count,
+pt_core.c:20334:		"PIP2 CRC Error Count      ", cd->pip2_crc_error_count,
+pt_core.c:20335:		"Bus Transmit Error Count  ", cd->bus_transmit_error_count,
+pt_core.c:20336:		"File Erase Timeout Count  ", cd->file_erase_timeout_count,
+pt_core.c:20339:			cd->cal_cache_in_host == PT_FEATURE_ENABLE ?
+pt_core.c:20348:	cd->watchdog_count               = 0;
+pt_core.c:20349:	cd->watchdog_irq_stuck_count     = 0;
+pt_core.c:20350:	cd->watchdog_failed_access_count = 0;
+pt_core.c:20351:	cd->wd_xres_count                = 0;
+pt_core.c:20352:	cd->irq_count                    = 0;
+pt_core.c:20353:	cd->bl_retry_packet_count        = 0;
+pt_core.c:20354:	cd->pip2_crc_error_count         = 0;
+pt_core.c:20355:	cd->bus_transmit_error_count     = 0;
+pt_core.c:20385:	bool current_bridge_mode = cd->bridge_mode;
+pt_core.c:20391:	cancel_work_sync(&cd->enum_work);
+pt_core.c:20392:	mutex_lock(&cd->system_lock);
+pt_core.c:20393:	cd->bridge_mode = true;
+pt_core.c:20394:	mutex_unlock(&cd->system_lock);
+pt_core.c:20430:	mutex_lock(&cd->system_lock);
+pt_core.c:20431:	cd->bridge_mode = current_bridge_mode;
+pt_core.c:20432:	mutex_unlock(&cd->system_lock);
+pt_core.c:20466:	if (!rc && (!(cd->enum_status & ENUM_STATUS_FW_OUT_OF_BOOT))) {
+pt_core.c:20467:		rc = pt_enum_with_dut(cd, false, &cd->enum_status);
+pt_core.c:20468:		if (!(cd->enum_status & ENUM_STATUS_FW_OUT_OF_BOOT)) {
+pt_core.c:20502:	mutex_lock(&cd->system_lock);
+pt_core.c:20504:			cd->easy_wakeup_gesture);
+pt_core.c:20505:	mutex_unlock(&cd->system_lock);
+pt_core.c:20542:		__func__, cd->features.easywake);
+pt_core.c:20544:	if (!cd->features.easywake || input_data[0] > 0xFF) {
+pt_core.c:20551:	mutex_lock(&cd->system_lock);
+pt_core.c:20553:	if (cd->sysinfo.ready && IS_PIP_VER_GE(&cd->sysinfo, 1, 2)) {
+pt_core.c:20554:		cd->easy_wakeup_gesture = (u8)input_data[0];
+pt_core.c:20557:			__func__, cd->easy_wakeup_gesture);
+pt_core.c:20561:	mutex_unlock(&cd->system_lock);
+pt_core.c:20591:	mutex_lock(&cd->system_lock);
+pt_core.c:20593:			cd->gesture_id);
+pt_core.c:20594:	mutex_unlock(&cd->system_lock);
+pt_core.c:20621:	mutex_lock(&cd->system_lock);
+pt_core.c:20624:	for (i = 0; i < cd->gesture_data_length; i++)
+pt_core.c:20626:				"0x%02X\n", cd->gesture_data[i]);
+pt_core.c:20629:			"(%d bytes)\n", cd->gesture_data_length);
+pt_core.c:20631:	mutex_unlock(&cd->system_lock);
+pt_core.c:20658:		cd->err_gpio,
+pt_core.c:20659:		(cd->err_gpio ? (gpio_get_value(cd->err_gpio) ?
+pt_core.c:20661:		cd->err_gpio_type);
+pt_core.c:20711:	mutex_lock(&cd->system_lock);
+pt_core.c:20718:		cd->err_gpio = gpio;
+pt_core.c:20719:		cd->err_gpio_type = err_type;
+pt_core.c:20722:	mutex_unlock(&cd->system_lock);
+pt_core.c:20753:	mutex_lock(&cd->system_lock);
+pt_core.c:20755:	if (cd->irq_enabled)
+pt_core.c:20761:	mutex_unlock(&cd->system_lock);
+pt_core.c:20798:	mutex_lock(&cd->system_lock);
+pt_core.c:20801:		if (cd->irq_enabled) {
+pt_core.c:20802:			cd->irq_enabled = false;
+pt_core.c:20804:			disable_irq_nosync(cd->irq);
+pt_core.c:20815:		if (cd->irq_enabled == false) {
+pt_core.c:20816:			cd->irq_enabled = true;
+pt_core.c:20817:			enable_irq(cd->irq);
+pt_core.c:20831:	mutex_unlock(&(cd->system_lock));
+pt_core.c:20984:			cd->hid_desc.output_register,
+pt_core.c:20986:			cd->hid_desc.command_register,
+pt_core.c:21039:	disable_irq(cd->irq);
+pt_core.c:21040:	mutex_lock(&cd->system_lock);
+pt_core.c:21041:	cd->irq_disabled = true;
+pt_core.c:21042:	mutex_unlock(&cd->system_lock);
+pt_core.c:21050:	pt_debug(cd->dev, DL_INFO, ">>> %s: Write Buffer Size[%d] VERSION\n",
+pt_core.c:21052:	pt_pr_buf(cd->dev, DL_DEBUG, ver_cmd, (int)sizeof(ver_cmd),
+pt_core.c:21076:		if (cd->bus_ops->bustype == BUS_I2C)
+pt_core.c:21095:	enable_irq(cd->irq);
+pt_core.c:21097:	mutex_lock(&cd->system_lock);
+pt_core.c:21098:	cd->irq_disabled = false;
+pt_core.c:21099:	mutex_unlock(&cd->system_lock);
+pt_core.c:21152:	cd->irq_count = 0;
+pt_core.c:21274:	if (cd->irq_count > 0) {
+pt_core.c:21276:			cd->irq_count);
+pt_core.c:21331:	cd->enum_status = ENUM_STATUS_START;
+pt_core.c:21345:	mutex_lock(&cd->system_lock);
+pt_core.c:21346:	cd->hid_reset_cmd_state = 1;
+pt_core.c:21347:	mutex_unlock(&cd->system_lock);
+pt_core.c:21352:	if (cd->flashless_dut)
+pt_core.c:21360:	t = wait_event_timeout(cd->wait_q,
+pt_core.c:21361:		((cd->enum_status != ENUM_STATUS_START)
+pt_core.c:21362:		 && (cd->hid_reset_cmd_state == 0)),
+pt_core.c:21365:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:21375:		if (cd->mode == PT_MODE_BOOTLOADER)
+pt_core.c:21389:			t = wait_event_timeout(cd->wait_q,
+pt_core.c:21390:				(cd->enum_status != ENUM_STATUS_START),
+pt_core.c:21393:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:21404:	mutex_lock(&cd->system_lock);
+pt_core.c:21405:	cd->hid_reset_cmd_state = 0;
+pt_core.c:21406:	mutex_unlock(&cd->system_lock);
+pt_core.c:21409:	if (!rc && ((cd->enum_status & ENUM_STATUS_BL_RESET_SENTINEL) ||
+pt_core.c:21410:	    (cd->enum_status & ENUM_STATUS_FW_RESET_SENTINEL))) {
+pt_core.c:21419:		if (cd->bus_ops->bustype == BUS_I2C)
+pt_core.c:21441:		if (cd->enum_status & ENUM_STATUS_BL_RESET_SENTINEL ||
+pt_core.c:21442:		    cd->enum_status & ENUM_STATUS_FW_RESET_SENTINEL) {
+pt_core.c:21448:		} else if (cd->enum_status == 0) {
+pt_core.c:21505:		pt_debug(cd->dev, DL_WARN, "%s: Error entering BL rc=%d\n",
+pt_core.c:21514:	rc = _pt_request_pip2_send_cmd(cd->dev, PT_CORE_CMD_UNPROTECTED,
+pt_core.c:21518:		pt_pr_buf(cd->dev, DL_INFO, read_buf, actual_read_len,
+pt_core.c:21535:		pt_debug(cd->dev, DL_WARN, "%s: STATUS cmd failure\n",
+pt_core.c:21547:	rc = _pt_request_pip2_send_cmd(cd->dev, PT_CORE_CMD_UNPROTECTED,
+pt_core.c:21551:		pt_pr_buf(cd->dev, DL_INFO, read_buf, actual_read_len,
+pt_core.c:21556:			pt_debug(cd->dev, DL_WARN,
+pt_core.c:21561:		pt_debug(cd->dev, DL_WARN,
+pt_core.c:21569:	pt_debug(cd->dev, DL_INFO,
+pt_core.c:21581:	    (last_err == PIP2_RSP_ERR_BAD_ADDRESS && cd->flashless_dut) ||
+pt_core.c:21582:	    (last_err == PIP2_RSP_ERR_BAD_FRAME && cd->flashless_dut)) {
+pt_core.c:21583:		pt_debug(cd->dev, DL_INFO, "%s: Cleared boot error: 0x%02X\n",
+pt_core.c:21613:	pt_debug(cd->dev, DL_INFO, "%s: %s=0x%02X, %s=0x%02X, %s=0x%02X\n",
+pt_core.c:21647:	mutex_lock(&cd->system_lock);
+pt_core.c:21648:	cd->hid_reset_cmd_state = 1;
+pt_core.c:21649:	mutex_unlock(&cd->system_lock);
+pt_core.c:21722:		pt_debug(cd->dev, DL_WARN, "%s: Error entering BL rc=%d\n",
+pt_core.c:21808:	if ((cd->ttdl_bist_select & PT_BIST_SLAVE_XRES_TEST) != 0) {
+pt_core.c:21821:	if ((cd->ttdl_bist_select & PT_BIST_SLAVE_IRQ_TEST) != 0) {
+pt_core.c:21837:	if ((cd->ttdl_bist_select & PT_BIST_SLAVE_BUS_TEST) != 0) {
+pt_core.c:21865:		if (cd->ttdl_bist_select & PT_BIST_SLAVE_BUS_TEST)
+pt_core.c:21867:		if (cd->ttdl_bist_select & PT_BIST_SLAVE_IRQ_TEST)
+pt_core.c:21869:		if (cd->ttdl_bist_select & PT_BIST_SLAVE_XRES_TEST)
+pt_core.c:21957:	if ((cd->ttdl_bist_select & PT_BIST_TP_XRES_TEST) != 0) {
+pt_core.c:21962:		cd->util_rst_state = UTIL_RST_UNKNOWN;
+pt_core.c:21969:			cd->util_rst_state = UTIL_RST_PASS;
+pt_core.c:21971:			cd->util_rst_state = UTIL_RST_FAIL;
+pt_core.c:21982:	if ((cd->ttdl_bist_select & PT_BIST_IRQ_TEST) != 0) {
+pt_core.c:21996:			cd->util_rst_state = UTIL_RST_UNKNOWN;
+pt_core.c:22006:	if ((cd->ttdl_bist_select & PT_BIST_BUS_TEST) != 0) {
+pt_core.c:22039:		if (cd->ttdl_bist_select & PT_BIST_BUS_TEST)
+pt_core.c:22041:		if (cd->ttdl_bist_select & PT_BIST_IRQ_TEST)
+pt_core.c:22043:		if (cd->ttdl_bist_select & PT_BIST_TP_XRES_TEST)
+pt_core.c:22049:		if (cd->bus_ops->bustype == BUS_I2C)
+pt_core.c:22126:	num_slaves = cd->num_devices - 1;
+pt_core.c:22132:	cd->pip_cmd_timeout = 200;
+pt_core.c:22135:	tests = cd->ttdl_bist_select;
+pt_core.c:22141:		__func__, cd->ttdl_bist_select, num_tests);
+pt_core.c:22144:	if (cd->flashless_dut) {
+pt_core.c:22147:		mutex_lock(&cd->system_lock);
+pt_core.c:22148:		cd->flashless_auto_bl = PT_SUPPRESS_AUTO_BL;
+pt_core.c:22149:		mutex_unlock(&cd->system_lock);
+pt_core.c:22190:	cd->pip_cmd_timeout = cd->pip_cmd_timeout_default;
+pt_core.c:22196:	mutex_lock(&cd->system_lock);
+pt_core.c:22197:	cd->hid_reset_cmd_state = 0;
+pt_core.c:22198:	mutex_unlock(&cd->system_lock);
+pt_core.c:22203:	if (cd->flashless_dut) {
+pt_core.c:22210:		mutex_lock(&cd->system_lock);
+pt_core.c:22211:		cd->flashless_auto_bl = PT_ALLOW_AUTO_BL;
+pt_core.c:22212:		mutex_unlock(&cd->system_lock);
+pt_core.c:22217:		if (cd->fw_updating) {
+pt_core.c:22225:		if (cd->mode == PT_MODE_BOOTLOADER) {
+pt_core.c:22242:		if ((cd->enum_status & ENUM_STATUS_FW_RESET_SENTINEL) &&
+pt_core.c:22243:		    (cd->enum_status & ENUM_STATUS_COMPLETE) == 0) {
+pt_core.c:22255:		__func__, cd->enum_status);
+pt_core.c:22294:		mutex_lock(&cd->system_lock);
+pt_core.c:22295:		cd->ttdl_bist_select = input_data[0];
+pt_core.c:22296:		mutex_unlock(&cd->system_lock);
+pt_core.c:22338:	mutex_lock(&cd->system_lock);
+pt_core.c:22340:		cd->flush_bus_type = PT_FLUSH_BUS_BASED_ON_LEN;
+pt_core.c:22342:		cd->flush_bus_type = PT_FLUSH_BUS_FULL_256_READ;
+pt_core.c:22345:	mutex_unlock(&cd->system_lock);
+pt_core.c:22375:	mutex_lock(&cd->system_lock);
+pt_core.c:22376:	bytes = pt_flush_bus(cd, cd->flush_bus_type, NULL);
+pt_core.c:22383:	mutex_unlock(&cd->system_lock);
+pt_core.c:22424:	mutex_lock(&cd->system_lock);
+pt_core.c:22426:		cd->ping_test_size = input_data[0];
+pt_core.c:22429:	mutex_unlock(&cd->system_lock);
+pt_core.c:22463:	rc = pt_pip2_ping_test(dev, cd->ping_test_size, &last_packet_size);
+pt_core.c:22472:		(last_packet_size == cd->ping_test_size ? 0 : 1),
+pt_core.c:22511:	mutex_lock(&cd->system_lock);
+pt_core.c:22515:		cd->t_refresh_total = input_data[0];
+pt_core.c:22516:		cd->t_refresh_count  = 0;
+pt_core.c:22517:		cd->t_refresh_active = 1;
+pt_core.c:22522:	mutex_unlock(&cd->system_lock);
+pt_core.c:22555:	mutex_lock(&cd->system_lock);
+pt_core.c:22558:	if (cd->t_refresh_count != cd->t_refresh_total) {
+pt_core.c:22563:			cd->t_refresh_count);
+pt_core.c:22566:		cd->t_refresh_active = 0;
+pt_core.c:22568:		whole = cd->t_refresh_time / cd->t_refresh_count;
+pt_core.c:22569:		fraction = cd->t_refresh_time % cd->t_refresh_count;
+pt_core.c:22570:		fraction = fraction * 1000 / cd->t_refresh_count;
+pt_core.c:22578:			"Requested IRQ Count     ", cd->t_refresh_total,
+pt_core.c:22579:			"IRQ Counted             ", cd->t_refresh_count,
+pt_core.c:22580:			"Total Time Elapsed (ms) ", (int)cd->t_refresh_time,
+pt_core.c:22583:	mutex_unlock(&cd->system_lock);
+pt_core.c:22616:	if (cd->fw_sys_mode_in_standby_state) {
+pt_core.c:22653:				cd->protocol_mode == PT_PROTOCOL_MODE_HID) {
+pt_core.c:22784:		__func__, cd->active_dut_generation);
+pt_core.c:22785:	if (cd->active_dut_generation == DUT_PIP2_CAPABLE) {
+pt_core.c:22905:	cd->dev                        = dev;
+pt_core.c:22906:	cd->pdata                      = pdata;
+pt_core.c:22907:	cd->cpdata                     = pdata->core_pdata;
+pt_core.c:22908:	cd->bus_ops                    = ops;
+pt_core.c:22909:	cd->debug_level                = PT_INITIAL_DEBUG_LEVEL;
+pt_core.c:22910:	cd->show_timestamp             = PT_INITIAL_SHOW_TIME_STAMP;
+pt_core.c:22911:	scnprintf(cd->core_id, 20, "%s%d", PT_CORE_NAME, core_number++);
+pt_core.c:22912:	cd->hw_detected                = false;
+pt_core.c:22913:	cd->pip2_prot_active           = false;
+pt_core.c:22914:	cd->pip2_send_user_cmd         = false;
+pt_core.c:22915:	cd->bl_pip_ver_ready           = false;
+pt_core.c:22916:	cd->app_pip_ver_ready          = false;
+pt_core.c:22917:	cd->pip2_cmd_tag_seq           = 0x08; /* PIP2 TAG=1b SEQ=000b */
+pt_core.c:22918:	cd->get_param_id               = 0;
+pt_core.c:22919:	cd->watchdog_enabled           = 0;
+pt_core.c:22920:	cd->startup_retry_count        = 0;
+pt_core.c:22921:	cd->core_probe_complete        = 0;
+pt_core.c:22922:	cd->fw_system_mode             = FW_SYS_MODE_BOOT;
+pt_core.c:22923:	cd->pip_cmd_timeout            = PT_PIP_CMD_DEFAULT_TIMEOUT;
+pt_core.c:22924:	cd->pip_cmd_timeout_default    = PT_PIP_CMD_DEFAULT_TIMEOUT;
+pt_core.c:22925:	cd->hid_multi_rsp_timeout      = PT_HID_MULTI_RSP_DEFAULT_TIMEOUT;
+pt_core.c:22926:	cd->flashless_dut              = 0;
+pt_core.c:22927:	cd->flashless_auto_bl          = PT_SUPPRESS_AUTO_BL;
+pt_core.c:22928:	cd->bl_with_no_int             = 0;
+pt_core.c:22929:	cd->cal_cache_in_host          = PT_FEATURE_DISABLE;
+pt_core.c:22930:	cd->num_devices                = 1;
+pt_core.c:22931:	cd->tthe_hid_usb_format        = PT_TTHE_TUNER_FORMAT_HID_I2C;
+pt_core.c:22932:	cd->dual_mcu_available         = false;
+pt_core.c:22934:	if (cd->cpdata->config_dut_generation == CONFIG_DUT_PIP2_CAPABLE) {
+pt_core.c:22935:		cd->set_dut_generation = true;
+pt_core.c:22936:		cd->active_dut_generation = DUT_PIP2_CAPABLE;
+pt_core.c:22937:	} else if (cd->cpdata->config_dut_generation == CONFIG_DUT_PIP1_ONLY) {
+pt_core.c:22938:		cd->set_dut_generation = true;
+pt_core.c:22939:		cd->active_dut_generation = DUT_PIP1_ONLY;
+pt_core.c:22941:		cd->set_dut_generation = false;
+pt_core.c:22942:		cd->active_dut_generation = DUT_UNKNOWN;
+pt_core.c:22946:	cd->watchdog_force_stop        = cd->cpdata->watchdog_force_stop;
+pt_core.c:22947:	cd->watchdog_interval          = PT_WATCHDOG_TIMEOUT;
+pt_core.c:22948:	cd->hid_cmd_state                 = 1;
+pt_core.c:22949:	cd->fw_updating                   = false;
+pt_core.c:22950:	cd->enter_bl_method               = PT_ENTER_BL_BY_COMMAND;//PT_ENTER_BL_BY_RST_UTIL;
+pt_core.c:22951:	cd->pip3_output_rpt_cnt           = 0xFF;
+pt_core.c:22954:	cd->t_refresh_active              = 0;
+pt_core.c:22955:	cd->t_refresh_count               = 0;
+pt_core.c:22956:	cd->pip2_crc_error_count          = 0;
+pt_core.c:22957:	cd->wd_xres_count                 = 0;
+pt_core.c:22958:	cd->bl_retry_packet_count         = 0;
+pt_core.c:22959:	cd->file_erase_timeout_count      = 0;
+pt_core.c:22960:	cd->show_tt_data                  = false;
+pt_core.c:22961:	cd->flush_bus_type                = PT_FLUSH_BUS_BASED_ON_LEN;
+pt_core.c:22962:	cd->err_gpio                      = 0;
+pt_core.c:22963:	cd->err_gpio_type                 = PT_ERR_GPIO_NONE;
+pt_core.c:22964:	cd->ttdl_bist_select              = 0x07;
+pt_core.c:22965:	cd->force_pip2_seq                = 0;
+pt_core.c:22969:	memset(cd->pip2_us_file_path, 0, PT_MAX_PATH_SIZE);
+pt_core.c:22970:	memcpy(cd->pip2_us_file_path, PT_PIP2_BIN_FILE_PATH,
+pt_core.c:22973:	pt_init_hid_descriptor(&cd->hid_desc);
+pt_core.c:22975:	cd->hid_core.hid_report_desc_len =
+pt_core.c:22976:	    le16_to_cpu(cd->hid_desc.report_desc_len);
+pt_core.c:22977:	cd->hid_core.hid_max_input_len =
+pt_core.c:22978:	    le16_to_cpu(cd->hid_desc.max_input_len);
+pt_core.c:22979:	cd->hid_core.hid_max_output_len =
+pt_core.c:22980:	    le16_to_cpu(cd->hid_desc.max_output_len);
+pt_core.c:22983:	mutex_init(&cd->module_list_lock);
+pt_core.c:22984:	mutex_init(&cd->system_lock);
+pt_core.c:22985:	mutex_init(&cd->sysfs_lock);
+pt_core.c:22986:	mutex_init(&cd->ttdl_restart_lock);
+pt_core.c:22987:	mutex_init(&cd->firmware_class_lock);
+pt_core.c:22988:	mutex_init(&cd->hid_report_lock);
+pt_core.c:22989:	spin_lock_init(&cd->spinlock);
+pt_core.c:22992:	INIT_LIST_HEAD(&cd->module_list);
+pt_core.c:22996:		INIT_LIST_HEAD(&cd->atten_list[type]);
+pt_core.c:22999:	INIT_LIST_HEAD(&cd->param_list);
+pt_core.c:23002:	init_waitqueue_head(&cd->wait_q);
+pt_core.c:23005:	INIT_WORK(&cd->enum_work, pt_enum_work_function);
+pt_core.c:23006:	INIT_WORK(&cd->ttdl_restart_work, pt_restart_work_function);
+pt_core.c:23007:	INIT_WORK(&cd->watchdog_work, pt_watchdog_work);
+pt_core.c:23010:	cd->hid_core.hid_vendor_id = (cd->cpdata->vendor_id) ?
+pt_core.c:23011:		cd->cpdata->vendor_id : HID_VENDOR_ID;
+pt_core.c:23012:	cd->hid_core.hid_product_id = (cd->cpdata->product_id) ?
+pt_core.c:23013:		cd->cpdata->product_id : HID_APP_PRODUCT_ID;
+pt_core.c:23014:	cd->hid_core.hid_desc_register =
+pt_core.c:23015:		cpu_to_le16(cd->cpdata->hid_desc_register);
+pt_core.c:23018:	cd->easy_wakeup_gesture = cd->cpdata->easy_wakeup_gesture;
+pt_core.c:23021:	cd->panel_id_support = cd->cpdata->panel_id_support;
+pt_core.c:23023:	if (cd->panel_id_support &
+pt_core.c:23026:		cd->pid_for_loader = PT_PANEL_ID_DEFAULT;
+pt_core.c:23029:		cd->pid_for_loader = PANEL_ID_NOT_ENABLED;
+pt_core.c:23032:	if (cd->cpdata->protocol_mode != PT_PROTOCOL_MODE_UNKNOWN) {
+pt_core.c:23033:		cd->protocol_mode = cd->cpdata->protocol_mode;
+pt_core.c:23034:		cd->set_protocol_mode = true;
+pt_core.c:23036:		cd->protocol_mode = PT_PROTOCOL_MODE_PIP;
+pt_core.c:23037:		cd->set_protocol_mode = false;
+pt_core.c:23041:	snprintf(cd->hw_version, HW_VERSION_LEN_MAX, "FFFF.FFFF.FF");
+pt_core.c:23049:		pt_debug(cd->dev, DL_WARN, "%s:create early attrs failed\n",
+pt_core.c:23062:	cd->bus_ops = ops;
+pt_core.c:23069:	if (!cd->cpdata->irq_stat) {
+pt_core.c:23070:		cd->irq = irq;
+pt_core.c:23071:		pt_debug(cd->dev, DL_WARN, "%s:No irq_stat, Set cd->irq = %d\n",
+pt_core.c:23072:			__func__, cd->irq);
+pt_core.c:23077:	if (cd->cpdata->init) {
+pt_core.c:23078:		pt_debug(cd->dev, DL_INFO, "%s: Init HW\n", __func__);
+pt_core.c:23079:		rc = cd->cpdata->init(cd->cpdata, PT_MT_POWER_ON, cd->dev);
+pt_core.c:23081:		pt_debug(cd->dev, DL_WARN, "%s: No HW INIT function\n",
+pt_core.c:23086:		pt_debug(cd->dev, DL_ERROR, "%s: HW Init fail r=%d\n",
+pt_core.c:23091:	if (cd->cpdata->setup_power) {
+pt_core.c:23092:		pt_debug(cd->dev, DL_INFO, "%s: Device power on!\n", __func__);
+pt_core.c:23093:		rc = cd->cpdata->setup_power(cd->cpdata,
+pt_core.c:23094:			PT_MT_POWER_ON, cd->dev);
+pt_core.c:23096:		pt_debug(cd->dev, DL_WARN, "%s: No setup power function\n",
+pt_core.c:23101:		pt_debug(cd->dev, DL_ERROR, "%s: Setup power on fail r=%d\n",
+pt_core.c:23105:	cd->watchdog_irq_stuck_count = 0;
+pt_core.c:23106:	cd->bus_transmit_error_count = 0;
+pt_core.c:23109:		if (cd->cpdata->detect) {
+pt_core.c:23110:			pt_debug(cd->dev, DL_INFO, "%s: Detect HW\n", __func__);
+pt_core.c:23111:			rc = cd->cpdata->detect(cd->cpdata, cd->dev,
+pt_core.c:23114:				cd->hw_detected = true;
+pt_core.c:23115:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:23118:				cd->hw_detected = false;
+pt_core.c:23119:				pt_debug(cd->dev, DL_INFO,
+pt_core.c:23135:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:23140:	if (cd->cpdata->setup_irq) {
+pt_core.c:23141:		pt_debug(cd->dev, DL_INFO, "%s: setup IRQ\n", __func__);
+pt_core.c:23142:		rc = cd->cpdata->setup_irq(cd->cpdata, PT_MT_IRQ_REG, cd->dev);
+pt_core.c:23156:	setup_timer(&cd->watchdog_timer, pt_watchdog_timer,
+pt_core.c:23159:	timer_setup(&cd->watchdog_timer, pt_watchdog_timer, 0);
+pt_core.c:23164:	init_waitqueue_head(&cd->tuner_wait);
+pt_core.c:23165:	INIT_LIST_HEAD(&cd->tuner_list);
+pt_core.c:23166:	spin_lock_init(&cd->tuner_list_lock);
+pt_core.c:23167:	cd->tthe_debugfs = debugfs_create_file(PT_TTHE_TUNER_FILE_NAME,
+pt_core.c:23174:    enable_irq_wake(cd->irq);
+pt_core.c:23175:    cd->irq_wake = 1;
+pt_core.c:23182:	if (cd->cpdata->irq_stat) {
+pt_core.c:23195:	if (cd->active_dut_generation == DUT_UNKNOWN) {
+pt_core.c:23196:		if (cd->bl_pip_ver_ready ||
+pt_core.c:23197:			(cd->app_pip_ver_ready &&
+pt_core.c:23198:			IS_PIP_VER_GE(&cd->sysinfo, 1, 12))) {
+pt_core.c:23199:			cd->active_dut_generation = DUT_PIP2_CAPABLE;
+pt_core.c:23201:				__func__, cd->active_dut_generation);
+pt_core.c:23203:			rc = _pt_detect_dut_generation(cd->dev,
+pt_core.c:23204:				&status, &cd->active_dut_generation,
+pt_core.c:23205:				&cd->mode, &cd->protocol_mode);
+pt_core.c:23206:			if ((cd->active_dut_generation == DUT_UNKNOWN)
+pt_core.c:23208:				pt_debug(cd->dev, DL_ERROR,
+pt_core.c:23215:	_pt_request_active_pip_protocol(cd->dev, PT_CORE_CMD_PROTECTED,
+pt_core.c:23218:		cd->bl_pip_ver_ready = true;
+pt_core.c:23222:		cd->hw_detected = true;
+pt_core.c:23224:		cd->app_pip_ver_ready = true;
+pt_core.c:23227:		cd->hw_detected = true;
+pt_core.c:23229:		cd->sysinfo.ttdata.pip_ver_major = 0;
+pt_core.c:23230:		cd->sysinfo.ttdata.pip_ver_minor = 0;
+pt_core.c:23231:		cd->app_pip_ver_ready = false;
+pt_core.c:23232:		cd->hw_detected = false;
+pt_core.c:23236:		if (cd->active_dut_generation != DUT_PIP1_ONLY)
+pt_core.c:23241:	pt_debug(dev, DL_WARN, "%s: cd->enum_status=0x%04X status=0x%04X\n",
+pt_core.c:23242:		__func__, cd->enum_status, status);
+pt_core.c:23244:		pt_debug(cd->dev, DL_ERROR,
+pt_core.c:23251:	tmp_mode = cd->mode;
+pt_core.c:23255:	if (cd->hw_detected) {
+pt_core.c:23309:	cd->pm_notifier.notifier_call = pt_pm_notifier;
+pt_core.c:23310:	register_pm_notifier(&cd->pm_notifier);
+pt_core.c:23312:    cd->tp.tp_resume = pt_core_late_resume;
+pt_core.c:23313:    cd->tp.tp_suspend = pt_core_early_suspend;
+pt_core.c:23314:    tp_register_fb(&cd->tp);
+pt_core.c:23325:	mutex_lock(&cd->system_lock);
+pt_core.c:23326:	cd->enum_status |= status;
+pt_core.c:23327:	cd->core_probe_complete = 1;
+pt_core.c:23328:	mutex_unlock(&cd->system_lock);
+pt_core.c:23347:	cancel_work_sync(&cd->enum_work);
+pt_core.c:23354:	del_timer(&cd->watchdog_timer);
+pt_core.c:23355:	if (cd->cpdata->setup_irq)
+pt_core.c:23356:		cd->cpdata->setup_irq(cd->cpdata, PT_MT_IRQ_FREE, dev);
+pt_core.c:23359:	if (cd->cpdata->init)
+pt_core.c:23360:		cd->cpdata->init(cd->cpdata, PT_MT_POWER_OFF, dev);
+pt_core.c:23361:	if (cd->cpdata->setup_power)
+pt_core.c:23362:		cd->cpdata->setup_power(cd->cpdata, PT_MT_POWER_OFF, dev);
+pt_core.c:23396:	struct device *dev = cd->dev;
+pt_core.c:23413:	cancel_work_sync(&cd->ttdl_restart_work);
+pt_core.c:23414:	cancel_work_sync(&cd->enum_work);
+pt_core.c:23424:	unregister_early_suspend(&cd->es);
+pt_core.c:23426:	fb_unregister_client(&cd->fb_notifier);
+pt_core.c:23430:	unregister_pm_notifier(&cd->pm_notifier);
+pt_core.c:23439:	mutex_lock(&cd->system_lock);
+pt_core.c:23440:	cd->tthe_exit = 1;
+pt_core.c:23441:	mutex_unlock(&cd->system_lock);
+pt_core.c:23442:	wake_up_interruptible(&cd->tuner_wait);
+pt_core.c:23443:	debugfs_remove(cd->tthe_debugfs);
+pt_core.c:23451:	disable_irq_nosync(cd->irq);
+pt_core.c:23452:	if (cd->cpdata->setup_irq)
+pt_core.c:23453:		cd->cpdata->setup_irq(cd->cpdata, PT_MT_IRQ_FREE, dev);
+pt_core.c:23454:	if (cd->cpdata->init)
+pt_core.c:23455:		cd->cpdata->init(cd->cpdata, PT_MT_POWER_OFF, dev);
+pt_core.c:23456:	if (cd->cpdata->setup_power)
+pt_core.c:23457:		cd->cpdata->setup_power(cd->cpdata, PT_MT_POWER_OFF, dev);
+pt_pen.c:153:	struct pt_pen_data *pend = &cd->pend;
+pt_pen.c:185:	struct pt_pen_data *pend = &cd->pend;
+pt_pen.c:211:	struct pt_pen_data *pend = &cd->pend;
+pt_pen.c:239:	struct pt_pen_data *pend = &cd->pend;
+pt_pen.c:266:	struct pt_pen_data *pend = &cd->pend;
+pt_pen.c:308:	struct pt_pen_data *pend = &cd->pend;
+pt_pen.c:346:	struct pt_pen_data *pend = &cd->pend;
+pt_pen.c:449:	struct pt_pen_data *pend = &cd->pend;
+pt_pen.c:479:	struct pt_pen_data *pend = &cd->pend;
+pt_pen.c:514:			cd->phys_num++);
+pt_pen.c:567:			pend = &cd->pend;
+pt_spi.c:112:		if (cd->active_dut_generation == DUT_PIP1_ONLY)
+pt_platform.c:1245:			cd->irq = gpio_to_irq(pdata->irq_gpio);
+pt_platform.c:1248:				__func__, cd->irq);
+pt_platform.c:1250:		if (cd->irq < 0)
+pt_platform.c:1253:		cd->irq_enabled = true;
+pt_platform.c:1256:			__func__, cd->irq);
+pt_platform.c:1265:		//rc = request_threaded_irq(cd->irq, NULL, pt_irq,
+pt_platform.c:1267:         rc = request_threaded_irq(cd->irq, NULL, pt_irq, IRQF_TRIGGER_LOW | IRQF_ONESHOT, dev_name(dev), cd); // | IRQF_NO_SUSPEND ~{P]C_J12;~}disable
+pt_platform.c:1272:		disable_irq_nosync(cd->irq);
+pt_platform.c:1273:		free_irq(cd->irq, cd);
+rst_gpio:1:pt_core.c:1868:	if (!(cd->cpdata->flags & PT_CORE_FLAG_RESTORE_PARAMETERS))
+rst_gpio:2:pt_core.c:1939:	if (!(cd->cpdata->flags & PT_CORE_FLAG_RESTORE_PARAMETERS))
+rst_gpio:3:pt_core.c:2159:		&& cd->cpdata->irq_stat) {
+rst_gpio:4:pt_core.c:2169:	if (cd->cpdata->irq_stat) {
+rst_gpio:5:pt_core.c:2170:		if (cd->cpdata->irq_stat(cd->cpdata, cd->dev)
+rst_gpio:6:pt_core.c:2175:		if (cd->cpdata->irq_stat(cd->cpdata, cd->dev)
+rst_gpio:7:pt_core.c:3273:		if (!gpio_get_value(cd->cpdata->irq_gpio)) {
+rst_gpio:8:pt_core.c:3750:		if (cd->cpdata->sett[PT_IC_GRPNUM_BTN_KEYS] == NULL)
+rst_gpio:9:pt_core.c:3752:		else if (cd->cpdata->sett[PT_IC_GRPNUM_BTN_KEYS]->data == NULL)
+rst_gpio:10:pt_core.c:3755:			num_defined_keys = cd->cpdata->sett
+rst_gpio:11:pt_core.c:3759:			key_table = (u16 *)cd->cpdata->sett
+rst_gpio:12:pt_core.c:8684:	//if (cd->cpdata->xres) {
+rst_gpio:13:pt_core.c:8688:	//	cd->cpdata->xres(cd->cpdata, cd->dev);
+rst_gpio:14:pt_core.c:10124:	rc = cd->cpdata->power(cd->cpdata, 0, cd->dev, 0);
+rst_gpio:15:pt_core.c:10166:	else if (cd->cpdata->flags & PT_CORE_FLAG_POWEROFF_ON_SLEEP)
+rst_gpio:16:pt_core.c:10168:	else if (cd->cpdata->flags & PT_CORE_FLAG_DEEP_STANDBY)
+rst_gpio:17:pt_core.c:12305:	return cd->pdata->loader_pdata;
+rst_gpio:18:pt_core.c:12583:	if (!(cd->cpdata->flags & PT_CORE_FLAG_RESTORE_PARAMETERS))
+rst_gpio:19:pt_core.c:12987:	rc = cd->cpdata->power(cd->cpdata, 1, dev, 0);
+rst_gpio:20:pt_core.c:13061:	if (!(cd->cpdata->flags & PT_CORE_FLAG_SKIP_RESUME)) {
+rst_gpio:21:pt_core.c:13064:		else if (cd->cpdata->flags & PT_CORE_FLAG_POWEROFF_ON_SLEEP)
+rst_gpio:22:pt_core.c:13066:		else if (cd->cpdata->flags & PT_CORE_FLAG_DEEP_STANDBY)
+rst_gpio:23:pt_core.c:14104:	if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_RUNTIME)
+rst_gpio:24:pt_core.c:14132:	if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_RUNTIME)
+rst_gpio:25:pt_core.c:14194:	if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_SYS_SLEEP)
+rst_gpio:26:pt_core.c:14245:	if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_SYS_SLEEP)
+rst_gpio:27:pt_core.c:14260:    gpio_direction_output(cd->cpdata->rst_gpio, 0);
+rst_gpio:28:pt_core.c:14261:    gpio_direction_output(cd->cpdata->irq_gpio, 0);
+rst_gpio:29:pt_core.c:14273:    gpio_direction_input(cd->cpdata->irq_gpio);
+rst_gpio:30:pt_core.c:16717:    int rst_gpio = cd->cpdata->rst_gpio;
+rst_gpio:31:pt_core.c:16718:    int irq_gpio = cd->cpdata->irq_gpio;
+rst_gpio:32:pt_core.c:16732:			if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_RUNTIME)
+rst_gpio:33:pt_core.c:16744://			if (cd->cpdata->flags & PT_CORE_FLAG_SKIP_RUNTIME)
+rst_gpio:34:pt_core.c:18297:			cd->cpdata->setup_power(cd->cpdata,
+rst_gpio:35:pt_core.c:18302:			cd->cpdata->setup_power(cd->cpdata,
+rst_gpio:36:pt_core.c:18547:			cd->cpdata->flags = input_data[1];
+rst_gpio:39:pt_core.c:19146:			cd->cpdata->irq_stat ?
+rst_gpio:40:pt_core.c:19147:			(cd->cpdata->irq_stat(cd->cpdata, dev) ?
+rst_gpio:82:pt_core.c:21717:	cd->cpdata                     = pdata->core_pdata;
+rst_gpio:83:pt_core.c:21743:	if (cd->cpdata->config_dut_generation == CONFIG_DUT_PIP2_CAPABLE) {
+rst_gpio:84:pt_core.c:21746:	} else if (cd->cpdata->config_dut_generation == CONFIG_DUT_PIP1_ONLY) {
+rst_gpio:85:pt_core.c:21755:	cd->watchdog_force_stop        = cd->cpdata->watchdog_force_stop;
+rst_gpio:86:pt_core.c:21817:	cd->hid_core.hid_vendor_id = (cd->cpdata->vendor_id) ?
+rst_gpio:87:pt_core.c:21818:		cd->cpdata->vendor_id : HID_VENDOR_ID;
+rst_gpio:88:pt_core.c:21819:	cd->hid_core.hid_product_id = (cd->cpdata->product_id) ?
+rst_gpio:89:pt_core.c:21820:		cd->cpdata->product_id : HID_APP_PRODUCT_ID;
+rst_gpio:90:pt_core.c:21822:		cpu_to_le16(cd->cpdata->hid_desc_register);
+rst_gpio:91:pt_core.c:21825:	cd->easy_wakeup_gesture = cd->cpdata->easy_wakeup_gesture;
+rst_gpio:92:pt_core.c:21828:	cd->panel_id_support = cd->cpdata->panel_id_support;
+rst_gpio:93:pt_core.c:21838:	if (cd->cpdata->protocol_mode != PT_PROTOCOL_MODE_UNKNOWN) {
+rst_gpio:94:pt_core.c:21839:		cd->protocol_mode = cd->cpdata->protocol_mode;
+rst_gpio:95:pt_core.c:21875:	if (!cd->cpdata->irq_stat) {
+rst_gpio:96:pt_core.c:21883:	if (cd->cpdata->init) {
+rst_gpio:97:pt_core.c:21885:		rc = cd->cpdata->init(cd->cpdata, PT_MT_POWER_ON, cd->dev);
+rst_gpio:98:pt_core.c:21897:	if (cd->cpdata->setup_power) {
+rst_gpio:99:pt_core.c:21899:		rc = cd->cpdata->setup_power(cd->cpdata,
+rst_gpio:100:pt_core.c:21915:		if (cd->cpdata->detect) {
+rst_gpio:101:pt_core.c:21917:			rc = cd->cpdata->detect(cd->cpdata, cd->dev,
+rst_gpio:102:pt_core.c:21946:	if (cd->cpdata->setup_irq) {
+rst_gpio:103:pt_core.c:21948:		rc = cd->cpdata->setup_irq(cd->cpdata, PT_MT_IRQ_REG, cd->dev);
+rst_gpio:104:pt_core.c:21986:	if (cd->cpdata->irq_stat) {
+rst_gpio:105:pt_core.c:22159:	if (cd->cpdata->setup_irq)
+rst_gpio:106:pt_core.c:22160:		cd->cpdata->setup_irq(cd->cpdata, PT_MT_IRQ_FREE, dev);
+rst_gpio:107:pt_core.c:22163:	if (cd->cpdata->init)
+rst_gpio:108:pt_core.c:22164:		cd->cpdata->init(cd->cpdata, PT_MT_POWER_OFF, dev);
+rst_gpio:109:pt_core.c:22165:	if (cd->cpdata->setup_power)
+rst_gpio:110:pt_core.c:22166:		cd->cpdata->setup_power(cd->cpdata, PT_MT_POWER_OFF, dev);
+rst_gpio:111:pt_core.c:22256:	if (cd->cpdata->setup_irq)
+rst_gpio:112:pt_core.c:22257:		cd->cpdata->setup_irq(cd->cpdata, PT_MT_IRQ_FREE, dev);
+rst_gpio:113:pt_core.c:22258:	if (cd->cpdata->init)
+rst_gpio:114:pt_core.c:22259:		cd->cpdata->init(cd->cpdata, PT_MT_POWER_OFF, dev);
+rst_gpio:115:pt_core.c:22260:	if (cd->cpdata->setup_power)
+rst_gpio:116:pt_core.c:22261:		cd->cpdata->setup_power(cd->cpdata, PT_MT_POWER_OFF, dev);
+rst_gpio:215:pt_platform.c:1238:			cd->irq = gpio_to_irq(pdata->irq_gpio);
+pt_btn.c:144:	struct pt_btn_data *bd = &cd->bd;
+pt_btn.c:176:	struct pt_btn_data *bd = &cd->bd;
+pt_btn.c:202:	struct pt_btn_data *bd = &cd->bd;
+pt_btn.c:230:	struct pt_btn_data *bd = &cd->bd;
+pt_btn.c:257:	struct pt_btn_data *bd = &cd->bd;
+pt_btn.c:299:	struct pt_btn_data *bd = &cd->bd;
+pt_btn.c:337:	struct pt_btn_data *bd = &cd->bd;
+pt_btn.c:379:	struct pt_btn_data *bd = &cd->bd;
+pt_btn.c:409:	struct pt_btn_data *bd = &cd->bd;
+pt_btn.c:444:			cd->phys_num++);
+pt_btn.c:497:			bd = &cd->bd;
+pt_slider_listener.c:177:	struct pt_mt_data *md = &cd->md;
+pt_slider_listener.c:227:	struct pt_mt_data *md = &cd->md;
+pt_slider_listener.c:247:	pt_debug(cd->dev, DL_LISTEN,"=====%s slider_need_handle:%d\n", __func__, slider_need_handle);
+pt_slider_listener.c:249:		kc = slider_touch_up(cd->dev);
+pt_slider_listener.c:250:		slider_touch_up_report_key(cd->dev, kc);
+pt_slider_listener.c:260:	struct pt_mt_data *md = &cd->md;
+pt_slider_listener.c:611:	//cd->debug_level = PT_INITIAL_DEBUG_LEVEL;
+pt_slider_listener.c:612:	//cd = dev_get_drvdata(tp_cd->dev);
+pt_slider_listener.c:613:    pt_debug(tp_cd->dev, DL_LISTEN, "%s: Got slider touch[%d]: x=%d,y=%d,tip=%d\n", __func__,
+pt_slider_listener.c:615:	//pt_debug(tp_cd->dev, DL_LISTEN, "=========%s: dev:%p,cd=%p,\n", __func__,
+pt_slider_listener.c:616:	//	tp_cd->dev, &cd);
+pt_slider_listener.c:618:	//printk("========pt_slider_listener cd:%p md:%p work:%p dev:%p\n", tp_cd, tp_cd->md, tp_cd->md.slider_report_wq,tp_cd->dev);
+pt_slider_listener.c:619:	//printk("========pt_slider_listener &cd:%p &md:%p &work:%p dev:%p\n", &tp_cd, &tp_cd->md, &tp_cd->md.slider_report_wq,tp_cd->dev);
+pt_slider_listener.c:621:	pt_update_slider_touch(tp_cd->dev,t, x, y, tip);
+pt_slider_listener.c:622:	if(!tip) pt_dump_slider_touch(tp_cd->dev);
+pt_slider_listener.c:628:	struct pt_mt_data *md = &cd->md;
+pt_slider_listener.c:674:	struct pt_mt_data *md = &cd->md;
+pt_slider_listener.c:687:	tp_cd->dev = dev;
+pt_slider_listener.c:700:	//printk("========pt_slider_probe tp_cd:%p &tp_cd->md:%p tp_cd->md.slider_report_wq:%p tp_cd->dev:%p\n", tp_cd, &tp_cd->md, tp_cd->md.slider_report_wq,tp_cd->dev);
+pt_loader.c:339:	return cd->pid_for_loader;
+pt_loader.c:456:	if (cd->dual_mcu_available)
+pt_loader.c:819:	cd->mode = PT_MODE_BOOTLOADER;
+pt_loader.c:979:	cancel_work_sync(&cd->enum_work);
+pt_loader.c:1035:	if (!rc && cd->dual_mcu_available) {
+pt_loader.c:1036:		pt_debug(cd->dev, DL_INFO,
+pt_loader.c:1054:		t = wait_event_timeout(cd->wait_q,
+pt_loader.c:1055:			(cd->enum_status >=
+pt_loader.c:1057:			(cd->mode == PT_MODE_OPERATIONAL),
+pt_loader.c:1062:				__func__, cd->enum_status);
+pt_loader.c:1066:		if (!(cd->enum_status & ENUM_STATUS_FW_RESET_SENTINEL)) {
+pt_loader.c:1070:		} else if (cd->mode != PT_MODE_OPERATIONAL) {
+pt_loader.c:1253:		if ((cd->panel_id_support &
+pt_loader.c:1304:	rc = cmd->nonhid_cmd->read_us_file(dev, cd->pip2_us_file_path,
+pt_loader.c:1630:	memcpy(si_id, cd->hw_version, 4);
+pt_loader.c:1694:	mutex_lock(&cd->firmware_class_lock);
+pt_loader.c:1719:		if ((cd->panel_id_support &
+pt_loader.c:1730:			mutex_unlock(&cd->firmware_class_lock);
+pt_loader.c:1747:	mutex_unlock(&cd->firmware_class_lock);
+pt_loader.c:2559:	while (!cd->core_probe_complete && retry--)
+pt_loader.c:2696:	if (cd->bl_with_no_int)
+pt_loader.c:2767:	if (cd->bl_with_no_int)
+pt_loader.c:2880:		cd->bl_retry_packet_count++;
+pt_loader.c:3054:	struct pt_ttdata *ttdata = &cd->sysinfo.ttdata;
+pt_loader.c:3174:	if (cd->pip2_us_file_path[0] == '\0') {
+pt_loader.c:3181:		ret = cmd->nonhid_cmd->read_us_file(dev, cd->pip2_us_file_path,
+pt_loader.c:3185:				 __func__, cd->pip2_us_file_path);
+pt_loader.c:3189:				 __func__, cd->pip2_us_file_path);
+pt_loader.c:3239:	if (cd->bus_ops->bustype == BUS_I2C)
+pt_loader.c:3307:		if (cd->debug_level >= DL_DEBUG)
+pt_loader.c:3356:	if (cd->bl_with_no_int)
+pt_loader.c:3357:		disable_irq_nosync(cd->irq);
+pt_loader.c:3401:	if (cd->bl_with_no_int)
+pt_loader.c:3402:		enable_irq(cd->irq);
+pt_loader.c:3465:	u16 saved_timeout = cd->pip_cmd_timeout;
+pt_loader.c:3493:	cd->fw_updating = true;
+pt_loader.c:3494:	wake_up(&cd->wait_q);
+pt_loader.c:3513:	cd->bl_pip_ver_ready = false;
+pt_loader.c:3514:	cd->app_pip_ver_ready = false;
+pt_loader.c:3565:		cd->enum_status = ENUM_STATUS_START;
+pt_loader.c:3587:	t = wait_event_timeout(cd->wait_q,
+pt_loader.c:3588:		(cd->enum_status >= ENUM_STATUS_FW_RESET_SENTINEL),
+pt_loader.c:3593:			__func__, cd->enum_status);
+pt_loader.c:3597:	if (cd->enum_status & ENUM_STATUS_FW_RESET_SENTINEL) {
+pt_loader.c:3602:		mutex_lock(&cd->system_lock);
+pt_loader.c:3604:		cd->pip_cmd_timeout_default = PT_FW_EXIT_BOOT_MODE_TIMEOUT;
+pt_loader.c:3605:		cd->protocol_mode = PT_PROTOCOL_MODE_HID;
+pt_loader.c:3606:		mutex_unlock(&cd->system_lock);
+pt_loader.c:3614:			mutex_lock(&cd->system_lock);
+pt_loader.c:3615:			cd->protocol_mode = PT_PROTOCOL_MODE_PIP;
+pt_loader.c:3616:			mutex_unlock(&cd->system_lock);
+pt_loader.c:3621:				mutex_lock(&cd->system_lock);
+pt_loader.c:3622:				cd->protocol_mode = PT_MODE_UNKNOWN;
+pt_loader.c:3623:				mutex_unlock(&cd->system_lock);
+pt_loader.c:3626:		cd->pip_cmd_timeout_default = saved_timeout;
+pt_loader.c:3639:			__func__,  cd->enum_status);
+pt_loader.c:3647:	if (cd->cal_cache_in_host == PT_FEATURE_ENABLE)
+pt_loader.c:3654:		&& (cd->cal_cache_in_host == PT_FEATURE_DISABLE)) {
+pt_loader.c:3678:	cd->fw_updating = false;
+pt_loader.c:3719:	if (cd->flashless_dut)
+pt_loader.c:3720:		cd->flashless_auto_bl = PT_ALLOW_AUTO_BL;
+pt_loader.c:3785:	cd->fw_updating = true;
+pt_loader.c:3804:	cd->fw_updating = false;
+pt_loader.c:3931:	mutex_lock(&cd->firmware_class_lock);
+pt_loader.c:3992:	mutex_unlock(&cd->firmware_class_lock);
+pt_loader.c:4025:	ret = cmd->nonhid_cmd->read_us_file(dev, cd->pip2_us_file_path,
+pt_loader.c:4083:	if (cd->flashless_dut) {
+pt_loader.c:4247:	mutex_lock(&cd->firmware_class_lock);
+pt_loader.c:4249:	mutex_unlock(&cd->firmware_class_lock);
+pt_loader.c:4253:		cd->pip2_us_file_path, image, &read_size);
+pt_loader.c:4261:			rc, cd->pip2_us_file_path);
+pt_loader.c:4268:			rc, cd->pip2_us_file_path);
+pt_loader.c:4301:	mutex_lock(&cd->firmware_class_lock);
+pt_loader.c:4303:	mutex_unlock(&cd->firmware_class_lock);
+pt_loader.c:4307:		cd->pip2_us_file_path, image, &read_size);
+pt_loader.c:4316:			rc, cd->pip2_us_file_path);
+pt_loader.c:4323:			rc, cd->pip2_us_file_path);
+pt_loader.c:4330:			rc, cd->pip2_us_file_path);
+pt_loader.c:4365:	memset(cd->pip2_us_file_path, 0, PT_MAX_PATH_SIZE);
+pt_loader.c:4396:		mutex_lock(&cd->firmware_class_lock);
+pt_loader.c:4398:		mutex_unlock(&cd->firmware_class_lock);
+pt_loader.c:4401:			memcpy(cd->pip2_us_file_path, ptr_left,
+pt_loader.c:4404:			memcpy(cd->pip2_us_file_path, ptr_left,
+pt_loader.c:4591:	if (cd->mode != PT_MODE_BOOTLOADER) {
+pt_loader.c:4594:			 __func__, cd->mode);
+pt_loader.c:4757:		if (cd->mode != PT_MODE_BOOTLOADER) {
+pt_loader.c:5067:	if (cd->mode != PT_MODE_BOOTLOADER) {
+pt_loader.c:5252:	if (cd->mode != PT_MODE_BOOTLOADER) {
+pt_loader.c:5609:	if (cd->mode != PT_MODE_BOOTLOADER) {
+Binary file pt_core.o matches
+pt_proximity.c:56:	return &cd->pd;
+pt_proximity.c:665:	struct pt_proximity_data *pd = &cd->pd;
+pt_proximity.c:700:			cd->phys_num++);
+pt_mt_common.c:466:	switch (cd->gesture_id) {
+pt_mt_common.c:527:	struct pt_mt_data *md = &cd->md;
+pt_mt_common.c:559:	struct pt_mt_data *md = &cd->md;
+pt_mt_common.c:582:	struct pt_mt_data *md = &cd->md;
+pt_mt_common.c:608:	struct pt_mt_data *md = &cd->md;
+pt_mt_common.c:636:	struct pt_mt_data *md = &cd->md;
+pt_mt_common.c:663:	struct pt_mt_data *md = &cd->md;
+pt_mt_common.c:709:	struct pt_mt_data *md = &cd->md;
+pt_mt_common.c:750:	struct pt_mt_data *md = &cd->md;
+pt_mt_common.c:855:	struct pt_mt_data *md = &cd->md;
+pt_mt_common.c:924:	struct pt_mt_data *md = &cd->md;
+pt_mt_common.c:962:			cd->phys_num++);
+pt_mt_common.c:1018:			md = &cd->md;
+pt_regs.h:2013:	return cd->bus_ops->read_default(cd->dev, buf, size);
+pt_regs.h:2019:	return cd->bus_ops->read_default_nosize(cd->dev, buf, max);
+pt_regs.h:2025:	return cd->bus_ops->write_read_specific(cd->dev, write_len, write_buf,
+pt_regs.h:2033:	return cd->pt_dynamic_data[id];
+pt_device_access.c:4693:	if (cd->protocol_mode != PT_PROTOCOL_MODE_HID)
+pt_device_access.c:4699:	if (cd->protocol_mode != PT_PROTOCOL_MODE_HID) {
+pt_device_access.c:4950:		cd->protocol_mode != PT_PROTOCOL_MODE_HID) {
+pt_device_access.c:4965:	if (cd->protocol_mode != PT_PROTOCOL_MODE_HID) {
+pt_device_access.c:4985:	if (cd->show_timestamp)
+pt_device_access.c:6291:	if (cd->show_timestamp)
+pt_device_access.c:6757:	mutex_lock(&cd->firmware_class_lock);
+pt_device_access.c:6777:			mutex_unlock(&cd->firmware_class_lock);
+pt_device_access.c:6787:	mutex_unlock(&cd->firmware_class_lock);

@@ -153,8 +153,8 @@ int key_map[]={KEY_F13,KEY_F14,KEY_F15,KEY_F16,KEY_F17,KEY_F18,KEY_F19,KEY_F20,K
 		} \
 	} while (0);
 
-extern int slider_left_down,slider_right_down;
-extern int t_lr[];
+int slider_left_down = 0, slider_right_down = 0;
+int t_lr[8]={0,0,0,0,0,0,0,0};
 
 static void ratta_report_slide(int code)
 {

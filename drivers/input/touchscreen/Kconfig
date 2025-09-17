@@ -1539,7 +1539,17 @@ config TOUCHSCREEN_FT5436
 	help
 	  Say Y here if you have Focaltech touch panel.
 	  If unsure, say N.
+#
+# Focaltech Touchscreen driver configuration
+#
 
+config SLIDER_FTS
+    tristate "Focaltech slider"
+    default m
+    help
+      Say Y here if you have Focaltech slider.
+      If unsure, say N.
+	  
 config TOUCHSCREEN_HDX8801
 	bool "HDX8801 pen"
 	depends on I2C

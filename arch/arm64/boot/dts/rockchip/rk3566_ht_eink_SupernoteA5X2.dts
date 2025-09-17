@@ -640,9 +640,9 @@
         battery {
             compatible = "rk817,battery";
 			ocv_table = <
-                3400 3470 3530 3584 3624 3650 3672
-                3694 3716 3746 3776 3867 3817 3863
-                3908 3966 4028 4150 4217 4277 4329>;
+                3475 3687 3698 3726 3751 3773 3795 
+                3812 3830 3852 3879 3913 3968 4015
+                4061 4110 4162 4216 4272 4327 4369>;
             tempadc_table = <
                 272 261 250 240 230 220 211 203 194
                 187 179 172 165 159 152 147 141 135
@@ -957,6 +957,28 @@
 		lcm_resolution = <1920 2560>;
 	};
 
+    focaltech@38 {
+        status = "okay";
+        compatible = "focaltech,fts";
+        reg = <0x38>;
+        vdd-supply = <&vcc_tp>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&tsc_gpio>;
+        focaltech,reset-gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+        focaltech,irq-gpio = <&gpio0 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
+        focaltech,max-touch-number = <10>;
+        focaltech,display-coords =  <0 0 1920 2560>;
+        exchange_x_y_flag = <0>;
+        revert_x_flag = <0>;
+        revert_y_flag = <0>;
+        /*
+        focaltech,have-key;
+        focaltech,key-number = <3>;
+        focaltech,keys = <139 102 158>;
+        focaltech,key-x-coords = <200 600 800>;
+        focaltech,key-y-coords = <2000 2000 2000>;
+        */
+    };
 };
 
 &i2c3 {
@@ -1041,7 +1063,6 @@
     status = "okay";
     pinctrl-names = "default";
     pinctrl-0 = <&i2c4m1_xfer>;
-
     gs_mxc6655xa: gsensor@15 {
         status = "okay";
         compatible = "gs_mxc6655xa";
@@ -1148,6 +1169,29 @@
             };
 #endif
         };
+    };
+
+	focaltech@38 {
+        status = "okay";
+        compatible = "focaltech,fts_slider";
+        reg = <0x38>;
+        vdd-supply = <&vcc_tp>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&slide_gpio>;
+        focaltech,reset-gpio = <&gpio2 RK_PC6 GPIO_ACTIVE_LOW>;
+        focaltech,irq-gpio = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_HIGH>;
+        focaltech,max-touch-number = <10>;
+        focaltech,display-coords =  <0 0 1280 880>;
+        exchange_x_y_flag = <1>;
+        revert_x_flag = <0>;
+        revert_y_flag = <1>;
+        /*
+        focaltech,have-key;
+        focaltech,key-number = <3>;
+        focaltech,keys = <139 102 158>;
+        focaltech,key-x-coords = <200 600 800>;
+        focaltech,key-y-coords = <2000 2000 2000>;
+        */
     };
 };
 
@@ -1438,9 +1482,9 @@
         <&vcc_ddr>, <&vdd_logic>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc_tp>, <&vccio_sd>, <&vcc3v3_pmu>, <&dcdc_boost>;
 
     rockchip,regulator-off-in-mem =
-        <&vdd_cpu>, <&vdd_gpu>, <&vcc_tp>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>, <&vccio_acodec>, <&vccio_sd>, <&dcdc_boost>, <&otg_switch>, <&sleep_sta_ctl>;
+        <&vdd_cpu>, <&vdd_gpu>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>, <&vccio_acodec>, <&vccio_sd>, <&dcdc_boost>, <&otg_switch>, <&sleep_sta_ctl>;
     rockchip,regulator-on-in-mem =
-        <&vcc_ddr>, <&vdd_logic>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc3v3_pmu>;
+        <&vcc_ddr>, <&vdd_logic>, <&vcc_tp>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc3v3_pmu>;
 
     rockchip,regulator-off-in-mem-ultra =
         <&vdd_logic>, <&vdd_gpu>, <&vcc_ddr>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,

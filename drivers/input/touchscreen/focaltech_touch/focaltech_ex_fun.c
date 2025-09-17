@@ -559,8 +559,11 @@ static ssize_t fts_tpfwver_show(
     u8 fwver = 0;
 
     mutex_lock(&input_dev->mutex);
-
+#if 1
     ret = fts_read_reg(FTS_REG_FW_VER, &fwver);
+#else
+	fwver = ts_data->fwver;
+#endif
     if ((ret < 0) || (fwver == 0xFF) || (fwver == 0x00))
         num_read_chars = snprintf(buf, PAGE_SIZE, "get tp fw version fail!\n");
     else

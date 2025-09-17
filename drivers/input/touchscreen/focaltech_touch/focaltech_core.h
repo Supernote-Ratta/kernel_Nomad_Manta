@@ -272,6 +272,9 @@ struct fts_ts_data {
 #endif
 
     struct notifier_block fb_notif;
+	int (*input_filter)(struct fts_ts_data *ts_data, int tch[]);
+	int fwver;
+
 };
 
 

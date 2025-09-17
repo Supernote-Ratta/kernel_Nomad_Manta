@@ -22,6 +22,14 @@
 
 #define HIDG_MINORS	4
 
+
+#define HIDG_LOG(hidg, fmt, args...) \
+	do { \
+		struct usb_composite_dev *__cdev = (hidg)->func.config->cdev; \
+		pr_info("hidg[%d] " fmt, (hidg)->minor, ##args); \
+	} while (0)
+
+
 static int major, minors;
 static struct class *hidg_class;
 static DEFINE_IDA(hidg_ida);
@@ -44,6 +52,7 @@ struct f_hidg {
 	unsigned short			report_desc_length;
 	char				*report_desc;
 	unsigned short			report_length;
+
 
 	/* recv report */
 	struct list_head		completed_out_req;
@@ -249,6 +258,9 @@ static ssize_t f_hidg_read(struct file *file, char __user *buffer,
 	unsigned long flags;
 	int ret;
 
+	HIDG_LOG(hidg, "f_hidg_read start: count=%zu\n", count);
+
+
 	if (!count)
 		return 0;
 
@@ -332,9 +344,11 @@ static void f_hidg_req_complete(struct usb_ep *ep, struct usb_request *req)
 }
 
 static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
-			    size_t count, loff_t *offp)
+                            size_t count, loff_t *offp)
 {
 	struct f_hidg *hidg  = file->private_data;
+	HIDG_LOG(hidg, "f_hidg_write start: count=%zu\n", count);
+
 	struct usb_request *req;
 	unsigned long flags;
 	ssize_t status = -ENOMEM;
@@ -344,11 +358,18 @@ static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
 
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
 
+	/* Check UDC state early */
+	if (!hidg->in_ep || !hidg->req || !hidg->in_ep->enabled) {
+		spin_unlock_irqrestore(&hidg->write_spinlock, flags);
+		return -ESHUTDOWN;
+	}
+
 #define WRITE_COND (!hidg->write_pending)
 try_again:
 	/* write queue */
 	while (!WRITE_COND) {
 		spin_unlock_irqrestore(&hidg->write_spinlock, flags);
+
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 
@@ -357,32 +378,33 @@ try_again:
 			return -ERESTARTSYS;
 
 		spin_lock_irqsave(&hidg->write_spinlock, flags);
+
+		/* Check again after wake-up */
+		if (!hidg->in_ep || !hidg->req || !hidg->in_ep->enabled) {
+			spin_unlock_irqrestore(&hidg->write_spinlock, flags);
+			return -ESHUTDOWN;
+		}
 	}
 
 	hidg->write_pending = 1;
 	req = hidg->req;
-	count  = min_t(unsigned, count, hidg->report_length);
 
+	/* 先解锁再复制数据 */
 	spin_unlock_irqrestore(&hidg->write_spinlock, flags);
-	status = copy_from_user(req->buf, buffer, count);
 
+	count = min_t(unsigned, count, hidg->report_length);
+	status = copy_from_user(req->buf, buffer, count);
 	if (status != 0) {
-		ERROR(hidg->func.config->cdev,
-			"copy_from_user error\n");
+		ERROR(hidg->func.config->cdev, "copy_from_user error\n");
 		status = -EINVAL;
 		goto release_write_pending;
 	}
 
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
-
-	/* when our function has been disabled by host */
-	if (!hidg->req) {
-		free_ep_req(hidg->in_ep, req);
-		/*
-		 * TODO
-		 * Should we fail with error here?
-		 */
-		goto try_again;
+	if (!hidg->in_ep || !hidg->req || !hidg->in_ep->enabled) {
+		spin_unlock_irqrestore(&hidg->write_spinlock, flags);
+		status = -ESHUTDOWN;
+		goto release_write_pending;
 	}
 
 	req->status   = 0;
@@ -402,6 +424,9 @@ try_again:
 		status = count;
 	}
 
+	HIDG_LOG(hidg, "f_hidg_write complete: wrote %zd bytes\n", status);
+
+
 	return status;
 release_write_pending:
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
@@ -417,6 +442,9 @@ static __poll_t f_hidg_poll(struct file *file, poll_table *wait)
 {
 	struct f_hidg	*hidg  = file->private_data;
 	__poll_t	ret = 0;
+
+	HIDG_LOG(hidg, "f_hidg_poll\n");
+
 
 	poll_wait(file, &hidg->read_queue, wait);
 	poll_wait(file, &hidg->write_queue, wait);
@@ -445,6 +473,8 @@ static int f_hidg_open(struct inode *inode, struct file *fd)
 		container_of(inode->i_cdev, struct f_hidg, cdev);
 
 	fd->private_data = hidg;
+
+	HIDG_LOG(hidg, "f_hidg_open\n");
 
 	return 0;
 }
@@ -829,6 +859,8 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 
 	device = device_create(hidg_class, NULL, dev, NULL,
 			       "%s%d", "hidg", hidg->minor);
+
+
 	if (IS_ERR(device)) {
 		status = PTR_ERR(device);
 		goto del;
@@ -1024,8 +1056,58 @@ static struct usb_function_instance *hidg_alloc_inst(void)
 	struct f_hid_opts *opts;
 	struct usb_function_instance *ret;
 	int status = 0;
+	//default hid desc
+	//static const unsigned char default_report_desc[] = {
+        //        0x05, 0x0D, 0x09, 0x02, 0xA1, 0x01, 0x09, 0x20,
+        //        0xA1, 0x00, 0x09, 0x42, 0x09, 0x32, 0x15, 0x00,
+        //        0x25, 0x01, 0x75, 0x01, 0x95, 0x02, 0x81, 0x02,
+        //        0x75, 0x06, 0x95, 0x01, 0x81, 0x03, 0x09, 0x30,
+        // 	0x15, 0x00, 0x26, 0xFF, 0x00, 0x75, 0x08, 0x95, 0x01,
+        //        0x81, 0x02, 0x05, 0x01, 0x09, 0x30, 0x09, 0x31,
+        //        0x16, 0x00, 0x00, 0x26, 0xFF, 0x7F, 0x36, 0x00, 0x00,
+        //        0x46, 0xFF, 0x7F, 0x75, 0x10, 0x95, 0x02, 0x81, 0x02,
+        //        0xC0, 0xC0
+        //};
+
+	static const unsigned char default_report_desc[] = {
+	    0x05, 0x0D, 0x09, 0x02, 0xA1, 0x01, 0x09, 0x20,
+	    0xA1, 0x00, 0x85, 0x02, 0x09, 0x42, 0x09, 0x32,
+	    0x09, 0x45, 0x09, 0x3C, 0x09, 0x44, 0x15, 0x00,
+	    0x25, 0x01, 0x75, 0x01, 0x95, 0x05, 0x81, 0x02,
+	    0x75, 0x03, 0x95, 0x01, 0x81, 0x03, 0x09, 0x30,
+	    0x16, 0x00, 0x00, 0x26, 0xFF, 0x0F, 0x75, 0x10,
+	    0x95, 0x01, 0x81, 0x02, 0x05, 0x01, 0x09, 0x30,
+	    0x09, 0x31, 0x16, 0x00, 0x00, 0x26, 0xFF, 0x7F,
+	    0x36, 0x00, 0x00, 0x46, 0xFF, 0x7F, 0x75, 0x10,
+	    0x95, 0x02, 0x81, 0x02, 0x05, 0x0D, 0x09, 0x3D,
+	    0x09, 0x3E, 0x65, 0x14, 0x55, 0x00, 0x35, 0xA6,
+	    0x45, 0x5A, 0x15, 0xA6, 0x25, 0x5A, 0x75, 0x08,
+	    0x95, 0x02, 0x81, 0x02, 0xC0, 0xC0
+	};
+
+
+	//static const unsigned char default_report_desc[] = {
+	//    	0x05, 0x0D, 0x09, 0x02, 0xA1, 0x01, 0x09, 0x20,
+	//	0xA1, 0x00, 0x09, 0x42, 0x09, 0x32, 0x15, 0x00,
+	//	0x25, 0x01, 0x75, 0x01, 0x95, 0x02, 0x81, 0x02,
+	//	0x75, 0x06, 0x95, 0x01, 0x81, 0x03, 0x09, 0x30,
+	//	0x15, 0x00, 0x26, 0xFF, 0x00, 0x75, 0x08, 0x95,
+	//	0x01, 0x81, 0x02, 0x05, 0x01, 0x09, 0x30, 0x09,
+	//	0x31, 0x16, 0x00, 0x00, 0x26, 0xFF, 0x7F, 0x36,
+	//	0x00, 0x00, 0x46, 0xFF, 0x7F, 0x75, 0x10, 0x95,
+	//	0x02, 0x81, 0x02, 0x05, 0x0D, 0x09, 0x3D, 0x09,
+	//	0x3E, 0x16, 0x00, 0x00, 0x26, 0xFF, 0x00, 0x75,
+	//       	0x08, 0x95, 0x02, 0x81, 0x02, 0xC0, 0xC0
+	//};
+
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+
+	opts->subclass = 1;
+	opts->report_length = 10;
+	opts->protocol = 1;
+	opts->report_desc_length = sizeof(default_report_desc);
+	opts->report_desc = kmemdup(default_report_desc, opts->report_desc_length, GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 	mutex_init(&opts->lock);
@@ -1038,6 +1120,7 @@ static struct usb_function_instance *hidg_alloc_inst(void)
 		status = ghid_setup(NULL, HIDG_MINORS);
 		if (status)  {
 			ret = ERR_PTR(status);
+			kfree(opts->report_desc);
 			kfree(opts);
 			goto unlock;
 		}
@@ -1046,6 +1129,7 @@ static struct usb_function_instance *hidg_alloc_inst(void)
 	opts->minor = hidg_get_minor();
 	if (opts->minor < 0) {
 		ret = ERR_PTR(opts->minor);
+		kfree(opts->report_desc);
 		kfree(opts);
 		if (ida_is_empty(&hidg_ida))
 			ghid_cleanup();
@@ -1075,6 +1159,16 @@ static void hidg_free(struct usb_function *f)
 static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_hidg *hidg = func_to_hidg(f);
+
+
+	HIDG_LOG(hidg, "hidg_unbind\n");
+	if (hidg->req) {
+		usb_ep_free_request(hidg->in_ep, hidg->req);
+		hidg->req = NULL;
+	}
+
+	/* ✅ Also clear in_ep pointer to prevent use-after-unbind */
+	hidg->in_ep = NULL;
 
 	device_destroy(hidg_class, MKDEV(major, hidg->minor));
 	cdev_del(&hidg->cdev);

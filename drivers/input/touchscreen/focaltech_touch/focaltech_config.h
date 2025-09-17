@@ -214,7 +214,7 @@
  * show debug log info
  * enable it for debug, disable it for release
  */
-#define FTS_DEBUG_EN                            1
+#define FTS_DEBUG_EN                            0
 
 /*
  * Linux MultiTouch Protocol
@@ -271,7 +271,7 @@
 /*
  * auto upgrade
  */
-#define FTS_AUTO_UPGRADE_EN                     0
+#define FTS_AUTO_UPGRADE_EN                     1
 
 /*
  * auto upgrade for lcd cfg
@@ -281,7 +281,7 @@
 /*
  * Numbers of modules support
  */
-#define FTS_GET_MODULE_NUM                      0
+#define FTS_GET_MODULE_NUM                      1
 
 /*
  * module_id: mean vendor_id generally, also maybe gpio or lcm_id...
@@ -290,7 +290,7 @@
  * FTS_GET_MODULE_NUM >= 2, compatible with FTS_MODULE2_ID
  * FTS_GET_MODULE_NUM >= 3, compatible with FTS_MODULE3_ID
  */
-#define FTS_MODULE_ID                           0x0000
+#define FTS_MODULE_ID                           0x0090
 #define FTS_MODULE2_ID                          0x0000
 #define FTS_MODULE3_ID                          0x0000
 
@@ -311,7 +311,7 @@
  * define your own fw_file, the sample one to be replaced is invalid
  * NOTE: if FTS_GET_MODULE_NUM > 1, it's the fw corresponding with FTS_VENDOR_ID
  */
-#define FTS_UPGRADE_FW_FILE                     "include/firmware/fw_sample.i"
+#define FTS_UPGRADE_FW_FILE                     "include/firmware/RF-ET1060248_FT5726-003_V29_D02_20250819_app.i"
 
 /*
  * if FTS_GET_MODULE_NUM >= 2, fw corrsponding with FTS_VENDOR_ID2

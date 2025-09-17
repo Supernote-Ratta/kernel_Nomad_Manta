@@ -17591,6 +17591,7 @@ static void pt_del_core(struct device *dev)
 			list_del(&d->node);
 			goto unlock;
 		}
+		pr_err("%s PARADE error_after_sysfs_create\n", __func__);
 unlock:
 	mutex_unlock(&core_list_lock);
 }

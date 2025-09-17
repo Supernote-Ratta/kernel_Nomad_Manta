@@ -117,7 +117,7 @@
 	};
 	
     blepower: ble-power {
-        status = "disabled";
+        status = "okay";
         compatible = "ble-power";
         pinctrl-names = "default";
         pinctrl-0 = <&ble_det_gpio>;

@@ -59,11 +59,33 @@
 #define FTS_I2C_VTG_MIN_UV                  1800000
 #define FTS_I2C_VTG_MAX_UV                  1800000
 #endif
+#define MAX_SLIDER_LEFT             30
+#define MIN_SLIDER_RIGHT            1374//1404
+#define MIN_SLIDER_RIGHT_A5X2       1890//2560
+
+extern int slider_left;
+extern int slider_right;
+extern int slider_left_down,slider_right_down;
 
 /*****************************************************************************
 * Global variable or extern global variabls/functions
 *****************************************************************************/
+enum tp_tch_abs {	/* for ordering within the extracted touch data array */
+	TP_TCH_X,	/* X */
+	TP_TCH_Y,	/* Y */
+	TP_TCH_P,	/* P (Z) */
+	TP_TCH_T,	/* TOUCH ID */
+	TP_TCH_E,	/* EVENT ID */
+	TP_TCH_O,	/* OBJECT ID */
+	TP_TCH_TIP, /* OBJECT ID */
+	TP_TCH_MAJ, /* TOUCH_MAJOR */
+	TP_TCH_MIN, /* TOUCH_MINOR */
+	TP_TCH_OR,	/* ORIENTATION */
+	TP_TCH_NUM_ABS,
+};
+
 struct fts_ts_data *fts_data;
+int fttp[TP_TCH_NUM_ABS];
 
 /*****************************************************************************
 * Static function prototypes
@@ -89,6 +111,19 @@ int fts_check_cid(struct fts_ts_data *ts_data, u8 id_h)
 
     return -ENODATA;
 }
+static void fts_get_version(struct fts_ts_data *ts_data)
+{
+
+	u8 fwver = 0;
+	int ret = 0;
+
+	ret = fts_read_reg(FTS_REG_FW_VER, &fwver);
+	if ((ret < 0) || (fwver == 0xFF) || (fwver == 0x00))
+		fwver =0x00;
+	
+	ts_data->fwver = fwver;
+}
+
 
 /*****************************************************************************
 *  Name: fts_wait_tp_to_valid
@@ -144,7 +179,7 @@ void fts_tp_state_recovery(struct fts_ts_data *ts_data)
 
 int fts_reset_proc(int hdelayms)
 {
-    FTS_DEBUG("tp reset");
+    printk("tp reset \n");
     gpio_direction_output(fts_data->pdata->reset_gpio, 0);
     msleep(1);
     gpio_direction_output(fts_data->pdata->reset_gpio, 1);
@@ -425,6 +460,65 @@ static void fts_show_touch_buffer(u8 *data, u32 datalen)
     }
 }
 
+static bool tp_filter_by_fix_slider_area(int pt_t, int pt_x, int pt_y, bool is_A5X)
+{
+	printk("%s: x=%d,y=%d,slider_left_down=%d,slider_right_down=%d \n",
+		    __func__, pt_x, pt_y, slider_left_down, slider_right_down);
+	if(pt_y < 750)
+		return 0;
+	if(pt_y > 1820)
+		return 0;
+
+	if(slider_left_down!=0 && pt_x < MAX_SLIDER_LEFT){
+		printk("%s: left slider x=%d,y=%d,slider_left_down=%d,slider_right_down=%d \n",
+		    __func__, pt_x, pt_y, slider_left_down, slider_right_down);
+		return 1;
+	}
+	
+	if(is_A5X){
+		if(slider_right_down!=0 && pt_x > MIN_SLIDER_RIGHT_A5X2){	
+			printk("%s: A5X right slider x=%d,y=%d,slider_left_down=%d,slider_right_down=%d \n",
+				__func__, pt_x, pt_y, slider_left_down, slider_right_down);
+			return 1;
+		}
+	}else if(slider_right_down!=0 && pt_x > MIN_SLIDER_RIGHT){
+		printk("%s: right slider x=%d,y=%d,slider_left_down=%d,slider_right_down=%d \n",
+		    __func__, pt_x, pt_y, slider_left_down, slider_right_down);
+		return 1;
+	}
+
+    return 0;
+}
+
+// 20230721: return 1: filter the tch, don't report. 0: report normal.
+static int tp_filter_by_slider(struct fts_ts_data *ts_data,
+    int tch[])
+{
+	struct device *dev = ts_data->dev;
+	//struct pt_platform_data *pdata = dev_get_platdata(dev);
+
+    int     tp_t = tch[TP_TCH_T] - 0;//md->t_min;
+    int     x = tch[TP_TCH_X];
+    int     y = tch[TP_TCH_Y];
+    int     tip = tch[TP_TCH_TIP];
+	bool    is_A5X = false;
+
+	FTS_INFO("%s: x=%d,y=%d,slider_left=%d,slider_right=%d \n",
+		    __func__, x, y, slider_left, slider_right);
+	//if(strcmp(pdata->core_pdata->fw_name,PT_FW_FILE_NAME)==0){
+	//	is_A5X = false;
+	//}else{
+		is_A5X = true;
+	//}
+	
+    if(tp_filter_by_fix_slider_area(tp_t, x, y,is_A5X) == 0) {
+		FTS_INFO("%s: report tp x=%d,y=%d \n", __func__, x, y);
+        return 0;
+    }
+
+	return 1;
+}
+
 void fts_release_all_finger(void)
 {
     struct fts_ts_data *ts_data = fts_data;
@@ -516,12 +610,14 @@ static int fts_input_report_b(struct fts_ts_data *ts_data, struct ts_event *even
         }
 
         touch_event_coordinate = true;
-        if (EVENT_DOWN(events[i].flag)) {
-            input_mt_slot(input_dev, events[i].id);
-            input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, true);
-#if FTS_REPORT_PRESSURE_EN
-            input_report_abs(input_dev, ABS_MT_PRESSURE, events[i].p);
+#if 1
+        fttp[TP_TCH_X] = events[i].x;
+		fttp[TP_TCH_Y] = events[i].y;
+        fttp[TP_TCH_T] = events[i].id;
+        fttp[TP_TCH_TIP] = EVENT_DOWN(events[i].flag);
 #endif
+        if (EVENT_DOWN(events[i].flag)) {
+            
             x = events[i].x;
             y = events[i].y;
             if( ts_data->pdata->exchange_x_y_flag ) {
@@ -535,6 +631,18 @@ static int fts_input_report_b(struct fts_ts_data *ts_data, struct ts_event *even
             if( ts_data->pdata->revert_y_flag) {
                 y = ts_data->pdata->y_max - y;
             }
+			
+			if(ts_data->input_filter && ts_data->input_filter(ts_data, fttp)) {
+				printk("[B]P%d(%d, %d)[p:%d,tm:%d] DOWN filter!",
+                          events[i].id, events[i].x, events[i].y,
+                          events[i].p, events[i].area);
+				continue;
+			}
+			input_mt_slot(input_dev, events[i].id);
+            input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, true);
+#if FTS_REPORT_PRESSURE_EN
+            input_report_abs(input_dev, ABS_MT_PRESSURE, events[i].p);
+#endif
             input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, events[i].area);
             input_report_abs(input_dev, ABS_MT_TOUCH_MINOR, events[i].minor);
 
@@ -551,6 +659,9 @@ static int fts_input_report_b(struct fts_ts_data *ts_data, struct ts_event *even
                           events[i].p, events[i].area);
             }
         } else {
+        	if(ts_data->input_filter && ts_data->input_filter(ts_data, fttp)) {
+				continue;
+			}
             input_mt_slot(input_dev, events[i].id);
             input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, false);
             touch_point_pre &= ~(1 << events[i].id);
@@ -1103,6 +1214,7 @@ static irqreturn_t fts_irq_handler(int irq, void *data)
     }
 #endif
 
+	FTS_ERROR("fts_irq_handler \n");
 
     ts_data->intr_jiffies = jiffies;
     fts_prc_queue_work(ts_data);
@@ -1207,6 +1319,7 @@ static int fts_input_init(struct fts_ts_data *ts_data)
     else
         input_dev->id.bustype = BUS_SPI;
     input_dev->dev.parent = ts_data->dev;
+	ts_data->input_filter = tp_filter_by_slider;
 
     input_set_drvdata(input_dev, ts_data);
 
@@ -1781,7 +1894,7 @@ static int fts_ts_suspend(struct device *dev)
 
         if (!ts_data->ic_info.is_incell) {
 #if FTS_POWER_SOURCE_CUST_EN
-            ret = fts_power_source_suspend(ts_data);
+            //ret = fts_power_source_suspend(ts_data);
             if (ret < 0) {
                 FTS_ERROR("power enter suspend fail");
             }
@@ -1808,6 +1921,7 @@ static int fts_ts_resume(struct device *dev)
 
     ts_data->suspended = false;
     fts_release_all_finger();
+	msleep(1400);
 
     if (!ts_data->ic_info.is_incell) {
 #if FTS_POWER_SOURCE_CUST_EN
@@ -1888,19 +2002,21 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 
 
         if (event == EINK_NOTIFY_EVENT_SCREEN_OFF)
-        {//3
-            fts_ts_suspend(ts_data->dev);
+        {//2
     	    if (!ts_data->irq_disabled) {
                 disable_irq_wake(ts_data->irq);
     	        ts_data->irq_disabled = 1;
+			FTS_INFO("disable_irq_wake \n");
     	    }
+			fts_ts_suspend(ts_data->dev);
         } else if (EINK_NOTIFY_EVENT_SCREEN_ON == event) {
-    	    if (ts_data->irq_disabled) {
+            fts_ts_resume(ts_data->dev);
+			if (ts_data->irq_disabled) {
     	        //enable_irq(cd->irq);
            	    enable_irq_wake(ts_data->irq);
     	        ts_data->irq_disabled = 0;
+			FTS_INFO("enable_irq_wake \n");
     	    }
-            fts_ts_resume(ts_data->dev);
         }
     } else {
         FTS_ERROR("ts_data/v is null");
@@ -2038,6 +2154,7 @@ int fts_ts_probe_entry(struct fts_ts_data *ts_data)
         FTS_ERROR("not focal IC, unregister driver");
         goto err_irq_req;
     }
+	fts_get_version(ts_data);
 
     ret = fts_create_apk_debug_channel(ts_data);
     if (ret) {

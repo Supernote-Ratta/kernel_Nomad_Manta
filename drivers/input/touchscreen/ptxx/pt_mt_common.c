@@ -28,7 +28,7 @@
  */
 
 #include "pt_regs.h"
-#include "../cyttsp5_slider/cyttsp5_listener.h"
+#include "../slider_listener.h"
 
 #define MT_PARAM_SIGNAL(md, sig_ost) PARAM_SIGNAL(md->pdata->frmwrk, sig_ost)
 #define MT_PARAM_MIN(md, sig_ost) PARAM_MIN(md->pdata->frmwrk, sig_ost)
@@ -1000,6 +1000,8 @@ int pt_mt_probe(struct device *dev)
 			__func__, md->si);
 		_pt_subscribe_attention(dev, PT_ATTEN_STARTUP,
 			PT_MT_NAME, pt_setup_input_attention, 0);
+		rc = -1;
+		goto error_init_input;
 	}
 
     //pt_slider_probe(dev);

@@ -1701,7 +1701,7 @@ void mmc_power_off(struct mmc_host *host)
 	 * XO-1.5, require a short delay after poweroff before the card
 	 * can be successfully turned on again.
 	 */
-	mmc_delay(1);
+	mmc_delay(100); //tanlq mod ,High speed sd cards are easy to remount
 }
 
 void mmc_power_cycle(struct mmc_host *host, u32 ocr)

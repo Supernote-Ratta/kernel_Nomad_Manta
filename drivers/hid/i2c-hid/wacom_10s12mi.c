@@ -302,7 +302,6 @@ static int wacom_fetch_hid_descriptor(struct i2c_client *client)
     // 1e 00 00 01 1f 03 02 00 03 00 11 00 00 00 00 00 04 00 05 00 1f 2d 7a 00 31 05 00 00 00 00
     //wacom_dbg("HID Descriptor: %*ph\n", dsize, hdesc);
 
-    // iflytek:
     // hid_hdesc:pid=0x2d1f,vid=0x123,fwVer=0x1241
     // hid_hdesc:pid=0x2d1f,vid=0x149,fwVer=0x1702
     // 202120804-BOE:  hid_hdesc:pid=0x2d1f,vid=0x95,fwVer=0x1230

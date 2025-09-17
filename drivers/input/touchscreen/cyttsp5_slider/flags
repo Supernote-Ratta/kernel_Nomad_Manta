@@ -1,0 +1,165 @@
+cyttsp5_devtree.c:274:	pdata = &ext_pdata->pdata;
+cyttsp5_devtree.c:276:	rc = get_inp_dev_name(dev_node, &pdata->inp_dev_name);
+cyttsp5_devtree.c:283:		pdata->flags = value;
+cyttsp5_devtree.c:287:		pdata->isa5 = value;
+cyttsp5_devtree.c:291:		pdata->vkeys_x = value;
+cyttsp5_devtree.c:295:		pdata->vkeys_y = value;
+cyttsp5_devtree.c:298:	pdata->frmwrk = create_and_get_touch_framework(dev_node);
+cyttsp5_devtree.c:299:	if (pdata->frmwrk == NULL) {
+cyttsp5_devtree.c:302:	} else if (IS_ERR(pdata->frmwrk)) {
+cyttsp5_devtree.c:303:		rc = PTR_ERR(pdata->frmwrk);
+cyttsp5_devtree.c:307:	rc = setup_virtual_keys(dev_node, pdata->inp_dev_name,
+cyttsp5_devtree.c:308:			&ext_pdata->vkeys);
+cyttsp5_devtree.c:330:	free_touch_framework(mt_pdata->frmwrk);
+cyttsp5_devtree.c:332:	free_virtual_keys(&ext_mt_pdata->vkeys);
+cyttsp5_devtree.c:348:	rc = get_inp_dev_name(dev_node, &pdata->inp_dev_name);
+cyttsp5_devtree.c:379:	rc = get_inp_dev_name(dev_node, &pdata->inp_dev_name);
+cyttsp5_devtree.c:383:	pdata->frmwrk = create_and_get_touch_framework(dev_node);
+cyttsp5_devtree.c:384:	if (pdata->frmwrk == NULL) {
+cyttsp5_devtree.c:387:	} else if (IS_ERR(pdata->frmwrk)) {
+cyttsp5_devtree.c:388:		rc = PTR_ERR(pdata->frmwrk);
+cyttsp5_devtree.c:405:	free_touch_framework(proximity_pdata->frmwrk);
+cyttsp5_devtree.c:435:	pdata_ptr[DEVICE_MT].pdata = (void **)&pdata->mt_pdata;
+cyttsp5_devtree.c:436:	pdata_ptr[DEVICE_BTN].pdata = (void **)&pdata->btn_pdata;
+cyttsp5_devtree.c:437:	pdata_ptr[DEVICE_PROXIMITY].pdata = (void **)&pdata->prox_pdata;
+cyttsp5_devtree.c:566:        pdata->irq_gpio = irq_gpio;
+cyttsp5_devtree.c:574:        pdata->rst_gpio = reset_gpio;
+cyttsp5_devtree.c:576:        pdata->rst_gpio = NULL;
+cyttsp5_devtree.c:578:    printk("%s:pdata->irq_gpio=%d \n",__func__,pdata->irq_gpio);
+cyttsp5_devtree.c:583:	pdata->hid_desc_register = value;
+cyttsp5_devtree.c:592:		pdata->level_irq_udelay = value;
+cyttsp5_devtree.c:596:		pdata->vendor_id = value;
+cyttsp5_devtree.c:600:		pdata->product_id = value;
+cyttsp5_devtree.c:604:		pdata->flags = value;
+cyttsp5_devtree.c:608:		pdata->easy_wakeup_gesture = (u8)value;
+cyttsp5_devtree.c:614:		pdata->sett[i] = create_and_get_touch_setting(core_node,
+cyttsp5_devtree.c:616:		if (IS_ERR(pdata->sett[i])) {
+cyttsp5_devtree.c:617:			rc = PTR_ERR(pdata->sett[i]);
+cyttsp5_devtree.c:619:		} else if (pdata->sett[i] == NULL)
+cyttsp5_devtree.c:627:		pdata->irq_gpio, pdata->rst_gpio,
+cyttsp5_devtree.c:628:		pdata->hid_desc_register,
+cyttsp5_devtree.c:629:		pdata->level_irq_udelay, pdata->vendor_id, pdata->product_id,
+cyttsp5_devtree.c:630:		pdata->flags, pdata->easy_wakeup_gesture);
+cyttsp5_devtree.c:632:    if(pdata->rst_gpio){
+cyttsp5_devtree.c:633:        pdata->xres = cyttsp5_xres;
+cyttsp5_devtree.c:635:    	pdata->xres = NULL;
+cyttsp5_devtree.c:637:	//pdata->xres = cyttsp5_xres;
+cyttsp5_devtree.c:638:	pdata->init = cyttsp5_init;
+cyttsp5_devtree.c:639:	pdata->power = cyttsp5_power;
+cyttsp5_devtree.c:640:	pdata->detect = cyttsp5_detect;
+cyttsp5_devtree.c:641:	pdata->irq_stat = cyttsp5_irq_stat;
+cyttsp5_devtree.c:647:		free_touch_setting(pdata->sett[i]);
+cyttsp5_devtree.c:660:		free_touch_setting(core_pdata->sett[i]);
+cyttsp5_devtree.c:690:		pdata->core_pdata = create_and_get_core_pdata(core_node);
+cyttsp5_devtree.c:691:		if (IS_ERR(pdata->core_pdata)) {
+cyttsp5_devtree.c:692:			rc = PTR_ERR(pdata->core_pdata);
+cyttsp5_devtree.c:715:			free_core_pdata(pdata->core_pdata);
+cyttsp5_devtree.c:728:		pdata->loader_pdata = &_cyttsp5_loader_platform_data;
+cyttsp5_devtree.c:750:		free_core_pdata(pdata->core_pdata);
+cyttsp5_core.c:808:	if (!(cd->cpdata->flags & CY_CORE_FLAG_RESTORE_PARAMETERS))
+cyttsp5_core.c:1236:		if (cd->cpdata->sett[CY_IC_GRPNUM_BTN_KEYS] == NULL)
+cyttsp5_core.c:1238:		else if (cd->cpdata->sett[CY_IC_GRPNUM_BTN_KEYS]->data == NULL)
+cyttsp5_core.c:1241:			num_defined_keys = cd->cpdata->sett
+cyttsp5_core.c:1245:			key_table = (u16 *)cd->cpdata->sett
+cyttsp5_core.c:3049:	if (cd->cpdata->xres) {
+cyttsp5_core.c:3051:		return cd->cpdata->xres(cd->cpdata, cd->dev);
+cyttsp5_core.c:3883:	rc = cd->cpdata->power(cd->cpdata, 0, cd->dev, 0);
+cyttsp5_core.c:3912:	if (cd->cpdata->flags & CY_CORE_FLAG_POWEROFF_ON_SLEEP)
+cyttsp5_core.c:4261:			&& cd->cpdata->irq_stat){
+cyttsp5_core.c:4269:		if (cd->cpdata->irq_stat(cd->cpdata, cd->dev)
+cyttsp5_core.c:4495:	return cd->pdata->loader_pdata;
+cyttsp5_core.c:4554:	if (!(cd->cpdata->flags & CY_CORE_FLAG_RESTORE_PARAMETERS))
+cyttsp5_core.c:4641:	rc = cd->cpdata->power(cd->cpdata, 1, dev, 0);
+cyttsp5_core.c:4670:	if (cd->cpdata->flags & CY_CORE_FLAG_POWEROFF_ON_SLEEP)
+cyttsp5_core.c:5094:	if (cd->cpdata->rst_gpio)
+cyttsp5_core.c:5095:    gpio_direction_output(cd->cpdata->rst_gpio, 0);
+cyttsp5_core.c:5096:    gpio_direction_output(cd->cpdata->irq_gpio, 0);
+cyttsp5_core.c:5108:    gpio_direction_input(cd->cpdata->irq_gpio);
+cyttsp5_core.c:5219:	if (cd->cpdata->irq_stat) {
+cyttsp5_core.c:5220:		retval = cd->cpdata->irq_stat(cd->cpdata, dev);
+cyttsp5_core.c:5701:		"Interrupt GPIO", pdata->core_pdata->irq_gpio,
+cyttsp5_core.c:5702:		"Reset GPIO", pdata->core_pdata->rst_gpio,
+cyttsp5_core.c:5703:		"Level trigger delay (us)", pdata->core_pdata->level_irq_udelay,
+cyttsp5_core.c:5704:		"HID descriptor register", pdata->core_pdata->hid_desc_register,
+cyttsp5_core.c:5705:		"Vendor ID", pdata->core_pdata->vendor_id,
+cyttsp5_core.c:5706:		"Product ID", pdata->core_pdata->product_id,
+cyttsp5_core.c:5707:		"Easy wakeup gesture", pdata->core_pdata->easy_wakeup_gesture,
+cyttsp5_core.c:5708:		"Vkeys x", pdata->mt_pdata->vkeys_x,
+cyttsp5_core.c:5709:		"Vkeys y", pdata->mt_pdata->vkeys_y,
+cyttsp5_core.c:5710:		"Core data flags", pdata->core_pdata->flags,
+cyttsp5_core.c:5711:		"MT data flags", pdata->mt_pdata->flags,
+cyttsp5_core.c:5712:		"Loader data flags", pdata->loader_pdata->flags);
+cyttsp5_core.c:6364:    int rst_gpio = cd->cpdata->rst_gpio;
+cyttsp5_core.c:6365:    int irq_gpio = cd->cpdata->irq_gpio;
+cyttsp5_core.c:6463:	cd->irq = gpio_to_irq(cd->cpdata->irq_gpio);
+cyttsp5_core.c:6471:	if (cd->cpdata->level_irq_udelay > 0)
+cyttsp5_core.c:6503:	if (!pdata || !pdata->core_pdata || !pdata->mt_pdata) {
+cyttsp5_core.c:6509:	if (pdata->core_pdata->flags & CY_CORE_FLAG_POWEROFF_ON_SLEEP) {
+cyttsp5_core.c:6510:		if (!pdata->core_pdata->power) {
+cyttsp5_core.c:6528:	cd->cpdata = pdata->core_pdata;
+cyttsp5_core.c:6565:	cd->hid_core.hid_vendor_id = (cd->cpdata->vendor_id) ?
+cyttsp5_core.c:6566:		cd->cpdata->vendor_id : CY_HID_VENDOR_ID;
+cyttsp5_core.c:6567:	cd->hid_core.hid_product_id = (cd->cpdata->product_id) ?
+cyttsp5_core.c:6568:		cd->cpdata->product_id : CY_HID_APP_PRODUCT_ID;
+cyttsp5_core.c:6570:		cpu_to_le16(cd->cpdata->hid_desc_register);
+cyttsp5_core.c:6573:	cd->easy_wakeup_gesture = cd->cpdata->easy_wakeup_gesture;
+cyttsp5_core.c:6596:	if (cd->cpdata->init) {
+cyttsp5_core.c:6598:		rc = cd->cpdata->init(cd->cpdata, 1, cd->dev);
+cyttsp5_core.c:6607:	if (cd->cpdata->detect) {
+cyttsp5_core.c:6609:		rc = cd->cpdata->detect(cd->cpdata, cd->dev,
+cyttsp5_core.c:6758:	if (cd->cpdata->init)
+cyttsp5_core.c:6759:		cd->cpdata->init(cd->cpdata, 0, dev);
+cyttsp5_core.c:6819:	if (cd->cpdata->init)
+cyttsp5_core.c:6820:		cd->cpdata->init(cd->cpdata, 0, dev);
+cyttsp5_platform.c:172:	int rst_gpio = pdata->rst_gpio;
+cyttsp5_platform.c:181:	dev_info(dev, "%s: RESET CYTTSP gpio=%d r=%d\n", __func__, pdata->rst_gpio, rc);
+cyttsp5_platform.c:187:	int rst_gpio = pdata->rst_gpio;
+cyttsp5_platform.c:188:	int irq_gpio = pdata->irq_gpio;
+cyttsp5_platform.c:258:	return gpio_get_value(pdata->irq_gpio);
+cyttsp5_platform.c:271:        if (pdata->xres)
+cyttsp5_platform.c:272:            pdata->xres(pdata, dev);
+cyttsp5_loader.c:511:			(ld->loader_pdata->flags
+cyttsp5_loader.c:654:		return ld->loader_pdata->fw;
+cyttsp5_loader.c:657:	fws = ld->loader_pdata->fws;
+cyttsp5_loader.c:1242:			(ld->loader_pdata->flags
+cyttsp5_loader.c:1319:	if (ld->loader_pdata->flags &
+cyttsp5_loader.c:1411:		return ld->loader_pdata->ttconfig;
+cyttsp5_loader.c:1414:	ttconfigs = ld->loader_pdata->ttconfigs;
+cyttsp5_loader.c:1736:	if (!pdata || !pdata->loader_pdata) {
+cyttsp5_loader.c:1789:	ld->loader_pdata = pdata->loader_pdata;
+cyttsp5_btn.c:297:	if (!pdata || !pdata->btn_pdata) {
+cyttsp5_btn.c:302:	btn_pdata = pdata->btn_pdata;
+cyttsp5_btn.c:319:	if (bd->pdata->inp_dev_name)
+cyttsp5_btn.c:320:		bd->input->name = bd->pdata->inp_dev_name;
+Binary file cyttsp5_devtree.o matches
+cyttsp5_mt_common.c:35:#define MT_PARAM_SIGNAL(md, sig_ost) PARAM_SIGNAL(md->pdata->frmwrk, sig_ost)
+cyttsp5_mt_common.c:36:#define MT_PARAM_MIN(md, sig_ost) PARAM_MIN(md->pdata->frmwrk, sig_ost)
+cyttsp5_mt_common.c:37:#define MT_PARAM_MAX(md, sig_ost) PARAM_MAX(md->pdata->frmwrk, sig_ost)
+cyttsp5_mt_common.c:38:#define MT_PARAM_FUZZ(md, sig_ost) PARAM_FUZZ(md->pdata->frmwrk, sig_ost)
+cyttsp5_mt_common.c:39:#define MT_PARAM_FLAT(md, sig_ost) PARAM_FLAT(md->pdata->frmwrk, sig_ost)
+cyttsp5_mt_common.c:242:	if (md->pdata->flags & CY_MT_FLAG_FLIP) {
+cyttsp5_mt_common.c:256:	if (md->pdata->flags & CY_MT_FLAG_INV_X) {
+cyttsp5_mt_common.c:265:	if (md->pdata->flags & CY_MT_FLAG_INV_Y) {
+cyttsp5_mt_common.c:283:		md->pdata->flags & CY_MT_FLAG_INV_X ? "true" : "false",
+cyttsp5_mt_common.c:284:		md->pdata->flags & CY_MT_FLAG_INV_Y ? "true" : "false",
+cyttsp5_mt_common.c:349:		if(md->pdata->isa5){
+cyttsp5_mt_common.c:823:		if (md->pdata->flags & CY_MT_FLAG_NO_TOUCH_ON_LO)
+cyttsp5_mt_common.c:1061:	if (md->pdata->flags & CY_MT_FLAG_VKEYS) {
+cyttsp5_mt_common.c:1062:		max_x_tmp = md->pdata->vkeys_x;
+cyttsp5_mt_common.c:1063:		max_y_tmp = md->pdata->vkeys_y;
+cyttsp5_mt_common.c:1070:	if (md->pdata->flags & CY_MT_FLAG_FLIP) {
+cyttsp5_mt_common.c:1080:	for (i = 0; i < NUM_SIGNALS(md->pdata->frmwrk); i++) {
+cyttsp5_mt_common.c:1159:	if (!pdata || !pdata->mt_pdata) {
+cyttsp5_mt_common.c:1164:	mt_pdata = pdata->mt_pdata;
+cyttsp5_mt_common.c:1183:	if (md->pdata->inp_dev_name)
+cyttsp5_mt_common.c:1184:		md->input->name = md->pdata->inp_dev_name;
+cyttsp5_proximity.c:421:	for (i = 0; i < NUM_SIGNALS(pd->pdata->frmwrk); i++) {
+cyttsp5_proximity.c:422:		signal = PARAM_SIGNAL(pd->pdata->frmwrk, i);
+cyttsp5_proximity.c:425:				PARAM_MIN(pd->pdata->frmwrk, i),
+cyttsp5_proximity.c:426:				PARAM_MAX(pd->pdata->frmwrk, i),
+cyttsp5_proximity.c:427:				PARAM_FUZZ(pd->pdata->frmwrk, i),
+cyttsp5_proximity.c:428:				PARAM_FLAT(pd->pdata->frmwrk, i));
+cyttsp5_proximity.c:475:	if (!pdata ||  !pdata->prox_pdata) {
+cyttsp5_proximity.c:480:	prox_pdata = pdata->prox_pdata;
+cyttsp5_proximity.c:498:	if (pd->pdata->inp_dev_name)
+cyttsp5_proximity.c:499:		pd->input->name = pd->pdata->inp_dev_name;

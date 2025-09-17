@@ -40,6 +40,7 @@
 * Private constant and macro definitions using #define
 *****************************************************************************/
 #define I2C_RETRY_NUMBER                    3
+extern int ratta_mt_probe(struct device *dev);
 
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
@@ -209,6 +210,7 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
         kfree_safe(ts_data);
         return ret;
     }
+	ratta_mt_probe(ts_data->dev);
 
     FTS_INFO("Touch Screen(I2C BUS) driver prboe successfully");
     return 0;

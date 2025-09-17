@@ -361,41 +361,41 @@
                 /* ebc_gdsp */
                 <4 RK_PB4 2 &pcfg_pull_none>,
                 /* ebc_sdce0 */
-                <4 RK_PA6 2 &pcfg_pull_none_drv_level_5>,
+                <4 RK_PA6 2 &pcfg_pull_none_drv_level_8>,
                 /* ebc_sdclk */
-                <4 RK_PC1 2 &pcfg_pull_none_drv_level_3>,
+                <4 RK_PC1 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo0 */
-                <3 RK_PC6 2 &pcfg_pull_none_drv_level_3>,
+                <3 RK_PC6 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo1 */
-                <3 RK_PC7 2 &pcfg_pull_none_drv_level_3>,
+                <3 RK_PC7 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo2 */
-                <3 RK_PD0 2 &pcfg_pull_none_drv_level_3>,
+                <3 RK_PD0 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo3 */
-                <3 RK_PD1 2 &pcfg_pull_none_drv_level_3>,
+                <3 RK_PD1 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo4 */
-                <3 RK_PD2 2 &pcfg_pull_none_drv_level_3>,
+                <3 RK_PD2 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo5 */
-                <3 RK_PD3 2 &pcfg_pull_none_drv_level_3>,
+                <3 RK_PD3 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo6 */
-                <3 RK_PD4 2 &pcfg_pull_none_drv_level_3>,
+                <3 RK_PD4 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo7 */
-                <3 RK_PD5 2 &pcfg_pull_none_drv_level_3>,
+                <3 RK_PD5 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo8 */
-                <3 RK_PD6 2 &pcfg_pull_none_drv_level_3>,
+                <3 RK_PD6 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo9 */
-                <3 RK_PD7 2 &pcfg_pull_none_drv_level_3>,
+                <3 RK_PD7 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo10 */
-                <4 RK_PA0 2 &pcfg_pull_none_drv_level_3>,
+                <4 RK_PA0 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo11 */
-                <4 RK_PA1 2 &pcfg_pull_none_drv_level_3>,
+                <4 RK_PA1 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo12 */
-                <4 RK_PA2 2 &pcfg_pull_none_drv_level_3>,
+                <4 RK_PA2 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo13 */
-                <4 RK_PA3 2 &pcfg_pull_none_drv_level_3>,
+                <4 RK_PA3 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo14 */
-                <4 RK_PA4 2 &pcfg_pull_none_drv_level_3>,
+                <4 RK_PA4 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sddo15 */
-                <4 RK_PA5 2 &pcfg_pull_none_drv_level_3>,
+                <4 RK_PA5 2 &pcfg_pull_none_drv_level_5>,
                 /* ebc_sdle */
                 <4 RK_PB6 2 &pcfg_pull_none>,
                 /* ebc_sdoe */
